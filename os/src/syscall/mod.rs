@@ -41,7 +41,7 @@ mod process;
 mod thread;
 mod sync;
 
-use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
+// use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
 use fs::*;
 use process::*;
 use sync::*;
@@ -50,7 +50,7 @@ pub use fs::{WRMAP, AsyncKey};
 
 pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
-    push_trace(TRACE_SYSCALL_ENTER + syscall_id);
+    // push_trace(TRACE_SYSCALL_ENTER + syscall_id);
     let ret = match syscall_id {
         SYSCALL_CLOSE => sys_close(args[0]),
         SYSCALL_PIPE => sys_pipe(args[0] as *mut usize),
@@ -64,7 +64,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_MUNMAP => sys_munmap(args[0], args[1]),
         SYSCALL_GETPID => sys_getpid(),
         SYSCALL_FORK => sys_fork(),
-        SYSCALL_EXEC => sys_exec(args[0] as *const u8),
+        SYSCALL_EXEC => sys_exec(args[0] as *const u8, args[1] as *const usize),
         SYSCALL_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
         SYSCALL_SPAWN => sys_spawn(args[0] as *const u8),
         SYSCALL_MAILREAD => sys_mailread(args[0] as *mut u8, args[1]),
@@ -87,7 +87,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
-    push_trace(TRACE_SYSCALL_EXIT + syscall_id);
+    // push_trace(TRACE_SYSCALL_EXIT + syscall_id);
     ret
 }
 

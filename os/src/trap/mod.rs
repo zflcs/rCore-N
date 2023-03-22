@@ -7,7 +7,7 @@ use crate::sbi::set_timer;
 use crate::syscall::{sys_gettid, syscall};
 use crate::task::{current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
 use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
-use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
+// use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
 use core::arch::{asm, global_asm};
 use riscv::register::scounteren;
 use riscv::register::{
@@ -53,7 +53,7 @@ pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
     let scause = scause::read();
     let stval = stval::read();
-    push_trace(S_TRAP_HANDLER + scause.bits());
+    // push_trace(S_TRAP_HANDLER + scause.bits());
 
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
@@ -177,7 +177,7 @@ pub fn trap_return() -> ! {
     // debug!("current pid: {}, tid: {}", current_process().unwrap().pid.0, sys_gettid());
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
     // trace!("return to user, trap frame: {:x?}", current_trap_cx());
-    push_trace(S_TRAP_RETURN + scause::read().bits());
+    // push_trace(S_TRAP_RETURN + scause::read().bits());
     unsafe {
         sstatus::set_spie();
         sstatus::set_spp(sstatus::SPP::User);

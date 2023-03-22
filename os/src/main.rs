@@ -58,8 +58,8 @@ pub fn rust_main(hart_id: usize) -> ! {
         mm::init();
         debug!("[kernel {}] Hello, world!", hart_id);
         mm::remap_test();
-        trace::init();
-        trace::trace_test();
+        // trace::init();
+        // trace::trace_test();
         trap::init();
         plic::init();
         plic::init_hart(hart_id);

@@ -110,6 +110,10 @@ impl MemorySet {
             ".vdso [{:#x}, {:#x})",
             svdso as usize, evdso as usize
         );
+        debug!(
+            "physical memory [{:#x}, {:#x})",
+            ekernel as usize, MEMORY_END
+        );
         debug!("mapping .text section");
         memory_set.push(
             MapArea::new(

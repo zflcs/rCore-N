@@ -44,11 +44,11 @@ fn main() -> usize{
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 #[no_mangle]
 #[inline(never)]
-fn user_entry() {
+fn user_entry(argc: usize, argv: usize) {
     unsafe {
-        let secondary_init: fn(usize) = core::mem::transmute(ENTRY);
+        let secondary_init: fn(usize, usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
-        secondary_init(&INTERFACE as *const [usize; 10] as usize);
+        secondary_init(argc, argv);
     }
     let start = get_time();
 

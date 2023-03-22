@@ -7,7 +7,7 @@ __push_trace:
     sd t0, 0*8(sp)
     sd t1, 1*8(sp)
 
-    li t0, 0x101000000 # MEMORY_END
+    li t0, 0x102000000 # MEMORY_END
     li t1, 2*8
     amoadd.d t1, t1, (t0) # t2 <- queue_tail, queue_tail <- queue_tail + 16
     slli t0, tp, 32

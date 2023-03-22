@@ -10,6 +10,9 @@ use crate::trap::{push_trap_record, UserTrapRecord};
 use alloc::vec::Vec;
 use core::mem::size_of;
 use core::ptr::null;
+use crate::mm::{translated_str, translated_ref};
+use alloc::string::String;
+
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -73,14 +76,25 @@ pub fn sys_fork() -> isize {
     new_pid as isize
 }
 
-pub fn sys_exec(path: *const u8) -> isize {
+pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
     let path = mm::translated_str(token, path);
     debug!("EXEC {}", &path);
+    let mut args_vec: Vec<String> = Vec::new();
+    loop {
+        let arg_str_ptr = *translated_ref(token, args);
+        if arg_str_ptr == 0 {
+            break;
+        }
+        args_vec.push(translated_str(token, arg_str_ptr as *const u8));
+        unsafe { args = args.add(1); }
+    }
+    debug!("args {:?}", args_vec);
     if let Some(data) = get_app_data_by_name(path.as_str()) {
         let task = current_process().unwrap();
-        task.exec(data);
-        0
+        let argc = args_vec.len();
+        task.exec(data, args_vec);
+        argc as isize
     } else {
         warn!("exec failed!");
         -1

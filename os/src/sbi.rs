@@ -11,7 +11,7 @@ const SBI_REMOTE_SFENCE_VMA_ASID: usize = 7;
 const SBI_SHUTDOWN: usize = 8;
 use core::arch::asm;
 
-use crate::trace::{push_trace, SEND_IPI_ENTER, SEND_IPI_EXIT};
+// use crate::trace::{push_trace, SEND_IPI_ENTER, SEND_IPI_EXIT};
 
 #[inline(always)]
 fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
@@ -41,7 +41,7 @@ pub fn shutdown() -> ! {
 }
 
 pub fn send_ipi(ptr: usize) {
-    push_trace(SEND_IPI_ENTER);
+    // push_trace(SEND_IPI_ENTER);
     sbi_call(SBI_SEND_IPI, ptr, 0, 0);
-    push_trace(SEND_IPI_EXIT);
+    // push_trace(SEND_IPI_EXIT);
 }

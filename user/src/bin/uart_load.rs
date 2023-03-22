@@ -264,7 +264,7 @@ fn user_intr_test() -> (usize, usize, usize) {
 }
 
 mod user_trap {
-    use user_lib::trace::{push_trace, U_EXT_HANDLER};
+    // use user_lib::trace::{push_trace, U_EXT_HANDLER};
 
     use super::*;
     #[no_mangle]
