@@ -89,7 +89,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
         args_vec.push(translated_str(token, arg_str_ptr as *const u8));
         unsafe { args = args.add(1); }
     }
-    debug!("args {:?}", args_vec);
+    // debug!("args {:?}", args_vec);
     if let Some(data) = get_app_data_by_name(path.as_str()) {
         let task = current_process().unwrap();
         let argc = args_vec.len();

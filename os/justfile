@@ -24,10 +24,19 @@ unifi-sche:
 user:
     cd ../user && make build
 
+utest:
+    cd ../utest && make build
+
 user_lrv:
     cd ../user && make build_lrv
 
 build: user unifi-sche
+    cp src/linker-qemu.ld src/linker.ld
+    cargo build --features "board_qemu" --release
+    {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
+    rm src/linker.ld
+
+build_test: utest unifi-sche
     cp src/linker-qemu.ld src/linker.ld
     cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
@@ -47,6 +56,9 @@ disasm_lrv: build_lrv
     {{OBJDUMP}} -S -t {{KERNEL_ELF}} > {{KERNEL_ASM}}
 
 run: build
+    {{QEMU}} -machine virt -smp 4 {{SERIAL_FLAGS}} -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000
+
+test: build_test
     {{QEMU}} -machine virt -smp 4 {{SERIAL_FLAGS}} -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000
 
 debug_qemu: build
