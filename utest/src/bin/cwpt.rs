@@ -40,7 +40,7 @@ const SERVER_USE_PRIO: usize = 8 - 1;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 
-const SERVER_POLL_THREDS: usize = 2 - 1;    // 2~5
+static mut SERVER_POLL_THREDS: usize = 0;    // 2~5
 const CLIENT_POLL_THREDS: usize = 1 - 1;
 
 static mut RECEIVE_BUFFER: Vec<Mutex<usize>> = Vec::new();
@@ -68,7 +68,11 @@ fn println(a: usize, b: usize) {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main(argc: usize, argv: Vec<&'static str>) -> i32 {
+    // 参数解析
+    if let Ok(server_num) = argv[1].parse::<usize>(){
+        unsafe { SERVER_POLL_THREDS = server_num - 1; }
+    }
     let father_pid = getpid();
     let start = get_time();
     unsafe {
@@ -142,7 +146,7 @@ pub fn main() -> i32 {
             init_res, pid, end - start
         );
         
-        for _ in 0..SERVER_POLL_THREDS {
+        for _ in 0..unsafe { SERVER_POLL_THREDS } {
             add_virtual_core();
         }
 
@@ -167,8 +171,8 @@ pub fn main() -> i32 {
             }
         }
         
-        // let mut exit_code = 0;
-        // waitpid(pid as usize, &mut exit_code);
+        let mut exit_code = 0;
+        waitpid(pid as usize, &mut exit_code);
     }
 
     0

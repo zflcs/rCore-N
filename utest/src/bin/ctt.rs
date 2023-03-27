@@ -7,7 +7,7 @@ use core::future::Future;
 use core::sync::atomic::AtomicBool;
 use core::task::{Context, Poll};
 use core::pin::Pin;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 use alloc::collections::VecDeque;
 use spin::Mutex;
 use core::ops::{Add, Sub};
@@ -31,10 +31,21 @@ static RES_LOCK: Mutex<usize> = Mutex::new(0);
 
 const MATRIX_SIZE: usize = 1;
 static MSG_COUNT: Mutex<usize> = Mutex::new(0);
-pub const DATA_C: &str = "a";
-pub const DATA_S: &str = "x";
+// pub const DATA_C: &str = "a";
+// pub const DATA_S: &str = "x";
 
-const MAX_CONNECTION: usize = 32;
+// 矩阵大小为 1
+pub const DATA_C_1: &str = "a";
+pub const DATA_S_1: &str = "x";
+// 矩阵大小为 20
+pub const DATA_C_20: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub const DATA_S_20: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+
+// const MAX_CONNECTION: usize = 32;
+static mut REQ: &str = "";
+static mut RESP: &str = "";
+static mut MAX_CONNECTION: usize = 0;
+static mut LEN: usize = 0;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 
@@ -64,7 +75,21 @@ fn println(s: &str) {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main(argc: usize, argv: Vec<&'static str>) -> i32 {
+    // 参数解析
+    if let Ok(connect_num) = argv[1].parse::<usize>(){
+        unsafe { MAX_CONNECTION = connect_num; }
+    }
+    if let Ok(len) = argv[2].parse::<usize>(){
+        unsafe {
+            LEN = len;
+            match len {
+                1 => { REQ = DATA_C_1; RESP = DATA_S_1; },
+                _ => { REQ = DATA_C_20; RESP = DATA_S_20; }
+            }
+        }
+    }
+    /***************************************/
     let father_pid = getpid();
     let start = get_time();
     unsafe {
@@ -74,7 +99,7 @@ pub fn main() -> i32 {
     let end = get_time();
 
     println!("main tid: {}", gettid());
-    for _i in 0..MAX_CONNECTION {
+    for _i in 0..unsafe { MAX_CONNECTION } {
         let mut fds0 = [0usize; 2];
         let mut fds1 = [0usize; 2];
         pipe(&mut fds0);
@@ -88,7 +113,7 @@ pub fn main() -> i32 {
     if pid == 0 {
         // 客户端进程
         let cur_pid = getpid() as usize;
-        for i in 0..MAX_CONNECTION {
+        for i in 0..unsafe { MAX_CONNECTION } {
             unsafe {
                 TIMER_QUEUE.push(Mutex::new(VecDeque::new()));
                 REQ_DELAY.push(Vec::new());
@@ -121,7 +146,7 @@ pub fn main() -> i32 {
             CLIENT_PID = pid as usize;
         }
         // 服务端进程
-        for _i in 0..MAX_CONNECTION {
+        for _i in 0..unsafe { MAX_CONNECTION } {
             unsafe {
                 RECEIVE_BUFFER.push(Mutex::new(0));
                 SERVER_BUFFER.push(Mutex::new(0));
@@ -143,8 +168,8 @@ pub fn main() -> i32 {
         for tid in waits.iter() {
             waittid(*tid);
         }
-        // let mut exit_code = 0;
-        // waitpid(pid as usize, &mut exit_code);
+        let mut exit_code = 0;
+        waitpid(pid as usize, &mut exit_code);
     }
 
     0
@@ -187,12 +212,14 @@ fn msg_server(key: usize) {
 
 fn msg_receiver(key: usize) {
     // println!("[msg_receiver] receiver entry");
-    let mut buffer = [0u8; DATA_C.len()];
+    // let mut buffer = [0u8; DATA_C.len()];
+    let mut vec = vec![0u8; unsafe { LEN }];
+    let mut buffer = vec.as_mut_slice();
     unsafe {
         let server_fd = CONNECTIONS[key][0];
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             // println("[msg_receiver] receiver begin");
-            read!(server_fd, &mut buffer);
+            read!(server_fd, buffer);
             // println("[msg_receiver] receiver end");
             {
                 let mut recv_count = RECEIVE_BUFFER[key].lock();
@@ -211,7 +238,8 @@ fn msg_sender(key: usize) {
     let pid = unsafe {
         CLIENT_PID
     };
-    let req = DATA_C;
+    // let req = DATA_C;
+    let req = unsafe { REQ };
     unsafe {
         let server_fd = CONNECTIONS[key][3];
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
@@ -243,7 +271,8 @@ fn msg_sender(key: usize) {
 
 async fn client_send(client_fd: usize, key: usize, pid: usize) {
     // println!("[client_send] send entry");
-    let req = DATA_C;
+    // let req = DATA_C;
+    let req = unsafe { REQ };
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             // let start = get_time_us();
@@ -267,10 +296,12 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
 async fn client_recv(client_fd: usize, key: usize) {
     // println!("[client_recv] recv entry");
     let mut throughput = 0;
-    let mut buffer = [0u8; DATA_C.len()];
+    // let mut buffer = [0u8; DATA_C.len()];
+    let mut vec = vec![0u8; unsafe { LEN }];
+    let mut buffer = vec.as_mut_slice();
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-            read!(client_fd, &mut buffer, key, current_cid());
+            read!(client_fd, buffer, key, current_cid());
             // println!("[client_recv] recv end");
             throughput += 1;
             let cur = get_time_us() as usize;

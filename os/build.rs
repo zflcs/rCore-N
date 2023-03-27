@@ -4,14 +4,27 @@ use serde_derive::Deserialize;
 use std::collections::HashMap;
 
 fn main() {
-    println!("cargo:rerun-if-changed=../user/src/");
     println!("cargo:rerun-if-changed=/src/");
     println!("cargo:rerun-if-changed=../lib_so/src/");
-    println!("cargo:rerun-if-changed=../user/cases.toml");
+    #[cfg(feature = "user")]
+    {
+        println!("cargo:rerun-if-changed=../user/src/");
+        println!("cargo:rerun-if-changed=../user/cases.toml");
+    }
+    #[cfg(feature = "utest")]
+    {
+        println!("cargo:rerun-if-changed=../utest/src/");
+        println!("cargo:rerun-if-changed=../utest/cases.toml");
+    }
     insert_app_data().unwrap();
 }
 
+#[cfg(feature = "user")]
 static TARGET_PATH: &str = "../user/target/riscv64gc-unknown-none-elf/release/";
+
+#[cfg(feature = "utest")]
+static TARGET_PATH: &str = "../utest/target/riscv64gc-unknown-none-elf/release/";
+
 #[derive(Deserialize, Default, Debug)]
 struct Cases {
     pub cases: Option<Vec<String>>,
@@ -19,7 +32,12 @@ struct Cases {
 
 fn insert_app_data() -> Result<()> {
     let mut f = File::create("src/link_app.asm").unwrap();
+    
+    #[cfg(feature = "user")]
     let cfg = read_to_string("../user/cases.toml").unwrap();
+    #[cfg(feature = "utest")]
+    let cfg = read_to_string("../utest/cases.toml").unwrap();
+
     let cases = toml::from_str::<HashMap<String, Cases>>(&cfg)
         .unwrap()
         .remove(&format!("usercases"))

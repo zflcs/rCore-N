@@ -32,6 +32,9 @@ lib_so = { path = "../lib_so", features = ["kernel"] }
 board_qemu = ["uart8250"]
 board_lrv = ["uart_xilinx"]
 
+user = []
+utest = []
+
 # default = ["board_qemu"]
 
 [build-dependencies]

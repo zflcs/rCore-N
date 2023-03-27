@@ -7,4 +7,7 @@ cases = [
     "ct",      # connect_test
     "ctt",     # connect_thread_test
     "cwpt",    # connect_with_prio_test
+    "apmrtest",
+    "cttest",
+    "ctttest",
 ]
