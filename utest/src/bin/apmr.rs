@@ -99,13 +99,16 @@ pub fn main(argc: usize, argv: Vec<&'static str>) -> i32 {
 
 // 服务端接收用户端的请求，从管道中读取内容
 async fn server(fd1: usize, fd2: usize, key: usize, _j: usize, _i: usize) {
-    // let mut buffer = [0u8; DATA_C.len()];
-    let mut vec = vec![0u8; unsafe { LEN }];
-    let mut buffer = vec.as_mut_slice();
-    read!(fd1, buffer);
-    // let mut buffer = [0u8; ];
-    // read!(fd1, &mut buffer);
-    // let resp = DATA_S;
+    let mut buffer1 = [0u8; DATA_C_1.len()];
+    let mut buffer228 = [0u8; DATA_C_228.len()];
+    let mut buffer912 = [0u8; DATA_C_912.len()];
+    let mut buffer3876 = [0u8; DATA_C_3876.len()];
+    match unsafe{ LEN } {
+        1 => read!(fd1, &mut buffer1),
+        228 => read!(fd1, &mut buffer228),
+        912 => read!(fd1, &mut buffer912),
+        _ => read!(fd1, &mut buffer3876),
+    };
     let resp = unsafe { RESP };
     syscall::write!(fd2, resp.as_bytes(), key, getpid() as usize);
     close(fd2);
@@ -119,9 +122,16 @@ async fn client(fd1: usize, fd2: usize, key1: usize, key2: usize) {
     let req = unsafe { REQ };
     syscall::write!(fd1, req.as_bytes(), key1, getpid() as usize);
     close(fd1);
-    let mut vec = vec![0u8; unsafe { LEN }];
-    let mut buffer = vec.as_mut_slice();
-    read!(fd2, buffer, key2, current_cid());    
+    let mut buffer1 = [0u8; DATA_C_1.len()];
+    let mut buffer228 = [0u8; DATA_C_228.len()];
+    let mut buffer912 = [0u8; DATA_C_912.len()];
+    let mut buffer3876 = [0u8; DATA_C_3876.len()];
+    match unsafe{ LEN } {
+        1 => { read!(fd2, &mut buffer1, key2, current_cid()); }, 
+        228 => { read!(fd2, &mut buffer228, key2, current_cid()); },
+        912 => { read!(fd2, &mut buffer912, key2, current_cid()); },
+        _ => { read!(fd2, &mut buffer3876, key2, current_cid()); },
+    };
     // let mut buffer = [0u8; unsafe { LEN }];
     // read!(fd2, &mut buffer, key2, current_cid());
     // for c in buffer {

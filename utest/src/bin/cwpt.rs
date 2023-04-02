@@ -326,7 +326,7 @@ async fn client_recv(client_fd: usize, key: usize) {
             read!(client_fd, &mut buffer, key, current_cid());
             throughput += 1;
             let cur = get_time_us() as usize;
-            if let Some(start) = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_back() {
+            if let Some(start) = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_front() {
                 REQ_DELAY[key - MAX_CONNECTION].push(cur - start);
             } else {
                 println!("REQ_DELAY size: {}", REQ_DELAY[key - MAX_CONNECTION].len());

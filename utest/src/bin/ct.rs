@@ -238,13 +238,16 @@ async fn msg_server(key: usize, cid: usize) {
 }
 
 async fn msg_receiver(server_fd: usize, key: usize, cid: usize) {
-    // let mut buffer = [0u8; DATA_C.len()];
-    let mut vec = vec![0u8; unsafe { LEN }];
-    let mut buffer = vec.as_mut_slice();
+    let mut buffer1 = [0u8; DATA_C_1.len()];
+    let mut buffer400 = [0u8; DATA_C_20.len()];
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             // println!("[msg_receiver] read start");
-            read!(server_fd, buffer, key, current_cid());
+            if LEN == 1 {
+                read!(server_fd, &mut buffer1, key, current_cid());
+            } else {
+                read!(server_fd, &mut buffer400, key, current_cid());
+            }
             // println!("[msg_receiver] read end");
             // println!("[msg_receiver] server recv1");
             {
@@ -336,19 +339,23 @@ async fn client_send(client_fd: usize, key: usize, pid: usize) {
 
 async fn client_recv(client_fd: usize, key: usize) {
     let mut throughput = 0;
-    let mut vec = vec![0u8; unsafe { LEN }];
-    let mut buffer = vec.as_mut_slice();
+    let mut buffer1 = [0u8; DATA_C_1.len()];
+    let mut buffer400 = [0u8; DATA_C_20.len()];
     // let mut buffer = [0u8; DATA_C.len()];
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-            read!(client_fd, buffer, key, current_cid());
+            if LEN == 1 {
+                read!(client_fd, &mut buffer1, key, current_cid());
+            } else {
+                read!(client_fd, &mut buffer400, key, current_cid());
+            }
             throughput += 1;
             let cur = get_time_us() as usize;
-            if let Some(start) = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_back() {
+            if let Some(start) = TIMER_QUEUE[key - MAX_CONNECTION].lock().pop_front() {
                 REQ_DELAY[key - MAX_CONNECTION].push(cur - start);
             } else {
-                // println!("REQ_DELAY size: {}", REQ_DELAY[key - MAX_CONNECTION].len());
-                // println!("error!!!");
+                println!("REQ_DELAY size: {}", REQ_DELAY[key - MAX_CONNECTION].len());
+                println!("error!!!");
             }
         }
     }

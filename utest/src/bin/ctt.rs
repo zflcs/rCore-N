@@ -211,15 +211,17 @@ fn msg_server(key: usize) {
 
 
 fn msg_receiver(key: usize) {
-    // println!("[msg_receiver] receiver entry");
-    // let mut buffer = [0u8; DATA_C.len()];
-    let mut vec = vec![0u8; unsafe { LEN }];
-    let mut buffer = vec.as_mut_slice();
+    let mut buffer1 = [0u8; DATA_C_1.len()];
+    let mut buffer400 = [0u8; DATA_C_20.len()];
     unsafe {
         let server_fd = CONNECTIONS[key][0];
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
             // println("[msg_receiver] receiver begin");
-            read!(server_fd, buffer);
+            if LEN == 1 {
+                read!(server_fd, &mut buffer1);
+            } else {
+                read!(server_fd, &mut buffer400);
+            }
             // println("[msg_receiver] receiver end");
             {
                 let mut recv_count = RECEIVE_BUFFER[key].lock();
@@ -297,16 +299,23 @@ async fn client_recv(client_fd: usize, key: usize) {
     // println!("[client_recv] recv entry");
     let mut throughput = 0;
     // let mut buffer = [0u8; DATA_C.len()];
-    let mut vec = vec![0u8; unsafe { LEN }];
-    let mut buffer = vec.as_mut_slice();
+    let mut buffer1 = [0u8; DATA_C_1.len()];
+    let mut buffer400 = [0u8; DATA_C_20.len()];
     unsafe {
         while (get_time() as usize) < (START_TIME + RUN_TIME_LIMIT) {
-            read!(client_fd, buffer, key, current_cid());
+            if LEN == 1 {
+                read!(client_fd, &mut buffer1, key, current_cid());
+            } else {
+                read!(client_fd, &mut buffer400, key, current_cid());
+            }
             // println!("[client_recv] recv end");
             throughput += 1;
             let cur = get_time_us() as usize;
-            if let Some(start) = TIMER_QUEUE[key].lock().pop_back(){
+            if let Some(start) = TIMER_QUEUE[key].lock().pop_front(){
                 REQ_DELAY[key].push(cur - start);
+            } else {
+                println!("REQ_DELAY size: {}", REQ_DELAY[key].len());
+                println!("error!!!");
             }
             // let start = TIMER_QUEUE[key].lock().pop_back().unwrap();
             // REQ_DELAY[key].push(cur - start);
