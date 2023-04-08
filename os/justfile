@@ -1,6 +1,6 @@
 QEMU := "../../qemu-build/riscv64-softmmu/qemu-system-riscv64"
 # machine, supervisor, user, echo1, echo2
-SERIAL_FLAGS := "-serial /dev/pts/6 -serial /dev/pts/7 -serial /dev/pts/7 -serial tcp::23334,server,nowait -serial tcp:localhost:23334"
+SERIAL_FLAGS := "-serial /dev/pts/4 -serial /dev/pts/6 -serial /dev/pts/6 -serial tcp::23334,server,nowait -serial tcp:localhost:23334"
 
 TARGET := "riscv64gc-unknown-none-elf"
 MODE := "release"
@@ -18,18 +18,33 @@ clean:
     cd ../lib_so && cargo clean
     cd ../user && make clean && cd -
 
-unifi-sche:
+lib_so:
     cd ../lib_so && make build
+
+lib_so_test:
+    cd ../lib_so && make build_test
 
 user:
     cd ../user && make build
 
+utest:
+    cd ../utest && make build
+
+utest_lrv:
+    cd ../utest && make build_lrv
+
 user_lrv:
     cd ../user && make build_lrv
 
-build: user unifi-sche
+build: user lib_so
     cp src/linker-qemu.ld src/linker.ld
-    cargo build --features "board_qemu" --release
+    cargo build --features "board_qemu" --features "user" --release
+    {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
+    rm src/linker.ld
+
+build_test: utest lib_so_test
+    cp src/linker-qemu.ld src/linker.ld
+    cargo build --features "board_qemu" --features "utest" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
     rm src/linker.ld
 
@@ -40,6 +55,14 @@ build_lrv: user_lrv
     cp {{KERNEL_BIN}} {{KERNEL_BIN_LRV}}
     rm src/linker.ld
 
+build_lrv_test: utest_lrv lib_so_test
+    cp src/linker-lrv.ld src/linker.ld
+    cargo build --features "board_lrv" --features "utest" --release
+    {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
+    cp {{KERNEL_BIN}} {{KERNEL_BIN_LRV}}
+    rm src/linker.ld
+
+
 disasm: build
     {{OBJDUMP}} -S -t {{KERNEL_ELF}} > {{KERNEL_ASM}}
 
@@ -47,6 +70,9 @@ disasm_lrv: build_lrv
     {{OBJDUMP}} -S -t {{KERNEL_ELF}} > {{KERNEL_ASM}}
 
 run: build
+    {{QEMU}} -machine virt -smp 4 {{SERIAL_FLAGS}} -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000
+
+test: build_test
     {{QEMU}} -machine virt -smp 4 {{SERIAL_FLAGS}} -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000
 
 debug_qemu: build

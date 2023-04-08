@@ -8,3 +8,9 @@ build:
 	# @$(OBJDUMP) -S $(ELF) > $(DISASM_TMP)
 	cp target/riscv64gc-unknown-none-elf/release/sharedscheduler \
         ../user/target/riscv64gc-unknown-none-elf/release/sharedscheduler
+
+build_test:
+	cargo build --release --features inner
+	# @$(OBJDUMP) -S $(ELF) > $(DISASM_TMP)
+	cp target/riscv64gc-unknown-none-elf/release/sharedscheduler \
+        ../utest/target/riscv64gc-unknown-none-elf/release/sharedscheduler

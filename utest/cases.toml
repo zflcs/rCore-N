@@ -1,0 +1,12 @@
+[usercases]
+cases = [
+    "initproc",
+    "sharedscheduler",
+    "apmr",    # async_pipe_multi_ring
+    "ct",      # connect_test
+    "ctt",     # connect_thread_test
+    "cwpt",    # connect_with_prio_test
+    "apmrtest",
+    "cttest",
+    "ctttest",
+]
