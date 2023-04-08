@@ -2,7 +2,7 @@ use alloc::{vec, collections::VecDeque};
 use core::{
     alloc::{GlobalAlloc, Layout},
 };
-use lib_so::Executor;
+use lib_so::{Executor, CoroutineId};
 use buddy_system_allocator::LockedHeap;
 
 #[no_mangle]
@@ -19,6 +19,7 @@ const MEMORY_SIZE: usize = 1 << 20;
 #[link_section = ".data.memory"]
 static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
 
+const VEC_CONST: VecDeque<CoroutineId> = VecDeque::new();
 
 /// 初始化全局分配器和内核堆分配器。
 pub fn init() {
@@ -35,7 +36,7 @@ pub fn init() {
         // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
+        EXECUTOR.ready_queue = [VEC_CONST; lib_so::PRIO_NUM];
     }
 }
 

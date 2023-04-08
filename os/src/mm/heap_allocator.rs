@@ -28,6 +28,8 @@ pub static mut EXECUTOR: Executor = Executor::new();
 #[link_section = ".bss.memory"]
 static mut MEMORY: [u8; KERNEL_HEAP_SIZE] = [0u8; KERNEL_HEAP_SIZE];
 
+use lib_so::CoroutineId;
+const VEC_CONST: VecDeque<CoroutineId> = VecDeque::new();
 
 /// 初始化全局分配器和内核堆分配器。
 pub fn init_heap() {
@@ -45,7 +47,7 @@ pub fn init_heap() {
     // error!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
     // error!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
+        EXECUTOR.ready_queue = [VEC_CONST; lib_so::PRIO_NUM];
     }
 }
 

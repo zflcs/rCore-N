@@ -11,6 +11,8 @@ use core::pin::Pin;
 use core::future::Future;
 use crate::config::{MAX_THREAD_NUM, PRIO_NUM};
 
+const VEC_CONST: VecDeque<CoroutineId> = VecDeque::new();
+
 /// 进程 Executor
 pub struct Executor {
     /// 当前正在运行的协程 Id
@@ -18,7 +20,7 @@ pub struct Executor {
     /// 协程 map
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     /// 就绪协程队列
-    pub ready_queue: Vec<VecDeque<CoroutineId>>,
+    pub ready_queue: [VecDeque<CoroutineId>; PRIO_NUM],
     /// 协程优先级位图
     pub bitmap: BitMap,
     /// 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
@@ -35,7 +37,7 @@ impl Executor {
         Self {
             currents: [None; MAX_THREAD_NUM],
             tasks: BTreeMap::new(),
-            ready_queue: Vec::new(),
+            ready_queue: [VEC_CONST; PRIO_NUM],
             bitmap: BitMap(0),
             priority: PRIO_NUM,
             wr_lock: Mutex::new(()),
