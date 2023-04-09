@@ -1,6 +1,7 @@
 [build]
-target = "riscv64gc-unknown-none-elf"
+target = "riscv64gc-unknown-linux-gnu"
 incremental = false
 
-[target.riscv64gc-unknown-none-elf]
-rustflags = ["-Clink-args=-Tsrc/linker.ld"]
+[target.riscv64gc-unknown-linux-gnu]
+rustflags = ["-C", "link-args=-Tsrc/linker.ld -e _start -static -nostartfiles"]
+linker = "riscv64-unknown-linux-gnu-gcc"

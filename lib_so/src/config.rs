@@ -17,5 +17,7 @@ pub const MAX_THREAD_NUM: usize = 30;
 pub const PRIO_NUM: usize = 8;
 /// 支持的最大进程数量
 pub const MAX_PROC_NUM: usize = 0x1000;
+/// 单个优先级下支持的最大协程数
+pub const PER_PRIO_COROU: usize = 1024;
 
 
