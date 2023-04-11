@@ -3,6 +3,7 @@ use super::const_reloc as loader;
 use super::structs::*;
 use crate::lkm::structs::ModuleState::{Ready, Unloading};
 use crate::mm::KERNEL_SPACE;
+use crate::mm::MapType;
 use spin::Mutex;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
@@ -179,10 +180,10 @@ impl ModuleManager {
                 return Err(ENOEXEC);
             }
         }
-        // let lkm_info = elf.find_section_by_name(".rcore-lkm").ok_or_else(|| {
-        //     error!("[LKM] rcore-lkm metadata not found!");
-        //     ENOEXEC
-        // })?;
+        let lkm_info = elf.find_section_by_name(".rcore-lkm").ok_or_else(|| {
+            error!("[LKM] rcore-lkm metadata not found!");
+            ENOEXEC
+        })?;
 
         if let Undefined(info_content) = lkm_info.get_data(&elf).map_err(|_| {
             error!("[LKM] load rcore-lkm error!");
@@ -255,6 +256,7 @@ impl ModuleManager {
             min_addr &= neg(PAGE_SIZE);
             off_start &= neg(PAGE_SIZE);
             let map_len = max_addr - min_addr + off_start;
+
             // We first map a huge piece. This requires the kernel model to be dense and not abusing vaddr.
             let mut vspace = KERNEL_SPACE.lock().alloc(map_len).ok_or_else(|| {
                 error!("[LKM] valloc failed!");
@@ -289,7 +291,17 @@ impl ModuleManager {
                         if flags.is_read() {
                             attr |= MapPermission::R;
                         }
-                        KERNEL_SPACE.lock().mmap(prog_start_addr, prog_end_addr - prog_start_addr, attr.bits() as usize);
+                        KERNEL_SPACE.lock().push(
+                            MapArea::new(
+                                String::from(minfo.name.as_str()), 
+                                prog_start_addr.into(), 
+                                prog_end_addr.into(), 
+                                MapType::Framed, 
+                                attr
+                            ),
+                            Some(&elf.input[offset..offset + ph.file_size() as usize]),
+                        );
+
                         //self.vallocator.map_pages(prog_start_addr, prog_end_addr, &attr);
                         //No need to flush TLB.
                         let target = unsafe {
@@ -298,13 +310,7 @@ impl ModuleManager {
                                 ph.mem_size() as usize,
                             )
                         };
-                        let file_size = ph.file_size() as usize;
-                        if file_size > 0 {
-                            target[..file_size]
-                                .copy_from_slice(&elf.input[offset..offset + file_size]);
-                        }
-                        target[file_size..].iter_mut().for_each(|x| *x = 0);
-                        //drop(vspace);
+                        // KERNEL_SPACE.lock().pmap();
                     }
                 }
             }
@@ -319,7 +325,7 @@ impl ModuleManager {
                 state: Ready,
             });
             info!(
-                "[LKM] module load done at {}, now need to do the relocation job.",
+                "[LKM] module load done at {:#x?}, now need to do the relocation job.",
                 base
             );
             // We only search two tables for relocation info: the symbols from itself, and the symbols from the global exported symbols.
@@ -413,7 +419,6 @@ impl ModuleManager {
                                 name: exported.clone(),
                                 loc: base + (sym.value() as usize),
                             };
-
                             if exported == "init_module" {
                                 lkm_entry = base + (sym.value() as usize);
                             } else {
@@ -425,11 +430,11 @@ impl ModuleManager {
                 // Now everything is done, and the entry can be safely plugged into the vector.
                 self.loaded_modules.push(loaded_minfo);
                 if lkm_entry > 0 {
-                    info!("[LKM] calling init_module at {}", lkm_entry);
+                    info!("[LKM] calling init_module at {:#x?}", lkm_entry);
                     unsafe {
                         LKM_MANAGER.force_unlock();
-                        let init_module: fn() = transmute(lkm_entry);
-                        (init_module)();
+                        let init_module: fn() -> usize = transmute(lkm_entry);
+                        error!("init value {:#X?}", (init_module)());
                     }
                 } else {
                     error!("[LKM] this module does not have init_module()!");

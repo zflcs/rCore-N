@@ -21,7 +21,9 @@ pub struct ModuleInfo {
 
 impl ModuleInfo {
     pub fn parse(input: &str) -> Option<ModuleInfo> {
-        let lines: Vec<&str> = input.split('\n').collect();
+        let mut lines: Vec<&str> = input.split('\n').collect();
+        // 弹出最后的 "\0"
+        lines.pop();
         let mut minfo = ModuleInfo {
             name: String::from("<anonymous module>"),
             version: 0,

@@ -1,4 +1,5 @@
-OBJDUMP := rust-objdump --arch-name=riscv64
+OBJDUMP := riscv64-unknown-linux-gnu-objdump
+OBJCOPY := riscv64-unknown-linux-gnu-objcopy
 ARCH := riscv64gc-unknown-linux-gnu
 MODE := release
 TARGET_PATH := target/$(ARCH)/$(MODE)
@@ -19,8 +20,10 @@ build:
 	 cd ../; \
 	done
 	@$(foreach so, $(SO), cp $(so) $(patsubst $(TARGET_PATH)/lib%.so, $(OUPUT_PATH)/%, $(so));)
+	
 
 disasm:
+	@echo $(SO)
 	@$(foreach so, $(SO), $(OBJDUMP) -S $(so) > $(patsubst $(TARGET_PATH)/%.so, $(TARGET_PATH)/%.asm, $(so));)
 
 clean:

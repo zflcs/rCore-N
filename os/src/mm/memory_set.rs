@@ -132,7 +132,7 @@ impl MemorySet {
             self.areas.remove(idx);
         }
     }
-    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
+    pub fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
             map_area.copy_data(&mut self.page_table, data);
@@ -345,7 +345,6 @@ impl MemorySet {
                 return Err(-1);
             }
             let end_va: VirtAddr = VirtAddr::from(start + len).ceil().into();
-
             if self.is_mapped_area(start_va, end_va) {
                 return Err(-1);
             }
@@ -490,7 +489,7 @@ impl core::fmt::Display for MapArea {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "{:#x?} {:#x?} {} {}",
+            "{:#x?} {:#x?} {:?} {}",
             self.vpn_range.get_start().0,
             (self.vpn_range.get_end().0 - self.vpn_range.get_start().0),
             self.map_perm,
@@ -606,33 +605,6 @@ bitflags! {
     }
 }
 
-impl core::fmt::Display for MapPermission {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        let mut str = String::from("");
-        let p = self.complement();
-        if p.contains(MapPermission::R) {
-            str.push('R');
-        } else {
-            str.push('-');
-        }
-        if p.contains(MapPermission::W) {
-            str.push('W');
-        } else {
-            str.push('-');
-        }
-        if p.contains(MapPermission::X) {
-            str.push('X');
-        } else {
-            str.push('-');
-        }
-        if p.contains(MapPermission::U) {
-            str.push('U');
-        } else {
-            str.push('-');
-        }
-        write!(f, "{}", str)
-    }
-}
 
 #[allow(unused)]
 pub fn remap_test() {
