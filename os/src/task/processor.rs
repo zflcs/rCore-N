@@ -3,7 +3,7 @@ use super::TaskControlBlock;
 use super::__switch2;
 use super::add_task;
 use super::{fetch_task, TaskStatus};
-use crate::config::CPU_NUM;
+use config::CPU_NUM;
 // use crate::trace::SCHEDULE;
 // use crate::trace::{push_trace, RUN_NEXT, SUSPEND_CURRENT};
 use crate::trap::TrapContext;
@@ -168,6 +168,7 @@ pub fn hart_id() -> usize {
 // }
 pub async fn run_tasks() {
     let mut helper = Box::new(ReadHelper::new());
+    error!("here");
     loop {
         if let Some(task) = fetch_task() {
             PROCESSORS[hart_id()].run_next(task);

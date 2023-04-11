@@ -1,7 +1,7 @@
 use super::TaskControlBlock;
 use alloc::collections::{VecDeque, BTreeSet};
 use alloc::sync::Arc;
-use lib_so::max_prio_pid;
+use vdso::max_prio_pid;
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
@@ -44,13 +44,13 @@ impl TaskManager {
         // // error!("max prio pid is {}", crate::lkm::max_prio_pid());
         if !self.user_intr_process_set.is_empty() {
             for pid in self.user_intr_process_set.iter() {
-                lib_so::update_prio(pid + 1, 0);
+                vdso::update_prio(pid + 1, 0);
                 // info!("update prio: {}", pid);
             }
             // info!("fetch user intr task");
             // return (self.user_intr_task_queue.pop_back(), true);
         }
-        let prio_pid = lib_so::max_prio_pid() - 1;
+        let prio_pid = vdso::max_prio_pid() - 1;
         // 如果内核协程的优先级最高，则
         // if prio_pid == 0 {
         //     return None;

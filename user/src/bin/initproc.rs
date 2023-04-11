@@ -16,41 +16,6 @@ use alloc::vec::Vec;
 use user_lib::console::getchar;
 use user_lib::{close, dup, exec, fork, open, waitpid, OpenFlags};
 
-// #[no_mangle]
-// fn main() -> i32 {
-//     println!("hello initproc");
-//     // let pid = fork();
-//     // unsafe {
-//     //     asm!("nop");
-//     //     if pid != 0 {
-//     //         utvec::write(0xaaa0, TrapMode::Direct);
-//     //     } else {
-//     //         utvec::write(0xfff0, TrapMode::Direct);
-//     //     }
-//     // }
-
-//     // for _ in 0..5 {
-//     //     sleep(200);
-//     //     println!(
-//     //         "pid {} utvec {:?} ustatus {:?}",
-//     //         pid,
-//     //         utvec::read(),
-//     //         ustatus::read()
-//     //     );
-//     // }
-
-//     // -------------------
-
-//     init_u();
-//     println!("utvec {:?}", utvec::read());
-
-//     unsafe {
-//         uie::set_usoft();
-//         uip::set_usoft();
-//     }
-
-//     0
-// }
 
 #[no_mangle]
 pub fn main() -> i32 {

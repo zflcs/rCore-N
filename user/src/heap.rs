@@ -1,8 +1,9 @@
-use alloc::{vec, collections::VecDeque};
+
+use config::PER_PRIO_COROU;
+use basic::{Executor, CoroutineId};
 use core::{
     alloc::{GlobalAlloc, Layout},
 };
-use lib_so::Executor;
 use buddy_system_allocator::LockedHeap;
 
 #[no_mangle]
@@ -19,7 +20,6 @@ const MEMORY_SIZE: usize = 1 << 20;
 #[link_section = ".data.memory"]
 static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
 
-use lib_so::{CoroutineId, PER_PRIO_COROU};
 use heapless::mpmc::MpMcQueue;
 pub type FreeLockQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
 const QUEUE_CONST: FreeLockQueue = FreeLockQueue::new();
@@ -35,7 +35,7 @@ pub fn init() {
         // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = [QUEUE_CONST; lib_so::PRIO_NUM];
+        EXECUTOR.ready_queue = [QUEUE_CONST; config::PRIO_NUM];
     }
 }
 

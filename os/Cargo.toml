@@ -25,8 +25,10 @@ embedded-hal = "=1.0.0-alpha.4"
 nb = "1.0.0"
 array-init = "2.0.0"
 heapless = {version = "0.7.5", features = ["mpmc_large"]}
-lib_so = { path = "../lib_so", features = ["kernel"] }
-
+vdso = { path = "../vdso", features = ["kernel"] }
+config = { path = "../config", features = ["board_qemu"] }
+basic = { path = "../lib_so/basic" }
+compression = { version = "0.1.4", default-features = false, features = ["gzip"] }
 
 [features]
 board_qemu = ["uart8250"]

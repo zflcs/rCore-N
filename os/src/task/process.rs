@@ -1,4 +1,4 @@
-use lib_so::get_symbol_addr;
+use vdso::get_symbol_addr;
 use spin::{Mutex, MutexGuard};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
@@ -6,7 +6,7 @@ use super::pid::RecycleAllocator;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
-use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
+use config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
 use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;

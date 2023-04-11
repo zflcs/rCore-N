@@ -1,45 +1,27 @@
-//! 共享调度器模块
+//! Executor 运行时
+#![no_std]
+#![feature(lang_items, core_intrinsics)]
+#![feature(start)]
+#![no_builtins]
 
-// #![no_std]
-#![no_main]
-#![feature(inline_const, linkage)]
-
-#[macro_use]
-extern crate lib_so;
-extern crate alloc;
-
-use lib_so::config::{ENTRY, MAX_THREAD_NUM, HEAP_BUFFER};
-use lib_so::{Executor, CoroutineId, CoroutineKind};
+use config::{ENTRY, MAX_THREAD_NUM, HEAP_BUFFER};
 use alloc::boxed::Box;
+use basic::{CoroutineId, Executor, CoroutineKind};
 use core::pin::Pin;
 use core::future::Future;
 use syscall::*;
 use core::task::Poll;
 use buddy_system_allocator::LockedHeap;
+use basic::println;
 
-
-// 自定义的模块接口，模块添加进地址空间之后，需要执行 _start() 函数填充这个接口表
-static mut INTERFACE: [usize; 10] = [0; 10];
-
-#[no_mangle]
-fn main() -> usize{
-    unsafe {
-        INTERFACE[0] = user_entry as usize;
-        INTERFACE[2] = spawn as usize;
-        INTERFACE[3] = poll_kernel_future as usize;
-        INTERFACE[4] = wake as usize;
-        INTERFACE[5] = current_cid as usize;
-        INTERFACE[6] = reprio as usize;
-        INTERFACE[7] = add_virtual_core as usize;
-        &INTERFACE as *const [usize; 10] as usize
-    }
-}
+extern crate alloc;
 
 
 /// sret 进入用户态的入口，在这个函数再执行 main 函数
 #[no_mangle]
 #[inline(never)]
 fn user_entry(argc: usize, argv: usize) {
+    assert_eq!(1, 2);
     unsafe {
         let secondary_init: fn(usize, usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址
@@ -60,10 +42,11 @@ fn user_entry(argc: usize, argv: usize) {
 /// 添加协程，内核和用户态都可以调用
 #[no_mangle]
 #[inline(never)]
-pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {
+pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
+        // return 0;
         let cid = (*exe).spawn(future, prio, kind);
         return cid;
     }
@@ -124,7 +107,7 @@ pub fn poll_kernel_future() {
         loop {
             let task = (*exe).fetch(hart_id());
             // 更新优先级标记
-            // println_hart!("executor prio {}", hart_id(), prio);
+            // kprintln!("executor prio {}", 1);
             match task {
                 Some(task) => {
                     let cid = task.cid;
@@ -133,7 +116,7 @@ pub fn poll_kernel_future() {
                         Poll::Pending => {
                             if kind == CoroutineKind::KernSche {
                                 // println_hart!("pending reback sche task{:?} kind {:?}", hart_id(), cid, kind);
-                                wake(cid.0, 0);
+                                wake(cid.0);
                             }
                         }
                         Poll::Ready(()) => {
@@ -142,6 +125,7 @@ pub fn poll_kernel_future() {
                     };
                 }
                 _ => {
+                    break;
                 }
             }
         }
@@ -165,7 +149,7 @@ pub fn current_cid(is_kernel: bool) -> usize {
 /// 协程重新入队，手动执行唤醒的过程，内核和用户都会调用这个函数
 #[no_mangle]
 #[inline(never)]
-pub fn wake(cid: usize, pid: usize) {
+pub fn wake(cid: usize) {
     // println!("[Exec]re back func enter");
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);

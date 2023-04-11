@@ -234,7 +234,7 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
     // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
     if let Some(kernel_cid) = crate::syscall::WRMAP.lock().remove(&async_key) {
         // info!("kernel_cid {}", kernel_cid);
-        lib_so::re_back(kernel_cid, 0);
+        vdso::re_back(kernel_cid, 0);
     }
     debug!("pipe write end");
 }
@@ -253,7 +253,7 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
                 //return read_size;
             }
             drop(ring_buffer);
-            crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, lib_so::current_cid(true));
+            crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, vdso::current_cid(true));
             helper.as_mut().await;
             continue;
         }

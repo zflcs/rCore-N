@@ -1,4 +1,3 @@
-.vscode/
-debug.log
-link_app.asm
-cases_bak.toml
+.vscode
+.idea
+*/target

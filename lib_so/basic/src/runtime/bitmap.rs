@@ -1,6 +1,6 @@
 use bit_field::BitField;
 use spin::Mutex;
-use crate::config::PRIO_NUM;
+use crate::PRIO_NUM;
 
 /// 协程优先级位图，在用户态进行更新，在内核态只会读取
 pub struct  BitMap{

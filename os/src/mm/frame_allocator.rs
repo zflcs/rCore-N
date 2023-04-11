@@ -1,5 +1,5 @@
 use super::{PhysAddr, PhysPageNum};
-use crate::config::MEMORY_END;
+use config::MEMORY_END;
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;

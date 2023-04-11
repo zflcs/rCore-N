@@ -1,4 +1,4 @@
-use crate::task::hart_id;
+use crate::hart_id;
 use crate::{console::ANSICON, sbi::shutdown};
 use core::panic::PanicInfo;
 

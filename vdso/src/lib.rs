@@ -1,41 +1,18 @@
-// #![no_std]
-#![feature(naked_functions)]
-#![feature(panic_info_message)]
-#![feature(allocator_api)]
-#![feature(atomic_from_mut, inline_const)]
-#![feature(linkage)]
-#![feature(alloc_error_handler)]
-// #![deny(warnings, missing_docs)]
 
-
-#[macro_use]
-pub mod console;
-#[macro_use]
-pub mod kern_console;
-pub mod config;
-pub mod sharedsche;
+#![no_std]
 
 extern crate alloc;
-extern crate vdso_macro;
 
-pub use config::*;
-pub use sharedsche::*;
-
-use alloc::boxed::Box;
-use core::future::Future;
-use core::pin::Pin;
-
-/// Rust 异常处理函数，以异常方式关机。
-#[cfg(feature = "inner")]
-mod lang_items;
-#[cfg(feature = "inner")]
-pub use lang_items::*;
 
 mod symbol;
 pub use symbol::*;
 
 use vdso_macro::get_libfn;
 
+use core::future::Future;
+use core::pin::Pin;
+use alloc::boxed::Box;
+use basic::CoroutineKind;
 
 // get_libfn!(
 //     pub fn spawn(f: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {}
@@ -51,14 +28,14 @@ pub fn init_spawn(ptr:usize){
   }
 }
 #[inline(never)]
-pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) -> usize 
+pub fn spawn<F, T>(f: F, prio: usize, kind: CoroutineKind) -> usize 
 where 
     F: FnOnce() -> T,
     T: Future<Output = ()> + 'static + Send + Sync
 {
   unsafe {
-    let func:fn(f:Pin<Box<dyn Future<Output = ()> +'static+Send+Sync> > ,prio:usize,pid:usize,kind:CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
-    func(Box::pin(f()),prio,pid,kind)
+    let func:fn(f:Pin<Box<dyn Future<Output = ()> +'static+Send+Sync> > , prio:usize, kind:CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
+    func(Box::pin(f()), prio, kind)
   }
 }
 

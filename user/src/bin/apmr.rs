@@ -60,7 +60,7 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            lib_so::spawn(|| server(readis[i], writei, key + 1, j, i), j / factor + 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+            vdso::spawn(|| server(readis[i], writei, key + 1, j, i), j / factor + 1, basic::CoroutineKind::UserNorm);
             readis[i] = fd2[0];
             key += 1;
             last_keys[i] = key;
@@ -68,7 +68,7 @@ pub fn main() -> i32 {
     }
     
     for i in 0..PAIR_NUM {
-        lib_so::spawn(|| client(first_writes[i], readis[i], 0, last_keys[i]), 0, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+        vdso::spawn(|| client(first_writes[i], readis[i], 0, last_keys[i]), 0, basic::CoroutineKind::UserNorm);
     }
     0
 }

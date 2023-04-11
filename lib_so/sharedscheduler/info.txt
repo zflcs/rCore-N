@@ -1,0 +1,5 @@
+name:sharedscheduler
+version:1
+api_version:1
+exported_symbols:spawn
+dependence:

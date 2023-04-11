@@ -1,4 +1,4 @@
-use crate::config::{CLOCK_FREQ, CPU_NUM};
+use config::{CLOCK_FREQ, CPU_NUM};
 use crate::sbi::set_timer;
 use crate::task::hart_id;
 use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};

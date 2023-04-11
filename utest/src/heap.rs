@@ -2,7 +2,7 @@ use alloc::{vec, collections::VecDeque};
 use core::{
     alloc::{GlobalAlloc, Layout},
 };
-use lib_so::Executor;
+
 use buddy_system_allocator::LockedHeap;
 
 #[no_mangle]

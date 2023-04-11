@@ -51,23 +51,23 @@ pub extern "C" fn _start(argc: usize, argv: usize) {
             .unwrap(),
         );
     }
-    // println!("{:#x?} {:#x?}", argc, argv);
-    lib_so::spawn(move || async move{ main(argc, v); }, lib_so::PRIO_NUM - 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+    println!("{:#x?} {:#x?}", argc, argv);
+    vdso::spawn(move || async move{ main(argc, v); }, config::PRIO_NUM - 1, basic::CoroutineKind::UserNorm);
 }
 
 
 // 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
-    lib_so::current_cid(false)
+    vdso::current_cid(false)
 }
 
 pub fn re_back(cid: usize) {
     let pid = getpid() as usize;
-    lib_so::re_back(cid, pid + 1);
+    vdso::re_back(cid, pid + 1);
 }
 
 pub fn add_virtual_core() {
-    lib_so::add_virtual_core();
+    vdso::add_virtual_core();
 }
 
 #[linkage = "weak"]

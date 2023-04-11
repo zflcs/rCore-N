@@ -117,10 +117,10 @@ pub fn main() -> i32 {
             for i in 0..MAX_CONNECTION {
                 close(CONNECTIONS[i][0]);
                 close(CONNECTIONS[i][3]);
-                lib_so::spawn(|| client_send(CONNECTIONS[i][1], i, father_pid as usize),
-                            1, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
-                lib_so::spawn(||client_recv(CONNECTIONS[i][2],i + MAX_CONNECTION),
-                            1, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
+                vdso::spawn(|| client_send(CONNECTIONS[i][1], i, father_pid as usize),
+                            1, basic::CoroutineKind::UserNorm);
+                vdso::spawn(||client_recv(CONNECTIONS[i][2],i + MAX_CONNECTION),
+                            1, basic::CoroutineKind::UserNorm);
             }
         }
 
@@ -150,13 +150,13 @@ pub fn main() -> i32 {
             for i in 0..MAX_CONNECTION {
                 close(CONNECTIONS[i][1]);
                 close(CONNECTIONS[i][2]);
-                let send_cid = lib_so::spawn(|| msg_sender(CONNECTIONS[i][3], i + MAX_CONNECTION, pid as usize), 
-                                2, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
-                let server_cid = lib_so::spawn(|| msg_server(i, send_cid),
-                                2, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
+                let send_cid = vdso::spawn(|| msg_sender(CONNECTIONS[i][3], i + MAX_CONNECTION, pid as usize), 
+                                2, basic::CoroutineKind::UserNorm);
+                let server_cid = vdso::spawn(|| msg_server(i, send_cid),
+                                2, basic::CoroutineKind::UserNorm);
 
-                lib_so::spawn(|| msg_receiver(CONNECTIONS[i][0], i, server_cid),
-                            2, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
+                vdso::spawn(|| msg_receiver(CONNECTIONS[i][0], i, server_cid),
+                            2, basic::CoroutineKind::UserNorm);
             }
         }
         sleep(RUN_TIME_LIMIT + 1000);

@@ -1,5 +1,5 @@
 use super::ProcessControlBlock;
-use crate::config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
 use crate::mm::{MapPermission, PhysPageNum, VirtAddr, KERNEL_SPACE};
 // use crate::sync::UPIntrFreeCell;
 use alloc::{

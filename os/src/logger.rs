@@ -1,5 +1,5 @@
 use crate::console::{print_colorized, ANSICON};
-use crate::task::hart_id;
+use crate::hart_id;
 use log::{Level, LevelFilter, Metadata, Record};
 
 static LOGGER: SimpleLogger = SimpleLogger;

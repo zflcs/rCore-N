@@ -111,10 +111,10 @@ pub fn main() -> i32 {
 
         unsafe {
             for i in 0..MAX_CONNECTION {
-                lib_so::spawn(|| client_send(CONNECTIONS[i][1], i, father_pid as usize),
-                            1, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
-                lib_so::spawn(||client_recv(CONNECTIONS[i][2],i),
-                            1, cur_pid + 1, lib_so::CoroutineKind::UserNorm);
+                vdso::spawn(|| client_send(CONNECTIONS[i][1], i, father_pid as usize),
+                            1, basic::CoroutineKind::UserNorm);
+                vdso::spawn(||client_recv(CONNECTIONS[i][2],i),
+                            1, basic::CoroutineKind::UserNorm);
             }
         }
 

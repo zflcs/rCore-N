@@ -60,9 +60,9 @@ macro_rules! println_colorized {
 
 /// 打印
 #[macro_export]
-macro_rules! println_hart {
-    ($fmt: literal, $hart_id: expr $(, $($arg: tt)+)?) => {
-        $crate::kern_console::print_colorized(format_args!(concat!("[hart {}]", $fmt, "\r\n"), $hart_id $(, $($arg)+)?), 90 + $hart_id as u8, 49u8);
+macro_rules! kprintln {
+    ($fmt: literal$(, $($arg: tt)+)?) => {
+        $crate::kern_console::print_colorized(format_args!(concat!($fmt, "\r\n") $(, $($arg)+)?), 90 as u8, 49u8);
     };
 }
 

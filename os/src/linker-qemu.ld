@@ -31,6 +31,8 @@ SECTIONS
     .data : {
         *(.data.heap)
         *(.data.executor)
+        . = ALIGN(8);
+        *(.data.table)
         *(.data .data.*)
         *(.sdata .sdata.*)
     }
@@ -48,12 +50,6 @@ SECTIONS
 
     . = ALIGN(4K);
     ebss = .;
-    svdso = .;
-    .vdso : {
-        *(.vdso .vdso.*)
-    }
-    . = ALIGN(4K);
-    evdso = .;
     ekernel = .;
 
     /DISCARD/ : {

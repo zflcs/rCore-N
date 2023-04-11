@@ -1,6 +1,6 @@
 const MAX_USER_TRAP_NUM: usize = 128;
 
-use crate::config::CPU_NUM;
+use config::CPU_NUM;
 use crate::plic::Plic;
 use crate::sbi::send_ipi;
 use crate::task::{add_task, hart_id, pid2process, add_user_intr_task};

@@ -1,7 +1,7 @@
 mod context;
 mod usertrap;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
+use config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::{plic, println};
 use crate::sbi::set_timer;
 use crate::syscall::{sys_gettid, syscall};

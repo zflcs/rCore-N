@@ -1,7 +1,10 @@
 [build]
 target = "riscv64gc-unknown-linux-gnu"
 incremental = false
+target-dir = "target" 
+# position-independent-executables = true
 
 [target.riscv64gc-unknown-linux-gnu]
-rustflags = ["-C", "link-args=-Tsrc/linker.ld -e _start -static -nostartfiles"]
+rustflags = ["-C", "link-args=-fPIC -nostartfiles -dynamic-linker"]
 linker = "riscv64-unknown-linux-gnu-gcc"
+

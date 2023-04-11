@@ -26,7 +26,6 @@ heapless = {version = "0.7.5", features = ["mpmc_large"]}
 blake2 = { version = "0.10", default-features = false }
 blake3 = { version = "1.2.0", default-features = false }
 sha2 = { version = "0.10", default-features = false }
-lib_so = { path = "../lib_so" }
 syscall = { path = "../syscall" }
 
 [features]

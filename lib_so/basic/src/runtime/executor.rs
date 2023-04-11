@@ -9,7 +9,7 @@ use super::{
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
-use crate::config::{MAX_THREAD_NUM, PRIO_NUM, PER_PRIO_COROU};
+use crate::{MAX_THREAD_NUM, PRIO_NUM, PER_PRIO_COROU};
 
 use heapless::mpmc::MpMcQueue;
 pub type FreeLockQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;

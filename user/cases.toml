@@ -2,9 +2,9 @@
 cases = [
     "initproc",
     "sharedscheduler",
-    "hello",
-    "apmr",    # async_pipe_multi_ring
-    "ct",      # connect_test
-    "ctt",     # connect_thread_test
-    "cwpt",    # connect_with_prio_test
+    # "hello",
+    # "apmr",    # async_pipe_multi_ring
+    # "ct",      # connect_test
+    # "ctt",     # connect_thread_test
+    # "cwpt",    # connect_with_prio_test
 ]

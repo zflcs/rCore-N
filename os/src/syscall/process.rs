@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
-use lib_so::update_prio;
-use crate::config::{CPU_NUM, MEMORY_END};
+use vdso::update_prio;
+use config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
 use crate::{mm, println};
 use crate::plic::{get_context, Plic};
@@ -209,7 +209,7 @@ pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
 
 pub fn sys_set_timer(time_us: usize, cid: usize) -> isize {
     let pid = current_process().unwrap().pid.0;
-    use crate::config::CLOCK_FREQ;
+    use config::CLOCK_FREQ;
     use crate::timer::{set_virtual_timer, USEC_PER_SEC};
     let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
     set_virtual_timer(time, pid, cid);
@@ -241,7 +241,7 @@ pub fn sys_claim_ext_int(device_id: usize) -> isize {
                     let claim_addr = Plic::context_address(plic::get_context(hart_id, 'U'));
                     if inner
                         .memory_set
-                        .mmio_map(claim_addr, crate::config::PAGE_SIZE, 0b11)
+                        .mmio_map(claim_addr, config::PAGE_SIZE, 0b11)
                         .is_err()
                     {
                         warn!("[syscall claim] map plic claim reg failed!");

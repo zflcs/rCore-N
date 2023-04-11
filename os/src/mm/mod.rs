@@ -8,13 +8,12 @@ pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use address::{StepByOne, VPNRange};
 pub use frame_allocator::{frame_alloc, FrameTracker};
 pub use memory_set::remap_test;
-pub use memory_set::{MapPermission, MemorySet, KERNEL_SPACE, kernel_token};
+pub use memory_set::{MapPermission, MemorySet, KERNEL_SPACE, kernel_token, MapArea};
 pub use page_table::{
     translate_writable_va, translated_byte_buffer, translated_refmut, translated_str, translated_ref,
     PageTableEntry, UserBuffer, UserBufferIterator,
 };
 use page_table::{PTEFlags, PageTable};
-pub use heap_allocator::MutAllocator;
 
 pub fn init() {
     heap_allocator::init_heap();
