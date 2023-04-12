@@ -93,7 +93,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     if let Some(data) = get_app_data_by_name(path.as_str()) {
         let task = current_process().unwrap();
         let argc = args_vec.len();
-        task.exec(data, args_vec);
+        task.exec(path.as_str(), args_vec);
         argc as isize
     } else {
         warn!("exec failed!");

@@ -1,5 +1,6 @@
 use vdso::get_symbol_addr;
 use spin::{Mutex, MutexGuard};
+use crate::lkm::LKM_MANAGER;
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
 use super::pid::RecycleAllocator;
@@ -142,9 +143,9 @@ impl ProcessControlBlock {
         self.acquire_inner_lock().user_trap_handler_tid
     }
 
-    pub fn new(elf_data: &[u8]) -> Arc<Self> {
+    pub fn new(file_name: &str) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, _entry_point) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, _entry_point) = MemorySet::from_elf(file_name);
         // allocate a pid
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
@@ -190,7 +191,7 @@ impl ProcessControlBlock {
         *trap_cx = TrapContext::app_init_context(
             // entry_point,
             // lib_so::user_entry(),
-            get_symbol_addr(&crate::lkm::SHARED_ELF, "user_entry"),
+            0,
             ustack_top,
             KERNEL_SPACE.lock().token(),
             kstack_top,
@@ -208,10 +209,10 @@ impl ProcessControlBlock {
     }
 
     /// Only support processes with a single thread.
-    pub fn exec(self: &Arc<Self>, elf_data: &[u8], args: Vec<String>) {
+    pub fn exec(self: &Arc<Self>, file_name: &str, args: Vec<String>) {
         assert_eq!(self.acquire_inner_lock().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(file_name);
         let new_token = memory_set.token();
         debug!("entry_point: {}", entry_point);
         // substitute memory_set
@@ -254,7 +255,7 @@ impl ProcessControlBlock {
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
             // lib_so::user_entry(),
-            get_symbol_addr(&crate::lkm::SHARED_ELF, "user_entry"),
+            0,
             user_sp,
             KERNEL_SPACE.lock().token(),
             task.kstack.get_top(),

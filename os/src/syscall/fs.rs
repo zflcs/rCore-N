@@ -52,7 +52,9 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) 
         } else {
             
             let work = file.awrite(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), pid, key);
-            vdso::spawn(move || work, 0, basic::CoroutineKind::KernSyscall);
+            use basic::FutureFFI;
+            let mut future = FutureFFI { future: work };
+            vdso::spawn(&mut future, 0, basic::CoroutineKind::KernSyscall);
             0
         }
     } else {
@@ -86,7 +88,9 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -
             }
         } else {
             let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
-            vdso::spawn(move || work, 0, basic::CoroutineKind::KernSyscall);
+            use basic::FutureFFI;
+            let mut future = FutureFFI { future: work };
+            vdso::spawn(&mut future, 0, basic::CoroutineKind::KernSyscall);
             0
         }
     } else {

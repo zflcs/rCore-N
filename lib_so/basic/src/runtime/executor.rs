@@ -3,13 +3,11 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
 use super::{
-    coroutine::{Coroutine, CoroutineId, CoroutineKind},
+    coroutine::{Coroutine, CoroutineId, CoroutineKind, FutureFFI, CoroutineRes},
     BitMap,
 };
-use alloc::boxed::Box;
-use core::pin::Pin;
-use core::future::Future;
-use crate::{MAX_THREAD_NUM, PRIO_NUM, PER_PRIO_COROU};
+use core:: task::{Poll, Context, Waker};
+use crate::{MAX_THREAD_NUM, PRIO_NUM, PER_PRIO_COROU, runtime::coroutine::PollRes, CoroutineWaker};
 
 use heapless::mpmc::MpMcQueue;
 pub type FreeLockQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
@@ -20,7 +18,7 @@ pub struct Executor {
     /// 当前正在运行的协程 Id，不同的线程操作不同的位置，不需要加锁
     pub currents: [Option<CoroutineId>; MAX_THREAD_NUM],            
     /// 协程 map，多线程，需要加锁
-    pub tasks: Mutex<BTreeMap<CoroutineId, Arc<Coroutine>>>,       
+    pub tasks: Mutex<BTreeMap<CoroutineId, (Arc<Coroutine>, Arc<Waker>)>>,     
     /// 就绪协程队列，无锁队列，不需要加锁
     pub ready_queue: [FreeLockQueue; PRIO_NUM],
     /// 协程优先级位图，需要加锁
@@ -34,7 +32,7 @@ impl Executor {
     pub const fn new() -> Self {
         Self {
             currents: [None; MAX_THREAD_NUM],       
-            tasks: Mutex::new(BTreeMap::new()),                 
+            tasks: Mutex::new(BTreeMap::new()), 
             ready_queue: [QUEUE_CONST; PRIO_NUM],
             bitmap: BitMap::new(),
             waits: Mutex::new(Vec::new()),
@@ -70,38 +68,79 @@ impl Executor {
         self.bitmap.get_val()
     }
     /// 添加协程
-    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
-        let task = Coroutine::new(future, prio, kind);
-        let cid = task.cid;
+    pub extern "C" fn spawn(&mut self, future_ptr: *mut FutureFFI, prio: usize, kind: CoroutineKind) -> usize {
+        let task = Coroutine::new(future_ptr, prio, kind);
+        let cid = unsafe { (*task).cid };
         while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
-        self.tasks.lock().insert(cid, task);
+        self.tasks.lock().insert(
+            cid, 
+            unsafe { (Arc::from_raw(task), Arc::from_raw(CoroutineWaker::new(cid))) }
+        );
         self.bitmap.update(prio, true);
         return cid.0;
     }
     
-    /// 取出优先级最高的协程 id，并且更新位图
-    pub fn fetch(&mut self, tid: usize) -> Option<Arc<Coroutine>> {
+    // /// 取出优先级最高的协程 id，并且更新位图
+    // pub extern "C" fn fetch(&mut self, tid: usize) -> Option<*const Coroutine> {
+    //     assert!(tid < MAX_THREAD_NUM);
+    //     for i in 0..PRIO_NUM {
+    //         if let Some(cid) = self.ready_queue[i].dequeue() {
+    //             let task = (*self.tasks.lock().get(&cid).unwrap()).clone();
+    //             self.currents[tid] = Some(cid);
+    //             return Some(task.as_ref());
+    //         } else {
+    //             self.bitmap.update(i, false);
+    //         }
+    //     }
+    //     return None;
+    // }
+    /// Executor 执行协程
+    pub fn execute(&mut self, tid: usize) -> CoroutineRes {
         assert!(tid < MAX_THREAD_NUM);
-        for i in 0..PRIO_NUM {
-            if let Some(cid) = self.ready_queue[i].dequeue() {
-                let task = (*self.tasks.lock().get(&cid).unwrap()).clone();
-                self.currents[tid] = Some(cid);
-                return Some(task);
-            } else {
-                self.bitmap.update(i, false);
+        let mut task = None;
+        {
+            for i in 0..PRIO_NUM {
+                if let Some(cid) = self.ready_queue[i].dequeue() {
+                    task = Some((*self.tasks.lock().get(&cid).unwrap()).clone());
+                    self.currents[tid] = Some(cid);
+                    break;
+                } else {
+                    self.bitmap.update(i, false);
+                }
             }
         }
-        return None;
-    }
+        match task {
+            Some(task) => {
+                let cid = task.0.cid;
+                let kind = task.0.kind;
+                let waker = task.1.clone();
+                let mut inner = task.0.inner.lock();
+                let mut context = Context::from_waker(&*waker);
+                let mut future = inner.future.future.as_mut();
+                let res = match future.poll(&mut context) {
+                    Poll::Pending => {
+                        PollRes::Pending
+                    }
+                    Poll::Ready(()) => {
+                        PollRes::Readying
+                    }
+                };
+                CoroutineRes::new(cid, kind, res)
+            }
+            _ => {
+                return CoroutineRes::EMPTY;
+            }
+        }
 
+    }
     /// 增加执行器线程
-    pub fn add_wait_tid(&mut self, tid: usize) {
+    pub extern "C" fn add_wait_tid(&mut self, tid: usize) {
         self.waits.lock().push(tid);
     }
 
     /// 阻塞协程重新入队
-    pub fn wake(&mut self, cid: CoroutineId) -> usize {
-        let prio = self.tasks.lock().get(&cid).unwrap().inner.lock().prio;
+    pub extern "C" fn wake(&mut self, cid: CoroutineId) -> usize {
+        let prio = self.tasks.lock().get(&cid).unwrap().0.inner.lock().prio;
         while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
         self.bitmap.update(prio, true);
         prio
@@ -111,7 +150,7 @@ impl Executor {
     /// 当被删除的协程的优先级就绪队列中还存在协程时，不会带来影响
     /// 没有协程时，若删除之后正好被切换，此时没有更新优先级，可能会导致线程被多调度一次，会影响到其他的进程、线程的调度
     /// 当低优先级的队列中存在协程时，它会被误认为还存在高优先级，此时调度一次之后，检测到还有更高优先级的进程存在，这时会让出 CPU 的权限，这里多增加一次切换开销
-    pub fn del_coroutine(&mut self, cid: CoroutineId) {
+    pub extern "C" fn del_coroutine(&mut self, cid: CoroutineId) {
         self.tasks.lock().remove(&cid);
         // TODO：更新优先级
     }

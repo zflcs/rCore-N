@@ -14,6 +14,7 @@ pub mod user_uart;
 pub mod matrix;
 
 extern crate alloc;
+use alloc::boxed::Box;
 pub use syscall::*;
 mod heap;
 use riscv::register::mtvec::TrapMode;
@@ -52,7 +53,11 @@ pub extern "C" fn _start(argc: usize, argv: usize) {
         );
     }
     println!("{:#x?} {:#x?}", argc, argv);
-    vdso::spawn(move || async move{ main(argc, v); }, config::PRIO_NUM - 1, basic::CoroutineKind::UserNorm);
+    use basic::FutureFFI;
+    let mut main_future = FutureFFI{
+        future: Box::pin(async move { main(argc, v); })
+    };
+    vdso::spawn(&mut main_future, config::PRIO_NUM - 1, basic::CoroutineKind::UserNorm);
 }
 
 

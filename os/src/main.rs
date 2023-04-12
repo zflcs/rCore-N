@@ -15,29 +15,28 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
+use alloc::boxed::Box;
 use config::CPU_NUM;
 use mm::init_kernel_space;
 use sbi::send_ipi;
-use core::arch::{asm, global_asm};
+use core::{arch::{asm, global_asm}, pin::Pin, ffi::c_void};
 
 use crate::{mm::KERNEL_SPACE, lkm::{LKM_MANAGER, ModuleManager}, loader::get_app_data_by_name};
 
 #[macro_use]
 mod console;
-// mod config;
 #[macro_use]
-// mod fs;
+mod fs;
 mod lang_items;
-// mod plic;
+mod plic;
 mod sbi;
-// mod syscall;
-// mod task;
-// mod sync;
-// mod timer;
-// mod trap;
+mod syscall;
+mod task;
+mod sync;
+mod timer;
+mod trap;
 #[macro_use]
 mod uart;
-// mod lkm;
 mod err;
 mod mm;
 mod logger;
@@ -67,81 +66,76 @@ pub fn hart_id() -> usize {
 
 #[no_mangle]
 pub fn rust_main(hart_id: usize) -> ! {
-    clear_bss();
-    logger::init();
-    mm::init();
-    mm::remap_test();
-    KERNEL_SPACE.lock().pmap();
-    loader::list_apps();
-    ModuleManager::init();
-    LKM_MANAGER.lock().as_mut().unwrap().init_module(get_app_data_by_name("sharedscheduler").unwrap(), "");
-    // if hart_id == 0 {
-    //     clear_bss();
-    //     logger::init();
-    //     mm::init();
-    //     debug!("[kernel {}] Hello, world!", hart_id);
-    //     mm::remap_test();
-    //     // trace::init();
-    //     // trace::trace_test();
-    //     trap::init();
-    //     plic::init();
-    //     plic::init_hart(hart_id);
-    //     uart::init();
-    //     lkm::init();
+    if hart_id == 0 {
+        clear_bss();
+        logger::init();
+        mm::init();
+        mm::remap_test();
+        KERNEL_SPACE.lock().pmap();
+        trap::init();
+        plic::init();
+        plic::init_hart(hart_id);
+        uart::init();
 
-    //     extern "C" {
-    //         fn boot_stack();
-    //         fn boot_stack_top();
-    //     }
+        extern "C" {
+            fn boot_stack();
+            fn boot_stack_top();
+        }
 
-    //     debug!(
-    //         "boot_stack {:#x} top {:#x}",
-    //         boot_stack as usize, boot_stack_top as usize
-    //     );
+        debug!(
+            "boot_stack {:#x} top {:#x}",
+            boot_stack as usize, boot_stack_top as usize
+        );
 
-    //     debug!("trying to add initproc");
-    //     task::add_initproc();
-    //     debug!("initproc added to task manager!");
+        debug!("trying to add initproc");
+        task::add_initproc();
+        debug!("initproc added to task manager!");
 
-    //     unsafe {
-    //         let satp: usize;
-    //         let sp: usize;
-    //         asm!("csrr {}, satp", out(reg) satp);
-    //         asm!("mv {}, sp", out(reg) sp);
-    //         println_hart!("satp: {:#x}, sp: {:#x}", hart_id, satp, sp);
-    //     }
+        // unsafe {
+        //     let satp: usize;
+        //     let sp: usize;
+        //     asm!("csrr {}, satp", out(reg) satp);
+        //     asm!("mv {}, sp", out(reg) sp);
+        //     println_hart!("satp: {:#x}, sp: {:#x}", hart_id, satp, sp);
+        // }
 
-    //     for i in 1..CPU_NUM {
-    //         debug!("[kernel {}] Start {}", hart_id, i);
-    //         let mask: usize = 1 << i;
-    //         send_ipi(&mask as *const _ as usize);
-    //     }
-    // } else {
-    //     let hart_id = task::hart_id();
+        for i in 1..CPU_NUM {
+            debug!("[kernel {}] Start {}", hart_id, i);
+            let mask: usize = 1 << i;
+            send_ipi(&mask as *const _ as usize);
+        }
+        loader::list_apps();
+        ModuleManager::init();
+        LKM_MANAGER.lock().as_mut().unwrap().init_module(get_app_data_by_name("sharedscheduler").unwrap(), "");
+    } else {
+        let hart_id = task::hart_id();
 
-    //     init_kernel_space();
+        init_kernel_space();
 
-    //     unsafe {
-    //         let satp: usize;
-    //         let sp: usize;
-    //         asm!("csrr {}, satp", out(reg) satp);
-    //         asm!("mv {}, sp", out(reg) sp);
-    //         println_hart!("satp: {:#x}, sp: {:#x}", hart_id, satp, sp);
-    //     }
-    //     trap::init();
-    //     plic::init_hart(hart_id);
-    // }
+        unsafe {
+            let satp: usize;
+            let sp: usize;
+            asm!("csrr {}, satp", out(reg) satp);
+            asm!("mv {}, sp", out(reg) sp);
+            println_hart!("satp: {:#x}, sp: {:#x}", hart_id, satp, sp);
+        }
+        trap::init();
+        plic::init_hart(hart_id);
+    }
 
-    // println_hart!("Hello", hart_id);
+    println_hart!("Hello", hart_id);
 
-    // timer::set_next_trigger();
-
-    // if hart_id == 0 {
-    //     loader::list_apps();
-    // }
-    // error!("before spawn");
-    // vdso::spawn(move || task::run_tasks(), 7, basic::CoroutineKind::KernSche);
-    // error!("after spawn");
-    // vdso::poll_kernel_future();
+    timer::set_next_trigger();
+    
+    let spawn = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("spawn").unwrap();
+    vdso::init_spawn(spawn);
+    use basic::FutureFFI; 
+    let mut f = FutureFFI { future: Box::pin(task::run_tasks())};
+    let ptr = vdso::spawn(&mut f, 7, basic::CoroutineKind::KernSche);
+    error!("after spawn {:#x?}", ptr);
+    let poll_kernel_future = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("poll_kernel_future").unwrap();
+    vdso::init_poll_kernel_future(poll_kernel_future);
+    debug!("{:#x?}", poll_kernel_future);
+    vdso::poll_kernel_future();
     panic!("Unreachable in rust_main!");
 }

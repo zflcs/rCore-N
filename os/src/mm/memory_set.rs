@@ -147,11 +147,31 @@ impl MemorySet {
                 String::from("trampoline"), 
                 VirtAddr::from(TRAMPOLINE).into(), 
                 VirtAddr::from(TRAMPOLINE + PAGE_SIZE).into(), 
-                MapType::Trampoline, 
+                MapType::Config, 
                 MapPermission::R | MapPermission::X
             ), 
             None
         );
+    }
+
+    fn map_heapbuffer(&mut self, ptr: usize, is_user: bool) {
+        let mut perm = MapPermission::empty();
+        if is_user {
+            perm |= MapPermission::U;
+        }
+        self.push(
+            MapArea::new(
+                String::from("heapbuffer"), 
+                VirtAddr::from(HEAP_BUFFER).into(), 
+                VirtAddr::from(HEAP_BUFFER + PAGE_SIZE).into(), 
+                MapType::Framed, 
+                MapPermission::R | MapPermission::W
+            ), 
+            None,
+        );
+        let heap_buffer = translate_writable_va(self.token(), HEAP_BUFFER)
+            .unwrap() as *mut usize;
+        unsafe { *heap_buffer = ptr; }
     }
 
     /// Without kernel stacks.
@@ -231,6 +251,7 @@ impl MemorySet {
             ),
             None,
         );
+        memory_set.map_heapbuffer(sdata as usize, false);
         // map trampoline
         memory_set.map_trampoline();
         memory_set.vmanager = Mutex::new(LinearVmmManager::new(MEMORY_END, VMM_MANAGER_TOP));
@@ -540,7 +561,7 @@ impl MapArea {
                 self.data_frames.insert(vpn, frame);
                 trace!("map_one: vpn {:?} ppn {:?}", vpn, ppn);
             }
-            MapType::Trampoline => {
+            MapType::Config => {
                 ppn = PhysPageNum((strampoline as usize) >> PAGE_SIZE_BITS);
             }
         }
@@ -592,7 +613,7 @@ pub enum MapType {
     Identical,
     Framed,
     Mmio,
-    Trampoline,
+    Config,
 }
 
 bitflags! {
