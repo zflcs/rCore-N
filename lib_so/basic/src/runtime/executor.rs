@@ -9,8 +9,10 @@ use super::{
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
-use config::{MAX_THREAD_NUM, PRIO_NUM};
-
+use config::{MAX_THREAD_NUM, PRIO_NUM, PER_PRIO_COROU};
+use heapless::mpmc::MpMcQueue;
+type TaskQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
+const EMPTY_QUEUE: TaskQueue = TaskQueue::new();
 /// 进程 Executor
 pub struct Executor {
     /// 当前正在运行的协程 Id
@@ -18,7 +20,7 @@ pub struct Executor {
     /// 协程 map
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     /// 就绪协程队列
-    pub ready_queue: Vec<VecDeque<CoroutineId>>,
+    pub ready_queue: [TaskQueue; PRIO_NUM],
     /// 协程优先级位图
     pub bitmap: BitMap,
     /// 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
@@ -35,7 +37,7 @@ impl Executor {
         Self {
             currents: [None; MAX_THREAD_NUM],
             tasks: BTreeMap::new(),
-            ready_queue: Vec::new(),
+            ready_queue: [EMPTY_QUEUE; PRIO_NUM],
             bitmap: BitMap(0),
             priority: PRIO_NUM,
             wr_lock: Mutex::new(()),
@@ -45,30 +47,31 @@ impl Executor {
 }
 
 impl Executor {
-    /// 更新协程优先级
+    /// 暂不提供优先级更新机制
     pub fn reprio(&mut self, cid: CoroutineId, prio: usize) {
-        let _lock = self.wr_lock.lock();
-        let task = self.tasks.get(&cid).unwrap();
+        // let _lock = self.wr_lock.lock();
+        // let task = self.tasks.get(&cid).unwrap();
+        // // task.inner.lock().prio = prio;
+        // let p = task.inner.lock().prio;
+        // // 先从队列中出来
+        // if let Ok(idx) = self.ready_queue[p].binary_search(&cid){
+        //     self.ready_queue[p].remove(idx);
+        //     if self.ready_queue[p].is_empty() {
+        //         self.bitmap.update(p, false);
+        //     }
+        // }
         // task.inner.lock().prio = prio;
-        let p = task.inner.lock().prio;
-        // 先从队列中出来
-        if let Ok(idx) = self.ready_queue[p].binary_search(&cid){
-            self.ready_queue[p].remove(idx);
-            if self.ready_queue[p].is_empty() {
-                self.bitmap.update(p, false);
-            }
-        }
-        task.inner.lock().prio = prio;
-        self.ready_queue[prio].push_back(cid);
-        self.bitmap.update(prio, true);
-        self.priority = self.bitmap.get_priority();
+        // self.ready_queue[prio].push_back(cid);
+        // self.bitmap.update(prio, true);
+        // self.priority = self.bitmap.get_priority();
     }
     /// 添加协程
     pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
         let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
-        self.ready_queue[prio].push_back(cid);
+        while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
+        // self.ready_queue[prio].push_back(cid);
         self.tasks.insert(cid, task);
         self.bitmap.update(prio, true);
         if prio < self.priority {
@@ -91,15 +94,26 @@ impl Executor {
             self.currents[tid] = None;
             None
         } else {
-            let cid = self.ready_queue[prio].pop_front().unwrap();
-            let task = (*self.tasks.get(&cid).unwrap()).clone();
-            if self.ready_queue[prio].is_empty() {
-                self.bitmap.update(prio, false);
-                self.priority = self.bitmap.get_priority();
+            // let cid = self.ready_queue[prio].pop_front().unwrap();
+            // let task = (*self.tasks.get(&cid).unwrap()).clone();
+            // if self.ready_queue[prio].is_empty() {
+            //     self.bitmap.update(prio, false);
+            //     self.priority = self.bitmap.get_priority();
+            // }
+            // drop(_lock);
+            // self.currents[tid] = Some(cid);
+            // Some(task)
+            for i in 0..PRIO_NUM {
+                if let Some(cid) = self.ready_queue[i].dequeue() {
+                    let task = (*self.tasks.get(&cid).unwrap()).clone();
+                    drop(_lock);
+                    self.currents[tid] = Some(cid);
+                    return Some(task);
+                } else {
+                    self.bitmap.update(i, false);
+                }
             }
-            drop(_lock);
-            self.currents[tid] = Some(cid);
-            Some(task)
+            return None;
         }
     }
 
@@ -113,7 +127,8 @@ impl Executor {
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let lock = self.wr_lock.lock();
         let prio = self.tasks.get(&cid).unwrap().inner.lock().prio;
-        self.ready_queue[prio].push_back(cid);
+        while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
+        // self.ready_queue[prio].push_back(cid);
         self.bitmap.update(prio, true);
         if prio < self.priority {
             self.priority = prio;

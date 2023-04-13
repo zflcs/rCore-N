@@ -60,6 +60,7 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
+            println!("add server task {}", i);
             vdso::spawn(|| server(readis[i], writei, key + 1, j, i), j / factor + 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
             readis[i] = fd2[0];
             key += 1;
