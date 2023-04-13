@@ -8,11 +8,10 @@ mod symbol;
 pub use symbol::*;
 
 use vdso_macro::get_libfn;
-
+use basic::CoroutineKind;
+use alloc::boxed::Box;
 use core::future::Future;
 use core::pin::Pin;
-use alloc::boxed::Box;
-use basic::{CoroutineKind, FutureFFI};
 
 // get_libfn!(
 //     pub fn spawn(f: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {}
@@ -28,10 +27,14 @@ pub fn init_spawn(ptr:usize){
   }
 }
 #[inline(never)]
-pub fn spawn(future_ffi: *mut FutureFFI, prio: usize, kind: CoroutineKind) -> usize {
+pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) -> usize 
+where 
+    F: FnOnce() -> T,
+    T: Future<Output = ()> + 'static + Send + Sync
+{
   unsafe {
-    let func:fn(f:*mut FutureFFI , prio:usize, kind:CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
-    func(future_ffi, prio, kind)
+    let func:fn(f:Pin<Box<dyn Future<Output = ()> +'static+Send+Sync> > ,prio:usize,pid:usize,kind:CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
+    func(Box::pin(f()),prio,pid,kind)
   }
 }
 
@@ -62,5 +65,3 @@ get_libfn!(
 get_libfn!(
     pub fn update_prio(pid: usize, prio: usize) {}
 );
-
-

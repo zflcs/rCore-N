@@ -7,14 +7,16 @@ use config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, HEAP_BUFFER, PAGE_SI
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use vdso::{vdso_table, get_dynsym_addr};
+use vdso::{get_dynsym_addr, so_table};
 use core::arch::asm;
 use lazy_static::*;
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 use spin::Mutex;
+use crate::lkm::LKM_MANAGER;
 use crate::loader::get_app_data_by_name;
 use crate::mm::translate_writable_va;
+use crate::lkm::ModuleSymbol;
 use crate::err::{SysResult, SysError::ENOMEM};
 extern "C" {
     fn stext();
@@ -106,6 +108,13 @@ impl MemorySet {
             debug!("{}", area);
         }
     }
+    pub fn map_into_pagetable(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, perm: MapPermission) {
+        self.page_table.map(
+            vpn,
+            ppn,
+            PTEFlags::from_bits(perm.bits).unwrap()
+        );
+    }
     /// Assume that no conflicts.
     pub fn insert_framed_area(
         &mut self,
@@ -142,15 +151,10 @@ impl MemorySet {
 
     /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
-        self.push(
-            MapArea::new(
-                String::from("trampoline"), 
-                VirtAddr::from(TRAMPOLINE).into(), 
-                VirtAddr::from(TRAMPOLINE + PAGE_SIZE).into(), 
-                MapType::Config, 
-                MapPermission::R | MapPermission::X
-            ), 
-            None
+        self.page_table.map(
+            VirtAddr::from(TRAMPOLINE).into(),
+            PhysAddr::from(strampoline as usize).into(),
+            PTEFlags::R | PTEFlags::X,
         );
     }
 
@@ -165,7 +169,7 @@ impl MemorySet {
                 VirtAddr::from(HEAP_BUFFER).into(), 
                 VirtAddr::from(HEAP_BUFFER + PAGE_SIZE).into(), 
                 MapType::Framed, 
-                MapPermission::R | MapPermission::W
+                MapPermission::R | MapPermission::W | perm
             ), 
             None,
         );
@@ -263,8 +267,6 @@ impl MemorySet {
     pub fn from_elf(file_name: &str) -> (Self, usize, usize) {
         let elf_data = get_app_data_by_name(file_name).expect("file not exist");
         let mut memory_set = Self::new_bare();
-        // map trampoline
-        memory_set.map_trampoline();
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
         let elf_header = elf.header;
@@ -299,6 +301,11 @@ impl MemorySet {
                 );
             }
         }
+        memory_set.map_heapbuffer(elf.find_section_by_name(".data").unwrap().address() as usize, true);        
+        memory_set.map_trampoline();
+        {
+            LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", &mut memory_set, Some(so_table(&elf)));
+        }
         // map user stack with U flags
         let max_end_va: VirtAddr = max_end_vpn.into();
         let mut user_stack_bottom: usize = max_end_va.into();
@@ -315,13 +322,15 @@ impl MemorySet {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
-
+        {
+            LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", &mut memory_set, None);
+        }
         // copy data sections/trap_context/user_stack
         for area in user_space.areas.iter() {
             let new_area = MapArea::from_another(area);
             memory_set.push(new_area, None);
             // copy data from another space
-            if area.map_type != MapType::Mmio {
+            if (area.map_type != MapType::Mmio) {
                 for vpn in area.vpn_range {
                     let src_ppn = user_space.translate(vpn).unwrap().ppn();
                     let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
@@ -511,7 +520,7 @@ impl core::fmt::Display for MapArea {
         write!(
             f,
             "{:#x?} {:#x?} {:?} {}",
-            self.vpn_range.get_start().0,
+            self.vpn_range.get_start().0 << PAGE_SIZE_BITS,
             (self.vpn_range.get_end().0 - self.vpn_range.get_start().0),
             self.map_perm,
             self.name
@@ -560,9 +569,6 @@ impl MapArea {
                 ppn = frame.ppn;
                 self.data_frames.insert(vpn, frame);
                 trace!("map_one: vpn {:?} ppn {:?}", vpn, ppn);
-            }
-            MapType::Config => {
-                ppn = PhysPageNum((strampoline as usize) >> PAGE_SIZE_BITS);
             }
         }
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
@@ -613,7 +619,6 @@ pub enum MapType {
     Identical,
     Framed,
     Mmio,
-    Config,
 }
 
 bitflags! {

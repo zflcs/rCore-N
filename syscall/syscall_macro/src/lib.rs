@@ -75,26 +75,26 @@ pub fn syscall_macro_derive(input: TokenStream) -> TokenStream {
                         let ret: isize;
                         core::arch::asm!(
                             "ecall",
-                            in("a7") $a,
+                            in("x17") $a,
                             $(
-                                in("a0") $b,
+                                in("x10") $b,
                                 $(
-                                    in("a1") $c,
+                                    in("x11") $c,
                                     $(
-                                        in("a2") $d,
+                                        in("x12") $d,
                                         $(
-                                            in("a3") $e,
+                                            in("x13") $e,
                                             $(
-                                                in("a4") $f,
+                                                in("x14") $f,
                                                 $(
-                                                    in("a5") $g,
+                                                    in("x15") $g,
                                                 )?
                                             )?
                                         )?
                                     )?
                                 )?
                             )?
-                            lateout("a0") ret,
+                            lateout("x10") ret,
                             options(nostack),
                         );
                         ret

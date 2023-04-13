@@ -26,11 +26,7 @@ pub static mut EXECUTOR: Executor = Executor::new();
 #[link_section = ".bss.memory"]
 static mut MEMORY: [u8; KERNEL_HEAP_SIZE] = [0u8; KERNEL_HEAP_SIZE];
 
-use config::PER_PRIO_COROU;
-use basic::CoroutineId;
-use heapless::mpmc::MpMcQueue;
-pub type FreeLockQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
-const QUEUE_CONST: FreeLockQueue = FreeLockQueue::new();
+
 /// 初始化全局分配器和内核堆分配器。
 pub fn init_heap() {
 
@@ -38,12 +34,12 @@ pub fn init_heap() {
         HEAP.lock().init(
             MEMORY.as_ptr() as usize,
             KERNEL_HEAP_SIZE,
-        );        
+        );
+        // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
+        
     }
-    // error!("heap {:#x}", unsafe{ &mut HEAP as *mut LockedHeap as usize });
-    // error!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
     unsafe {
-        EXECUTOR.ready_queue = [QUEUE_CONST; config::PRIO_NUM];
+        EXECUTOR.ready_queue = vec![VecDeque::new(); config::PRIO_NUM];
     }
 }
 
@@ -64,5 +60,4 @@ unsafe impl GlobalAlloc for Global {
         HEAP.dealloc(ptr, layout)
     }
 }
-
 

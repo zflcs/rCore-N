@@ -2,8 +2,11 @@ use super::api::*;
 use super::const_reloc as loader;
 use super::structs::*;
 use crate::lkm::structs::ModuleState::{Ready, Unloading};
-use crate::mm::KERNEL_SPACE;
-use crate::mm::MapType;
+use crate::mm::MemorySet;
+use crate::mm::VPNRange;
+use crate::mm::VirtPageNum;
+use crate::mm::{KERNEL_SPACE, MapType, VirtAddr, translate_writable_va};
+use basic::PAGE_SIZE_BITS;
 use spin::Mutex;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
@@ -15,7 +18,7 @@ use lazy_static::lazy_static;
 use xmas_elf::dynamic::Tag;
 use xmas_elf::program::Type::Load;
 use xmas_elf::sections::SectionData;
-use xmas_elf::sections::SectionData::{DynSymbolTable64, Dynamic64, Undefined};
+use xmas_elf::sections::SectionData::{DynSymbolTable64, Dynamic64, Undefined, SymbolTable64};
 use xmas_elf::symbol_table::DynEntry64;
 use xmas_elf::symbol_table::Entry;
 use xmas_elf::{header, ElfFile};
@@ -159,7 +162,8 @@ impl ModuleManager {
             Some(base + (selected_symbol.value() as usize))
         }
     }
-    pub fn init_module(&mut self, module_image: &[u8], _param_values: &str) -> SysResult {
+    pub fn init_module(&mut self, module_name: &str, _param_values: &str) -> SysResult {
+        let module_image = crate::loader::get_app_data_by_name(module_name).unwrap();
         let elf = ElfFile::new(module_image).expect("[LKM] failed to read elf");
         let is32 = match elf.header.pt2 {
             header::HeaderPt2::Header32(_) => true,
@@ -171,8 +175,13 @@ impl ModuleManager {
         }
         match elf.header.pt2.type_().as_type() {
             header::Type::Executable => {
-                error!("[LKM] a kernel module must be some shared object!");
-                return Err(ENOEXEC);
+                // 对 sharedscheduler 进行单独处理
+                if module_name == "sharedscheduler" {
+                    return self.shared_binary(module_image);
+                } else {
+                    error!("[LKM] a kernel module must be some shared object!");
+                    return Err(ENOEXEC);
+                }
             }
             header::Type::SharedObject => {}
             _ => {
@@ -304,12 +313,12 @@ impl ModuleManager {
 
                         //self.vallocator.map_pages(prog_start_addr, prog_end_addr, &attr);
                         //No need to flush TLB.
-                        let target = unsafe {
-                            core::slice::from_raw_parts_mut(
-                                prog_start_addr as *mut u8,
-                                ph.mem_size() as usize,
-                            )
-                        };
+                        // let target = unsafe {
+                        //     core::slice::from_raw_parts_mut(
+                        //         prog_start_addr as *mut u8,
+                        //         ph.mem_size() as usize,
+                        //     )
+                        // };
                         // KERNEL_SPACE.lock().pmap();
                     }
                 }
@@ -618,4 +627,236 @@ impl ModuleManager {
         LKM_MANAGER.lock().replace(kmm);
         info!("[LKM] Loadable Kernel Module Manager loaded!");
     }
+
+    pub fn shared_binary(&mut self, module_image: &[u8]) -> SysResult{
+        let elf = ElfFile::new(module_image).expect("[LKM] failed to read elf");
+        let lkm_info = elf.find_section_by_name(".rcore-lkm").ok_or_else(|| {
+            error!("[LKM] rcore-lkm metadata not found!");
+            ENOEXEC
+        })?;
+
+        if let Undefined(info_content) = lkm_info.get_data(&elf).map_err(|_| {
+            error!("[LKM] load rcore-lkm error!");
+            ENOEXEC
+        })? {
+            let minfo = ModuleInfo::parse(core::str::from_utf8(info_content).unwrap()).ok_or_else(
+                || {
+                    error!("[LKM] parse info error!");
+                    ENOEXEC
+                },
+            )?;
+            //Check dependencies
+            info!(
+                "[LKM] loading module {} version {} api_version {}",
+                minfo.name, minfo.version, minfo.api_version
+            );
+            for i in 0..self.loaded_modules.len() {
+                if self.loaded_modules[i].info.name == minfo.name {
+                    error!(
+                        "[LKM] another instance of module {} (api version {}) has been loaded!",
+                        self.loaded_modules[i].info.name, self.loaded_modules[i].info.api_version
+                    );
+                    return Err(EEXIST);
+                }
+            }
+            let mut used_dependents: Vec<usize> = vec![];
+            //let loaded_module_list=&mut self.loaded_modules;
+            for module in minfo.dependent_modules.iter() {
+                let mut module_found = false;
+                for i in 0..self.loaded_modules.len() {
+                    let loaded_module = &(self.loaded_modules[i]);
+                    if loaded_module.info.name == module.name {
+                        if loaded_module.info.api_version == module.api_version {
+                            used_dependents.push(i);
+                            module_found = true;
+                            break;
+                        } else {
+                            error!("[LKM] dependent module {} found but with a different api version {}!", loaded_module.info.name, loaded_module.info.api_version);
+                            return Err(ENOEXEC);
+                        }
+                    }
+                }
+                if !module_found {
+                    error!("[LKM] dependent module not found! {}", module.name);
+                    return Err(ENOEXEC);
+                }
+            }
+            for module in used_dependents {
+                self.loaded_modules[module].used_counts += 1;
+            }
+            // We first map a huge piece. This requires the kernel model to be dense and not abusing vaddr.
+            info!(
+                "[LKM] loading binary module {} version {} api_version {}, so we must map to the specified virtual address!",
+                minfo.name, minfo.version, minfo.api_version
+            );
+            let mut vspace = (usize::MAX, 0);
+            {
+                for ph in elf.program_iter() {
+                    if ph.get_type().map_err(|_| {
+                        error!("[LKM] program header error!");
+                        ENOEXEC
+                    })? == Load
+                    {
+                        let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
+                        let start = start_va.floor().0 << PAGE_SIZE_BITS;
+                        if start < vspace.0 {
+                            vspace.0 = start;
+                        }
+                        let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
+                        let end = end_va.ceil().0 << PAGE_SIZE_BITS;
+                        if end > vspace.1 {
+                            vspace.1 = end;
+                        }
+                        let mut map_perm = MapPermission::empty();
+                        let ph_flags = ph.flags();
+                        if ph_flags.is_read() {
+                            map_perm |= MapPermission::R;
+                        }
+                        if ph_flags.is_write() {
+                            map_perm |= MapPermission::W;
+                        }
+                        if ph_flags.is_execute() {
+                            map_perm |= MapPermission::X;
+                        }
+                        let map_area = MapArea::new(
+                            String::from(minfo.name.as_str()), 
+                            start_va, end_va, MapType::Framed, map_perm
+                        );
+                        KERNEL_SPACE.lock().push(
+                            MapArea::new(
+                                String::from(minfo.name.as_str()), 
+                                start_va, 
+                                end_va, 
+                                MapType::Framed, 
+                                map_perm
+                            ),
+                            Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
+                        );
+                        
+                        //self.vallocator.map_pages(prog_start_addr, prog_end_addr, &attr);
+                        //No need to flush TLB.
+                        // let target = unsafe {
+                        //     core::slice::from_raw_parts_mut(
+                        //         prog_start_addr as *mut u8,
+                        //         ph.mem_size() as usize,
+                        //     )
+                        // };
+                    }
+                }
+                KERNEL_SPACE.lock().pmap();
+            }
+
+            let mut loaded_minfo = Box::new(LoadedModule {
+                info: minfo,
+                exported_symbols: Vec::new(),
+                used_counts: 0,
+                using_counts: Arc::new(ModuleRef {}),
+                vspace,
+                lock: Mutex::new(()),
+                state: Ready,
+            });
+            let base = vspace.0;
+            info!(
+                "[LKM] binary module load done at {:#x?}.",
+                base
+            );
+            let sym_table = {
+                let elffile = &elf;
+                if let SymbolTable64(sym) = elffile
+                    .find_section_by_name(".symtab")
+                    .ok_or_else(|| {
+                        error!("[LKM] .symtab not found!");
+                        ENOEXEC
+                    })?
+                    .get_data(elffile)
+                    .map_err(|_| {
+                        error!("[LKM] corrupted .symtab!");
+                        ENOEXEC
+                    })?
+                {
+                    sym
+                } else {
+                    error!("[LKM] Bad .symtab!");
+                    return Err(ENOEXEC);
+                }
+            };
+            let mut lkm_entry: usize = 0;
+            for exported in loaded_minfo.info.exported_symbols.iter() {
+                for sym in sym_table.iter() {
+                    if exported
+                        == sym.get_name(&elf).map_err(|_| {
+                            error!("[LKM] load symbol name error!");
+                            ENOEXEC
+                        })?
+                    {
+                        let exported_symbol = ModuleSymbol {
+                            name: exported.clone(),
+                            loc: sym.value() as usize,
+                        };
+                        if exported == "init_module" {
+                            lkm_entry = sym.value() as usize;
+                        } else {
+                            loaded_minfo.exported_symbols.push(exported_symbol);
+                        }
+                    }
+                }
+            }
+            // Now everything is done, and the entry can be safely plugged into the vector.
+            self.loaded_modules.push(loaded_minfo);
+            if lkm_entry > 0 {
+                info!("[LKM] calling init_module at {:#x?}", lkm_entry);
+                unsafe {
+                    LKM_MANAGER.force_unlock();
+                    let init_module: fn() -> usize = transmute(lkm_entry);
+                    info!("init value {:#X?}", (init_module)());
+                }
+            } else {
+                error!("[LKM] this module does not have init_module()!");
+                return Err(ENOEXEC);
+            }
+        } else {
+            error!("[LKM] metadata section type wrong! this is not likely to happen...");
+            return Err(ENOEXEC);
+        }
+        return Ok(0);
+    }
+    /// 将进程与共享的模块进行链接
+    pub fn link_module(&self, module_name: &str, memory_set: &mut MemorySet, so_table: Option<Vec<(&str, usize)>>) -> SysResult {
+        // 查找对应的模块
+        let mut module: Option<(usize, usize)> = None;
+        for i in 0..self.loaded_modules.len() {
+            if self.loaded_modules[i].info.name == module_name {
+                module = Some(self.loaded_modules[i].vspace);
+                break;
+            }
+        }
+        match module {
+            None => {
+                error!("[LKM] {} module is not existed!", module_name);
+                return Err(ENOEXEC);
+            }
+            Some((start, end)) => {
+                for vpn in VPNRange::new(VirtPageNum::from(VirtAddr::from(start)), VirtPageNum::from(VirtAddr::from(end))) {
+                    let pte = KERNEL_SPACE.lock().translate(vpn).unwrap();
+                    memory_set.map_into_pagetable(
+                        vpn, 
+                        pte.ppn(),
+                        pte.into_maperm().unwrap() | MapPermission::U
+                    );
+                }
+            }
+        }
+        if let Some(so_table) = so_table {
+            for so_item in so_table {
+                let so_item_paddr = translate_writable_va(memory_set.token(), so_item.1).unwrap() as *mut usize;
+                let ptr = self.resolve_symbol(&so_item.0.to_lowercase()).unwrap();
+                unsafe { *so_item_paddr = ptr; }
+                debug!("get func {} ptr {:#x}", so_item.0.to_lowercase(), ptr);
+            }
+        }
+        Ok(0)
+    }
+
 }
+
+

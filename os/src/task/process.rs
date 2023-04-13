@@ -191,7 +191,7 @@ impl ProcessControlBlock {
         *trap_cx = TrapContext::app_init_context(
             // entry_point,
             // lib_so::user_entry(),
-            0,
+            { LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("user_entry").unwrap() },
             ustack_top,
             KERNEL_SPACE.lock().token(),
             kstack_top,
@@ -255,7 +255,7 @@ impl ProcessControlBlock {
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
             // lib_so::user_entry(),
-            0,
+            { LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("user_entry").unwrap() },
             user_sp,
             KERNEL_SPACE.lock().token(),
             task.kstack.get_top(),

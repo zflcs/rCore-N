@@ -52,12 +52,9 @@ pub extern "C" fn _start(argc: usize, argv: usize) {
             .unwrap(),
         );
     }
-    println!("{:#x?} {:#x?}", argc, argv);
-    use basic::FutureFFI;
-    let mut main_future = FutureFFI{
-        future: Box::pin(async move { main(argc, v); })
-    };
-    vdso::spawn(&mut main_future, config::PRIO_NUM - 1, basic::CoroutineKind::UserNorm);
+    // println!("{:#x?} {:#x?}", argc, argv);
+    vdso::spawn(move || async move{ main(argc, v); }, config::PRIO_NUM - 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
+
 }
 
 

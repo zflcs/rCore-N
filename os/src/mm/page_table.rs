@@ -1,4 +1,4 @@
-use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum, MapPermission};
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -49,6 +49,9 @@ impl PageTableEntry {
     }
     pub fn executable(&self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
+    }
+    pub fn into_maperm(&self) -> Option<MapPermission> {
+        MapPermission::from_bits(self.flags().bits & 0b00011110)
     }
 }
 

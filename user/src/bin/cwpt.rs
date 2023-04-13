@@ -123,9 +123,9 @@ pub fn main() -> i32 {
                 close(CONNECTIONS[i][0]);
                 close(CONNECTIONS[i][3]);
                 vdso::spawn(|| client_send(CONNECTIONS[i][1], i, father_pid as usize),
-                            0, basic::CoroutineKind::UserNorm);
+                            0, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
                 vdso::spawn(||client_recv(CONNECTIONS[i][2],i + MAX_CONNECTION),
-                            0, basic::CoroutineKind::UserNorm);
+                            0, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
             }
         }
 
@@ -156,12 +156,12 @@ pub fn main() -> i32 {
                 close(CONNECTIONS[i][1]);
                 close(CONNECTIONS[i][2]);
                 let send_cid = vdso::spawn(|| msg_sender(CONNECTIONS[i][3], i + MAX_CONNECTION, pid as usize), 
-                                (i % SERVER_USE_PRIO) + 1, basic::CoroutineKind::UserNorm);
+                                (i % SERVER_USE_PRIO) + 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
                 let server_cid = vdso::spawn(|| msg_server(i, send_cid),
-                                (i % SERVER_USE_PRIO) + 1, basic::CoroutineKind::UserNorm);
+                                (i % SERVER_USE_PRIO) + 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
 
                 vdso::spawn(|| msg_receiver(CONNECTIONS[i][0], i, server_cid),
-                                (i % SERVER_USE_PRIO) + 1, basic::CoroutineKind::UserNorm);
+                                (i % SERVER_USE_PRIO) + 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
             }
         }
         sleep(RUN_TIME_LIMIT + 1000);

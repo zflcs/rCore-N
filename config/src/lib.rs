@@ -1,7 +1,7 @@
 #![no_std]
 
 /// CPU 数目
-pub const CPU_NUM: usize = 1;
+pub const CPU_NUM: usize = 4;
 /// trace 大小
 pub const TRACE_SIZE: usize = 0x1000_0000; // 256M
 
@@ -17,7 +17,7 @@ pub const USER_HEAP_SIZE: usize = 1 << 20;
 
 
 /// 跳板页虚拟地址
-pub const TRAMPOLINE: usize = usize::MAX - 2 * PAGE_SIZE + 1;
+pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
 /// 用户态中断虚拟地址
 pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
 /// 共享调度器使用的数据所在的虚拟地址，在这个位置记录了用户程序堆的虚拟地址
@@ -38,7 +38,8 @@ pub const MAX_THREAD_NUM: usize = 30;
 pub const PRIO_NUM: usize = 8;
 /// 单个优先级下支持的最大协程数
 pub const PER_PRIO_COROU: usize = 256;
-
+/// 支持的最大进程数量
+pub const MAX_PROC_NUM: usize = 0x1000;
 
 /// 内核结束位置
 #[cfg(feature = "board_qemu")]

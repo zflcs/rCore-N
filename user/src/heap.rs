@@ -1,9 +1,8 @@
-
-use config::PER_PRIO_COROU;
-use basic::{Executor, CoroutineId};
+use alloc::{vec, collections::VecDeque};
 use core::{
     alloc::{GlobalAlloc, Layout},
 };
+use basic::Executor;
 use buddy_system_allocator::LockedHeap;
 
 #[no_mangle]
@@ -20,12 +19,10 @@ const MEMORY_SIZE: usize = 1 << 20;
 #[link_section = ".data.memory"]
 static mut MEMORY: [u8; MEMORY_SIZE] = [0u8; MEMORY_SIZE];
 
-use heapless::mpmc::MpMcQueue;
-pub type FreeLockQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
-const QUEUE_CONST: FreeLockQueue = FreeLockQueue::new();
 
 /// 初始化全局分配器和内核堆分配器。
 pub fn init() {
+    // println!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
 
     unsafe {
         HEAP.lock().init(
@@ -35,7 +32,7 @@ pub fn init() {
         // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = [QUEUE_CONST; config::PRIO_NUM];
+        EXECUTOR.ready_queue = vec![VecDeque::new(); config::PRIO_NUM];
     }
 }
 
@@ -56,5 +53,4 @@ unsafe impl GlobalAlloc for Global {
         HEAP.dealloc(ptr, layout)
     }
 }
-
 

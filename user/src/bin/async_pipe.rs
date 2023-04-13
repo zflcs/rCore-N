@@ -52,12 +52,12 @@ pub fn main() -> i32 {
             let mut fd2 = [0usize; 2];
             pipe(&mut fd2);
             let writei = fd2[1];
-            vdso::spawn(move || server(readi, writei, key + 1), 1, basic::CoroutineKind::UserNorm);
+            vdso::spawn(move || server(readi, writei, key + 1), 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
             // sleep(100);
             readi = fd2[0];
             key += 1;
         }
-        vdso::spawn(move || client(first_write, readi, first_key, key), 0, basic::CoroutineKind::UserNorm);
+        vdso::spawn(move || client(first_write, readi, first_key, key), 0, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
         // sleep(100);
         key += 2;
     }

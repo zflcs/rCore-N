@@ -5,27 +5,18 @@ use syscall::exit;
 pub extern fn rust_eh_personality() {
 }
 
-// #[no_mangle]
-// pub extern fn memcpy() {
-// }
-// #[no_mangle]
-// pub extern fn memmove() {
-// }
-// #[no_mangle]
-// pub extern fn memset() {
-// }
-// #[no_mangle]
-// pub extern fn _Unwind_Resume() {
-// }
-// #[no_mangle]
-// pub extern fn bcmp() {
-// }
-// #[no_mangle]
-// pub extern fn memcmp() {
-// }
-// #[no_mangle]
-// pub extern fn strlen() {
-// }
+#[no_mangle]
+#[link_section = ".text.entry"]
+extern "C" fn _start() -> usize {
+    main()
+}
+
+#[linkage = "weak"]
+#[no_mangle]
+fn main() -> usize {
+    panic!("Cannot find main!");
+}
+
 
 #[panic_handler]
 fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
@@ -74,39 +65,3 @@ unsafe impl GlobalAlloc for Global {
         (*heap).dealloc(ptr, layout)
     }
 }
-
-// #[no_mangle]
-// fn __rust_alloc(size: usize, align: usize) -> *mut u8 {
-//     unsafe { 
-//         let heapptr = *(HEAP_BUFFER as *const usize);
-//         let heap = heapptr as *mut usize as *mut LockedHeap;
-//         (*heap).alloc(Layout::from_size_align_unchecked(size, align))
-//     }
-// }
-
-// #[no_mangle]
-// fn __rust_dealloc(ptr: *mut u8, size: usize, align: usize) {
-//     unsafe { 
-//         let heapptr = *(HEAP_BUFFER as *const usize);
-//         let heap = heapptr as *mut usize as *mut LockedHeap;
-//         (*heap).dealloc(ptr, Layout::from_size_align_unchecked(size, align))
-//     }
-// }
-
-// #[no_mangle]
-// fn __rust_realloc(ptr: *mut u8, old_size: usize, align: usize, new_size: usize) -> *mut u8 {
-//     unsafe { 
-//         let heapptr = *(HEAP_BUFFER as *const usize);
-//         let heap = heapptr as *mut usize as *mut LockedHeap;
-//         (*heap).realloc(ptr, Layout::from_size_align_unchecked(old_size, align), new_size)
-//     }
-// }
-
-// #[no_mangle]
-// fn __rust_alloc_zeroed(size: usize, align: usize) -> *mut u8 {
-//     unsafe { 
-//         let heapptr = *(HEAP_BUFFER as *const usize);
-//         let heap = heapptr as *mut usize as *mut LockedHeap;
-//         (*heap).alloc_zeroed(Layout::from_size_align_unchecked(size, align))
-//     }
-// }

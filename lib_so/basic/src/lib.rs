@@ -1,16 +1,18 @@
 #![no_std]
-#![feature(lang_items)]
+#![feature(naked_functions)]
 #![feature(panic_info_message)]
+#![feature(allocator_api)]
+#![feature(atomic_from_mut, inline_const)]
+#![feature(linkage)]
 #![feature(alloc_error_handler)]
-// #![feature(allocator_api)]
+#![feature(lang_items)]
+#![no_builtins]
 
 // #![deny(warnings, missing_docs)]
 
-#[cfg(feature = "inner")]
 #[macro_use]
 pub mod console;
 
-#[cfg(feature = "inner")]
 #[macro_use]
 pub mod kern_console;
 

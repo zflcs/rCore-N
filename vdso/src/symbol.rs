@@ -43,7 +43,7 @@ pub fn get_dynsym_addr<'a>(elf: &ElfFile<'a>, symbol_name: &str) -> usize{
     entry
 }
 
-pub fn vdso_table<'a>(elf: &ElfFile<'a>) -> Vec<(&'a str, usize)> {
+pub fn so_table<'a>(elf: &ElfFile<'a>) -> Vec<(&'a str, usize)> {
     let mut res_vec = Vec::new();
     for sym  in symbol_table(elf){
         let name = sym.get_name(elf);
