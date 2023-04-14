@@ -167,8 +167,8 @@ pub fn main() -> i32 {
             }
         }
         
-        // let mut exit_code = 0;
-        // waitpid(pid as usize, &mut exit_code);
+        let mut exit_code = 0;
+        waitpid(pid as usize, &mut exit_code);
     }
 
     0

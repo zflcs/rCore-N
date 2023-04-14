@@ -9,10 +9,9 @@ use super::{
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
-use config::{MAX_THREAD_NUM, PRIO_NUM, PER_PRIO_COROU};
-use heapless::mpmc::MpMcQueue;
-type TaskQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
-const EMPTY_QUEUE: TaskQueue = TaskQueue::new();
+use config::{MAX_THREAD_NUM, PRIO_NUM};
+use crate::TaskQueue;
+
 /// 进程 Executor
 pub struct Executor {
     /// 当前正在运行的协程 Id
@@ -37,7 +36,7 @@ impl Executor {
         Self {
             currents: [None; MAX_THREAD_NUM],
             tasks: BTreeMap::new(),
-            ready_queue: [EMPTY_QUEUE; PRIO_NUM],
+            ready_queue: [TaskQueue::EMPTY; PRIO_NUM],
             bitmap: BitMap(0),
             priority: PRIO_NUM,
             wr_lock: Mutex::new(()),
@@ -70,6 +69,7 @@ impl Executor {
         let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
+        // TODO: 把队列满了的情况考虑进去，否则会出现死锁
         while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
         // self.ready_queue[prio].push_back(cid);
         self.tasks.insert(cid, task);
@@ -127,6 +127,7 @@ impl Executor {
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let lock = self.wr_lock.lock();
         let prio = self.tasks.get(&cid).unwrap().inner.lock().prio;
+        // TODO: 把队列满了的情况考虑进去，否则会出现死锁
         while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
         // self.ready_queue[prio].push_back(cid);
         self.bitmap.update(prio, true);
@@ -136,10 +137,15 @@ impl Executor {
         drop(lock);
         self.priority
     }
-    /// 删除协程，协程已经被执行完了，在 fetch 取出 id 是就已经更新位图了，因此，这时不需要更新位图
+    /// 删除协程，尽管 id 从队列中取出了，但没有更新优先级，因此这里需要检查一次队列
     pub fn del_coroutine(&mut self, cid: CoroutineId) {
         let lock = self.wr_lock.lock();
-        self.tasks.remove(&cid);
+        let task = self.tasks.remove(&cid).unwrap();
+        let prio = task.inner.lock().prio;
+        if self.ready_queue[prio].is_empty() {
+            self.bitmap.update(prio, false);
+            self.priority = self.bitmap.get_priority();
+        }
         drop(lock);
     }
 }

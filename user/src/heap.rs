@@ -5,9 +5,10 @@ use core::{
 use basic::{Executor, CoroutineId};
 use buddy_system_allocator::LockedHeap;
 use config::PER_PRIO_COROU;
-use heapless::mpmc::MpMcQueue;
-type TaskQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
-const EMPTY_QUEUE: TaskQueue = TaskQueue::new();
+// use heapless::mpmc::MpMcQueue;
+// type TaskQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
+// const EMPTY_QUEUE: TaskQueue = TaskQueue::new();
+use basic::TaskQueue;
 
 #[no_mangle]
 #[link_section = ".data.heap"]
@@ -36,7 +37,7 @@ pub fn init() {
         // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = [EMPTY_QUEUE; config::PRIO_NUM];
+        EXECUTOR.ready_queue = [TaskQueue::EMPTY; config::PRIO_NUM];
     }
 }
 

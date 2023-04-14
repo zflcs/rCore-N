@@ -40,7 +40,7 @@ static MSG_COUNT: Mutex<usize> = Mutex::new(0);
 // pub const DATA_C: &str = "a";
 // pub const DATA_S: &str = "x";
 
-const MAX_CONNECTION: usize = 16 * (8 - 1);
+const MAX_CONNECTION: usize = 4 * (8 - 1);
 const SERVER_USE_PRIO: usize = 8 - 1;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
@@ -172,8 +172,8 @@ pub fn main() -> i32 {
             }
         }
         
-        // let mut exit_code = 0;
-        // waitpid(pid as usize, &mut exit_code);
+        let mut exit_code = 0;
+        waitpid(pid as usize, &mut exit_code);
     }
 
     0

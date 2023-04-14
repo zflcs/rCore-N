@@ -9,9 +9,10 @@ use spin::Mutex;
 use config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
 use config::PER_PRIO_COROU;
-use heapless::mpmc::MpMcQueue;
-type TaskQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
-const EMPTY_QUEUE: TaskQueue = TaskQueue::new();
+// use heapless::mpmc::MpMcQueue;
+// type TaskQueue = MpMcQueue<CoroutineId, PER_PRIO_COROU>;
+// const EMPTY_QUEUE: TaskQueue = TaskQueue::new();
+use basic::TaskQueue;
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
@@ -43,7 +44,7 @@ pub fn init_heap() {
         
     }
     unsafe {
-        EXECUTOR.ready_queue = [EMPTY_QUEUE; config::PRIO_NUM];
+        EXECUTOR.ready_queue = [TaskQueue::EMPTY; config::PRIO_NUM];
     }
 }
 

@@ -145,8 +145,8 @@ pub fn main() -> i32 {
         for tid in waits.iter() {
             waittid(*tid);
         }
-        // let mut exit_code = 0;
-        // waitpid(pid as usize, &mut exit_code);
+        let mut exit_code = 0;
+        waitpid(pid as usize, &mut exit_code);
     }
 
     0
