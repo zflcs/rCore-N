@@ -25,8 +25,8 @@ pub fn init() {
     vdso::init_re_back(re_back);
     let current_cid = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("current_cid").unwrap();
     vdso::init_current_cid(current_cid);
-    let max_prio_pid = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("max_prio_pid").unwrap();
-    vdso::init_max_prio_pid(max_prio_pid);
+    let max_prio = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("max_prio").unwrap();
+    vdso::init_max_prio(max_prio);
     let update_prio = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("update_prio").unwrap();
     vdso::init_update_prio(update_prio);
 }

@@ -40,6 +40,8 @@ pub const PRIO_NUM: usize = 8;
 pub const PER_PRIO_COROU: usize = 8192;
 /// 支持的最大进程数量
 pub const MAX_PROC_NUM: usize = 0x1000;
+/// Executor 记录的优先级地址
+pub const PRIO_PTR: usize = HEAP_BUFFER + 0x20;
 
 /// 内核结束位置
 #[cfg(feature = "board_qemu")]

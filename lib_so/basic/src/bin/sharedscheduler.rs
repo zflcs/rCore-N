@@ -7,7 +7,7 @@
 extern crate basic;
 extern crate alloc;
 
-use config::{ENTRY, MAX_THREAD_NUM, HEAP_BUFFER, MAX_PROC_NUM};
+use config::{ENTRY, MAX_THREAD_NUM, HEAP_BUFFER, PRIO_NUM};
 use basic::{CoroutineId, Executor, CoroutineKind};
 use alloc::boxed::Box;
 use core::pin::Pin;
@@ -34,7 +34,7 @@ fn main() -> usize{
 pub fn init_module() -> usize {
     unsafe {
         INTERFACE[0] = user_entry as usize;
-        INTERFACE[1] = max_prio_pid as usize;
+        INTERFACE[1] = max_prio as usize;
         INTERFACE[2] = spawn as usize;
         INTERFACE[3] = poll_kernel_future as usize;
         INTERFACE[4] = re_back as usize;
@@ -68,37 +68,45 @@ fn user_entry(argc: usize, argv: usize) {
 
 
 /// 各个进程的最高优先级协程，通过共享内存的形式进行通信
-pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM + 1] = [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM + 1];
+// pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM + 1] = [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM + 1];
+/// 进程内的优先级变化，某个优先级从 0->1 或 从 1-> 0，则更新对应的位置
+pub static mut GLOBAL_BITMAP: [AtomicUsize; PRIO_NUM] = [const { AtomicUsize::new(0) }; PRIO_NUM];
 
-/// 进程的 Executor 调用这个函数，通过原子操作更新自己的最高优先级
+/// 进程的 Executor 调用这个函数，只有在优先级发生变化时调用
 #[no_mangle]
 #[inline(never)]
-pub fn update_prio(idx: usize, prio: usize) {
-    unsafe {
-        PRIO_ARRAY[idx].store(prio, Ordering::Relaxed);
+fn update_prio(prio: usize, is_add: bool) {
+    if is_add {
+        unsafe { GLOBAL_BITMAP[prio].fetch_add(1, Ordering::SeqCst); }
+    } else {
+        unsafe { GLOBAL_BITMAP[prio].fetch_sub(1, Ordering::SeqCst); }
     }
+}
+
+/// poll_user_future 函数内部使用，当某个优先级变为 0 之后，调用这个函数判断是否需要让权
+/// 对应的优先级计数不为 0，表示存在其他的进程还有这个优先级的协程，此时需要让权
+fn shoule_yield(prio: usize) -> bool {
+    for i in 0..prio {
+        if unsafe { GLOBAL_BITMAP[i].load(Ordering::SeqCst) != 0 } {
+            return true;
+        }
+    }
+    return false;
 }
 
 /// 内核重新调度进程时，调用这个函数，选出优先级最高的进程，再选出对应的线程
 /// 所有进程的优先级相同时，则内核会优先执行协程，这里用 0 来表示内核的优先级
 #[no_mangle]
 #[inline(never)]
-pub fn max_prio_pid() -> usize {
-    let mut ret;
-    let mut pid = 1;
-    unsafe {
-        ret = PRIO_ARRAY[1].load(Ordering::Relaxed);
-    }
-    for i in 1..MAX_PROC_NUM {
+pub fn max_prio() -> Option<usize> {
+    for i in 0..PRIO_NUM {
         unsafe {
-            let prio = PRIO_ARRAY[i].load(Ordering::Relaxed);
-            if prio < ret {
-                ret = prio;
-                pid = i;
+            if GLOBAL_BITMAP[i].load(Ordering::SeqCst) != 0 {
+                return Some(i)
             }
         }
     }
-    pid
+    return None;
 }
 
 
@@ -109,11 +117,12 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        let cid = (*exe).spawn(future, prio, kind);
+        let (cid, need_update) = (*exe).spawn(future, prio, kind).unwrap();
         // 更新优先级标记
-        let prio = (*exe).priority;
-        update_prio(pid, prio);
-        return cid;
+        if need_update {
+            update_prio(prio, true);
+        }
+        return cid.0;
     }
 }
 /// 用户程序执行协程
@@ -130,31 +139,23 @@ pub fn poll_user_future() {
                 // println!("ex is empty");
                 break;
             }
-            let task = (*exe).fetch(tid as usize);
-            match task {
-                Some(task) => {
-                    let cid = task.cid;
-                    // println!("user task kind {:?}", task.kind);
-                    match task.execute() {
-                        Poll::Pending => { }
-                        Poll::Ready(()) => {
-                            (*exe).del_coroutine(cid);
-                        }
-                    };
-                    {
-                        let _lock = (*exe).wr_lock.lock();
-                        let prio = (*exe).priority;
-                        update_prio(getpid() as usize + 1, prio);
+            if let Some((task, need_update)) = (*exe).fetch(tid as usize) {
+                let prio = task.inner.lock().prio;
+                let cid = task.cid;
+                match task.execute() {
+                    Poll::Pending => { }
+                    Poll::Ready(()) => {
+                        (*exe).del_coroutine(cid);
                     }
+                };
+                if need_update {
+                    update_prio(prio, false);
                 }
-                _ => {
-                    // 任务队列不为空，但就绪队列为空，等待任务唤醒
+                if shoule_yield(prio) {
                     yield_();
                 }
-            }
-            // 执行完优先级最高的协程，检查优先级，判断是否让权
-            let max_prio_pid = max_prio_pid();
-            if pid + 1 != max_prio_pid {
+            } else {
+                // 任务队列不为空，但就绪队列为空，等待任务唤醒
                 yield_();
             }
         }
@@ -180,29 +181,25 @@ pub fn poll_kernel_future() {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
         loop {
-            let task = (*exe).fetch(hart_id());
-            // 更新优先级标记
-            let prio = (*exe).priority;
-            update_prio(0, prio);
-            // println_hart!("executor prio {}", hart_id(), prio);
-            match task {
-                Some(task) => {
-                    let cid = task.cid;
-                    let kind = task.kind;
-                    let _prio = task.inner.lock().prio;
-                    match task.execute() {
-                        Poll::Pending => {
-                            if kind == CoroutineKind::KernSche {
-                                // kprintln!("pending reback sche task{:?} kind {:?}", cid, kind);
-                                re_back(cid.0, 0);
-                            }
+            if let Some((task, need_update)) = (*exe).fetch(hart_id()) {
+                let cid = task.cid;
+                let kind = task.kind;
+                let prio = task.inner.lock().prio;
+                match task.execute() {
+                    Poll::Pending => {
+                        if kind == CoroutineKind::KernSche {
+                            // kprintln!("pending reback sche task{:?} kind {:?}", cid, kind);
+                            re_back(cid.0, 0);
                         }
-                        Poll::Ready(()) => {
-                            (*exe).del_coroutine(cid);
-                        }
-                    };
-                }
-                _ => {
+                    }
+                    Poll::Ready(()) => {
+                        (*exe).del_coroutine(cid);
+                    }
+                };
+                // 尽管 re_back 可能会增加，但是也是属于 need_update 的情况，两次相互抵消
+                if need_update {
+                    // kprintln!("pending reback sche task{:?} kind {:?}", cid, kind);
+                    update_prio(prio, false);
                 }
             }
         }
@@ -231,11 +228,12 @@ pub fn re_back(cid: usize, pid: usize) {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        let prio = (*exe).re_back(CoroutineId(cid));
+        let cid = CoroutineId(cid);
+        let prio = (*exe).tasks.lock().get(&cid).unwrap().inner.lock().prio;
+        let (cid, need_update) = (*exe).re_back(cid, prio).unwrap();
         // 重新入队之后，需要检查优先级
-        let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
-        if prio < process_prio {
-            PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
+        if need_update {
+            update_prio(prio, true)
         }
     }
 }

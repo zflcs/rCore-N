@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
-use vdso::update_prio;
+use basic::PRIO_NUM;
+use bit_field::BitField;
 use config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
 use crate::{mm, println};
@@ -12,7 +13,6 @@ use core::mem::size_of;
 use core::ptr::null;
 use crate::mm::{translated_str, translated_ref};
 use alloc::string::String;
-
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -61,6 +61,12 @@ pub fn sys_getpid() -> isize {
 pub fn sys_fork() -> isize {
     debug!("Fork start");
     let current_process = current_process().unwrap();
+    let bitmap = current_process.get_bitmap();
+    for i in 0..PRIO_NUM {
+        if bitmap.get_bit(i) {
+            vdso::update_prio(i, true);
+        }
+    }
     let new_process = current_process.fork();
     let new_pid = new_process.pid.0;
     // modify trap context of new_task, because it returns immediately after switching
@@ -70,7 +76,6 @@ pub fn sys_fork() -> isize {
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
-    update_prio(new_pid + 1, 0);
     add_task((*task).clone());
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize
@@ -88,6 +93,14 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
         }
         args_vec.push(translated_str(token, arg_str_ptr as *const u8));
         unsafe { args = args.add(1); }
+    }
+    {
+        let bitmap = current_process().unwrap().get_bitmap();
+        for i in 0..PRIO_NUM {
+            if bitmap.get_bit(i) {
+                vdso::update_prio(i, false);
+            }
+        }
     }
     // debug!("args {:?}", args_vec);
     if let Some(data) = get_app_data_by_name(path.as_str()) {

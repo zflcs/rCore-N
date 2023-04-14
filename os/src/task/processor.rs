@@ -168,6 +168,7 @@ pub fn hart_id() -> usize {
 // }
 pub async fn run_tasks() {
     let mut helper = Box::new(ReadHelper::new());
+    error!("run task");
     loop {
         if let Some(task) = fetch_task() {
             PROCESSORS[hart_id()].run_next(task);

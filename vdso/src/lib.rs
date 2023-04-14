@@ -51,7 +51,7 @@ get_libfn!(
 );
 
 get_libfn!(
-    pub fn max_prio_pid() -> usize {}
+  pub fn max_prio() -> Option<usize> {}
 );
 
 get_libfn!(
@@ -63,5 +63,5 @@ get_libfn!(
 );
 
 get_libfn!(
-    pub fn update_prio(pid: usize, prio: usize) {}
+  fn update_prio(prio: usize, is_add: bool) {}
 );

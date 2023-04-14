@@ -1,7 +1,8 @@
-use super::TaskControlBlock;
+use super::{TaskControlBlock, get_kernel_prio};
 use alloc::collections::{VecDeque, BTreeSet};
 use alloc::sync::Arc;
-use vdso::max_prio_pid;
+use basic::PRIO_NUM;
+use vdso::max_prio;
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
@@ -39,37 +40,53 @@ impl TaskManager {
     }
 
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        // // May need to concern affinity
-        // debug!("tasks total: {}", self.ready_queue.len());
-        // // error!("max prio pid is {}", crate::lkm::max_prio_pid());
-        if !self.user_intr_process_set.is_empty() {
-            for pid in self.user_intr_process_set.iter() {
-                vdso::update_prio(pid + 1, 0);
-                // info!("update prio: {}", pid);
+        if let Some(kernel_prio) = get_kernel_prio() {
+            return None;
+        } else {
+            let n = self.ready_queue.len();
+            if n == 0 { return None; }
+            let mut cur;
+            let mut cnt = 0;
+            if let Some(target_pid) = self.user_intr_process_set.first() {
+                loop {
+                    cur = self.ready_queue.pop_front().unwrap();
+                    let pid = cur.process.upgrade().unwrap().getpid();
+                    if pid == *target_pid {
+                        return Some(cur);
+                    }
+                    self.ready_queue.push_back(cur);
+                    cnt += 1;
+                    if cnt >= n { break; }
+                }
+                return self.ready_queue.pop_front();
+            } else {
+                cur = self.ready_queue.pop_front().unwrap();
+                cnt = 0;
+                let max_prio = cur.process.upgrade().unwrap().get_prio();
+                if max_prio.is_none() { return Some(cur); }  // 这个进程被创建了，但尚未开始运行
+                let mut max_prio = max_prio.unwrap();
+                let mut next;
+                loop {
+                    if self.ready_queue.is_empty() { break; }
+                    next = self.ready_queue.pop_front().unwrap();
+                    if let Some(prio) = next.process.upgrade().unwrap().get_prio(){
+                        if prio < max_prio {
+                            self.ready_queue.push_back(cur);
+                            max_prio = prio;
+                            cur = next;
+                        } else {
+                            self.ready_queue.push_back(next);
+                        }
+                        cnt += 1;
+                        if cnt > n { break; }
+                    } else {
+                        self.ready_queue.push_back(cur);
+                        return Some(next);  // 这个进程被创建了，但尚未开始运行
+                    }
+                }
+                return Some(cur);
             }
-            // info!("fetch user intr task");
-            // return (self.user_intr_task_queue.pop_back(), true);
         }
-        let prio_pid = vdso::max_prio_pid() - 1;
-        // 如果内核协程的优先级最高，则
-        // if prio_pid == 0 {
-        //     return None;
-        // }
-        let n = self.ready_queue.len();
-        if n == 0 { return None; }
-        let mut peek;
-        let mut cnt = 0;
-        loop {
-            peek = self.ready_queue.pop_front().unwrap();
-            let pid = peek.process.upgrade().unwrap().getpid();
-            if pid == prio_pid {
-                return Some(peek);
-            }
-            self.ready_queue.push_back(peek);
-            cnt += 1;
-            if cnt >= n { break; }
-        }
-        self.ready_queue.pop_front()
     }
 
     #[allow(unused)]

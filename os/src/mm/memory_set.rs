@@ -158,7 +158,7 @@ impl MemorySet {
         );
     }
 
-    fn map_heapbuffer(&mut self, ptr: usize, is_user: bool) {
+    fn map_heapbuffer(&mut self, ptr: usize, is_user: bool) -> usize{
         let mut perm = MapPermission::empty();
         if is_user {
             perm |= MapPermission::U;
@@ -173,9 +173,9 @@ impl MemorySet {
             ), 
             None,
         );
-        let heap_buffer = translate_writable_va(self.token(), HEAP_BUFFER)
-            .unwrap() as *mut usize;
-        unsafe { *heap_buffer = ptr; }
+        let heap_buffer = translate_writable_va(self.token(), HEAP_BUFFER).unwrap();
+        unsafe { *(heap_buffer as *mut usize) = ptr; }
+        return heap_buffer;
     }
 
     /// Without kernel stacks.
@@ -301,7 +301,7 @@ impl MemorySet {
                 );
             }
         }
-        memory_set.map_heapbuffer(elf.find_section_by_name(".data").unwrap().address() as usize, true);        
+        let prio_ptr = memory_set.map_heapbuffer(elf.find_section_by_name(".data").unwrap().address() as usize, true);        
         memory_set.map_trampoline();
         {
             LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", &mut memory_set, Some(so_table(&elf)));
@@ -315,7 +315,7 @@ impl MemorySet {
         (
             memory_set,
             user_stack_bottom,
-            elf.header.pt2.entry_point() as usize,
+            prio_ptr
         )
     }
     pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {

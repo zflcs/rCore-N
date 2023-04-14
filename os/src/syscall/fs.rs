@@ -50,7 +50,6 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) 
                 -3
             }
         } else {
-            
             let work = file.awrite(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), pid, key);
             vdso::spawn(move || work, 0, 0, basic::CoroutineKind::KernSyscall);
             0

@@ -29,6 +29,7 @@ vdso = { path = "../vdso", features = ["kernel"] }
 config = { path = "../config", features = ["board_qemu"] }
 basic = { path = "../lib_so/basic" }
 compression = { version = "0.1.4", default-features = false, features = ["gzip"] }
+bit_field = "0.9.0"
 
 [features]
 board_qemu = ["uart8250"]

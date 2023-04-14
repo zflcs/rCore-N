@@ -4,6 +4,6 @@
 .string "name:sharedscheduler
 version:1
 api_version:1
-exported_symbols:init_module,spawn,user_entry,poll_kernel_future,current_cid,re_back,update_prio,add_virtual_core,max_prio_pid,reprio
+exported_symbols:init_module,spawn,user_entry,poll_kernel_future,current_cid,re_back,add_virtual_core,max_prio,reprio,update_prio
 dependence:
 ";

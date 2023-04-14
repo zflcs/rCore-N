@@ -41,7 +41,7 @@ static MSG_COUNT: Mutex<usize> = Mutex::new(0);
 pub const DATA_C: &str = "a";
 pub const DATA_S: &str = "x";
 
-const MAX_CONNECTION: usize = 32;
+const MAX_CONNECTION: usize = 12;
 
 static mut CONNECTIONS: Vec<[usize; 4]> = Vec::new();
 

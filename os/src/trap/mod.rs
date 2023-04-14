@@ -97,7 +97,6 @@ pub fn trap_handler() -> ! {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             // let current_time = time::read();
             let mut timer_map = TIMER_MAP[hart_id()].lock();
-            // debug!("test");
             while let Some((_, task_id)) = timer_map.pop_first() {
                 if let Some((next_time, _)) = timer_map.first_key_value() {
                     set_timer(*next_time);

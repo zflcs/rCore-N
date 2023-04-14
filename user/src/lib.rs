@@ -53,7 +53,7 @@ pub extern "C" fn _start(argc: usize, argv: usize) {
         );
     }
     // println!("{:#x?} {:#x?}", argc, argv);
-    vdso::spawn(move || async move{ main(argc, v); }, config::PRIO_NUM - 1, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
+    vdso::spawn(move || async move{ main(argc, v); }, config::PRIO_NUM - 2, getpid() as usize + 1, basic::CoroutineKind::UserNorm);
 
 }
 

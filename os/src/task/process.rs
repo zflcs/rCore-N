@@ -1,3 +1,5 @@
+use basic::{PRIO_NUM, PRIO_PTR, HEAP_BUFFER, PAGE_SIZE_BITS};
+use bit_field::BitField;
 use vdso::get_symbol_addr;
 use spin::{Mutex, MutexGuard};
 use crate::lkm::LKM_MANAGER;
@@ -19,6 +21,8 @@ use crate::mm::translated_refmut;
 pub struct ProcessControlBlock {
     // immutable
     pub pid: PidHandle,
+    pub heap_buffer: Mutex<usize>,
+
     // mutable
     inner: Mutex<ProcessControlBlockInner>,
 }
@@ -131,6 +135,21 @@ impl ProcessControlBlockInner {
 }
 
 impl ProcessControlBlock {
+    pub fn get_bitmap(self: &Arc<Self>) -> usize {
+        let bitmap = unsafe { *((*self.heap_buffer.lock() + (PRIO_PTR - HEAP_BUFFER)) as *const usize) };
+        return bitmap;
+    }
+    pub fn get_prio(self: &Arc<Self>) -> Option<usize> {
+        let bitmap = unsafe { *((*self.heap_buffer.lock() + (PRIO_PTR - HEAP_BUFFER)) as *const usize) };
+        for i in 0..PRIO_NUM {
+            if bitmap.get_bit(i) {
+                return Some(i);
+            }
+        }
+        // 没有协程的优先级，但是这个 PCB 存在，只能说明进程尚未开始运行，因此返回最高优先级
+        return None;
+    }
+
     pub fn acquire_inner_lock(&self) -> MutexGuard<ProcessControlBlockInner> {
         self.inner.lock()
     }
@@ -145,7 +164,7 @@ impl ProcessControlBlock {
 
     pub fn new(file_name: &str) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, _entry_point) = MemorySet::from_elf(file_name);
+        let (memory_set, ustack_base, heap_buffer) = MemorySet::from_elf(file_name);
         // allocate a pid
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
@@ -174,7 +193,8 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
                 }
-            )
+            ),
+            heap_buffer: Mutex::new(heap_buffer),
         });
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
@@ -212,10 +232,11 @@ impl ProcessControlBlock {
     pub fn exec(self: &Arc<Self>, file_name: &str, args: Vec<String>) {
         assert_eq!(self.acquire_inner_lock().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(file_name);
+        let (memory_set, ustack_base, heap_buffer) = MemorySet::from_elf(file_name);
         let new_token = memory_set.token();
-        debug!("entry_point: {}", entry_point);
+        debug!("heap_buffer: {}", heap_buffer);
         // substitute memory_set
+        *self.heap_buffer.lock() = heap_buffer;
         let mut process_inner = self.acquire_inner_lock();
         process_inner.memory_set = memory_set;
         process_inner.user_trap_info = None;
@@ -254,7 +275,6 @@ impl ProcessControlBlock {
         user_sp -= user_sp % core::mem::size_of::<usize>();
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
-            // lib_so::user_entry(),
             { LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("user_entry").unwrap() },
             user_sp,
             KERNEL_SPACE.lock().token(),
@@ -292,7 +312,7 @@ impl ProcessControlBlock {
                 .ppn();
             user_trap_info = Some(trap_info);
         }
-
+        let heap_buffer = memory_set.translate(VirtAddr::from(HEAP_BUFFER).into()).unwrap().ppn().0 << PAGE_SIZE_BITS;
         // create child process pcb
         let child = Arc::new(Self {
             pid,
@@ -313,7 +333,8 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
                 }
-            )
+            ),
+            heap_buffer: Mutex::new(heap_buffer),
         });
         // add child
         parent.children.push(Arc::clone(&child));

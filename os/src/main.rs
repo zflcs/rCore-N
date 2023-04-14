@@ -16,6 +16,7 @@ extern crate bitflags;
 extern crate log;
 
 use alloc::boxed::Box;
+use basic::PRIO_NUM;
 use config::CPU_NUM;
 use mm::init_kernel_space;
 use sbi::send_ipi;
@@ -117,7 +118,7 @@ pub fn rust_main(hart_id: usize) -> ! {
         plic::init_hart(hart_id);
     }
     timer::set_next_trigger();
-    vdso::spawn(move || task::run_tasks(), 7, 0, basic::CoroutineKind::KernSche);
+    vdso::spawn(move || task::run_tasks(), PRIO_NUM - 1, 0, basic::CoroutineKind::KernSche);
     vdso::poll_kernel_future();
     panic!("Unreachable in rust_main!");
 }

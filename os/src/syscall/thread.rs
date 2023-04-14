@@ -4,7 +4,6 @@ use crate::task::{block_current_and_run_next, current_process, suspend_current_a
 
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
-
     let process = task.process.upgrade().unwrap();
     // create a new thread
     let new_task = Arc::new(TaskControlBlock::new(
@@ -36,7 +35,9 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
         trap_handler as usize,
     );
     (*new_task_trap_cx).x[10] = arg;
+    drop(process_inner);
     // add new task to scheduler
+    debug!("add thread");
     add_task(Arc::clone(&new_task));
     debug!("thread create start end");
     new_task_tid as isize

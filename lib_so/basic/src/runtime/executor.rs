@@ -1,4 +1,4 @@
-use alloc::collections::{BTreeMap, VecDeque};
+use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -17,15 +17,11 @@ pub struct Executor {
     /// 当前正在运行的协程 Id
     pub currents: [Option<CoroutineId>; MAX_THREAD_NUM],
     /// 协程 map
-    pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
+    pub tasks: Mutex<BTreeMap<CoroutineId, Arc<Coroutine>>>,
     /// 就绪协程队列
     pub ready_queue: [TaskQueue; PRIO_NUM],
     /// 协程优先级位图
-    pub bitmap: BitMap,
-    /// 进程最高优先级协程代表的优先级，内核可以直接访问物理地址来读取
-    pub priority: usize,
-    /// 整个 Executor 的读写锁，内核读取 priority 时，可以不获取这个锁，在唤醒协程时，需要获取锁
-    pub wr_lock: Mutex<()>,
+    pub bitmap: Mutex<BitMap>,
     /// 执行器线程id
     pub waits: Vec<usize>,
 }
@@ -35,11 +31,9 @@ impl Executor {
     pub const fn new() -> Self {
         Self {
             currents: [None; MAX_THREAD_NUM],
-            tasks: BTreeMap::new(),
+            tasks: Mutex::new(BTreeMap::new()),
             ready_queue: [TaskQueue::EMPTY; PRIO_NUM],
-            bitmap: BitMap(0),
-            priority: PRIO_NUM,
-            wr_lock: Mutex::new(()),
+            bitmap: Mutex::new(BitMap::EMPTY),
             waits: Vec::new(),
         }
     }
@@ -47,105 +41,66 @@ impl Executor {
 
 impl Executor {
     /// 暂不提供优先级更新机制
-    pub fn reprio(&mut self, cid: CoroutineId, prio: usize) {
-        // let _lock = self.wr_lock.lock();
-        // let task = self.tasks.get(&cid).unwrap();
-        // // task.inner.lock().prio = prio;
-        // let p = task.inner.lock().prio;
-        // // 先从队列中出来
-        // if let Ok(idx) = self.ready_queue[p].binary_search(&cid){
-        //     self.ready_queue[p].remove(idx);
-        //     if self.ready_queue[p].is_empty() {
-        //         self.bitmap.update(p, false);
-        //     }
-        // }
-        // task.inner.lock().prio = prio;
-        // self.ready_queue[prio].push_back(cid);
-        // self.bitmap.update(prio, true);
-        // self.priority = self.bitmap.get_priority();
+    pub fn reprio(&mut self, _cid: CoroutineId, _prio: usize) {
+
     }
-    /// 添加协程
-    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
+    /// 添加协程，成功返回优先级是否变化，失败返回插入失败的 cid
+    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> Result<(CoroutineId, bool), CoroutineId> {
         let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
-        let lock = self.wr_lock.lock();
-        // TODO: 把队列满了的情况考虑进去，否则会出现死锁
-        while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
-        // self.ready_queue[prio].push_back(cid);
-        self.tasks.insert(cid, task);
-        self.bitmap.update(prio, true);
-        if prio < self.priority {
-            self.priority = prio;
+        let flag = self.ready_queue[prio].is_empty();
+        if let Err(cid) = self.ready_queue[prio].enqueue(cid) { 
+            Err(cid)
+        } else {
+            if flag {
+                self.bitmap.lock().update(prio, true);
+            }
+            self.tasks.lock().insert(cid, task);
+            Ok((cid, flag))
         }
-        drop(lock);
-        return cid.0;
     }
     
     /// 判断是否还有协程
     pub fn is_empty(&self) -> bool {
-        self.tasks.is_empty()
+        self.tasks.lock().is_empty()
     }
-    /// 取出优先级最高的协程 id，并且更新位图
-    pub fn fetch(&mut self, tid: usize) -> Option<Arc<Coroutine>> {
+    /// 取出优先级最高的协程 id，成功返回Some((task, need_update))，失败返回 None
+    pub fn fetch(&mut self, tid: usize) -> Option<(Arc<Coroutine>, bool)> {
         assert!(tid < MAX_THREAD_NUM);
-        let _lock = self.wr_lock.lock();
-        let prio = self.priority;
-        if prio == PRIO_NUM {
-            self.currents[tid] = None;
-            None
-        } else {
-            // let cid = self.ready_queue[prio].pop_front().unwrap();
-            // let task = (*self.tasks.get(&cid).unwrap()).clone();
-            // if self.ready_queue[prio].is_empty() {
-            //     self.bitmap.update(prio, false);
-            //     self.priority = self.bitmap.get_priority();
-            // }
-            // drop(_lock);
-            // self.currents[tid] = Some(cid);
-            // Some(task)
-            for i in 0..PRIO_NUM {
-                if let Some(cid) = self.ready_queue[i].dequeue() {
-                    let task = (*self.tasks.get(&cid).unwrap()).clone();
-                    drop(_lock);
-                    self.currents[tid] = Some(cid);
-                    return Some(task);
+        for i in 0..PRIO_NUM {
+            if let Some(cid) = self.ready_queue[i].dequeue() {
+                let task = (*self.tasks.lock().get(&cid).unwrap()).clone();
+                self.currents[tid] = Some(cid);
+                if self.ready_queue[i].is_empty() {
+                    self.bitmap.lock().update(i, false);
+                    return Some((task, true));
                 } else {
-                    self.bitmap.update(i, false);
+                    return Some((task, false));
                 }
             }
-            return None;
         }
+        return None;
     }
 
     /// 增加执行器线程
     pub fn add_wait_tid(&mut self, tid: usize) {
-        let _lock = self.wr_lock.lock();
         self.waits.push(tid);
     }
 
-    /// 阻塞协程重新入队
-    pub fn re_back(&mut self, cid: CoroutineId) -> usize {
-        let lock = self.wr_lock.lock();
-        let prio = self.tasks.get(&cid).unwrap().inner.lock().prio;
-        // TODO: 把队列满了的情况考虑进去，否则会出现死锁
-        while let Err(_) = self.ready_queue[prio].enqueue(cid) { }
-        // self.ready_queue[prio].push_back(cid);
-        self.bitmap.update(prio, true);
-        if prio < self.priority {
-            self.priority = prio;
+    /// 阻塞协程重新入队，同理，成功返回优先级是否变化，失败返回协程 id
+    pub fn re_back(&mut self, cid: CoroutineId, prio: usize) -> Result<(CoroutineId, bool), CoroutineId> {
+        let flag = self.ready_queue[prio].is_empty();
+        if let Err(cid) = self.ready_queue[prio].enqueue(cid) { 
+            Err(cid)
+        } else {
+            if flag {
+                self.bitmap.lock().update(prio, true);
+            }
+            Ok((cid, flag))
         }
-        drop(lock);
-        self.priority
     }
-    /// 删除协程，尽管 id 从队列中取出了，但没有更新优先级，因此这里需要检查一次队列
+    /// 删除协程
     pub fn del_coroutine(&mut self, cid: CoroutineId) {
-        let lock = self.wr_lock.lock();
-        let task = self.tasks.remove(&cid).unwrap();
-        let prio = task.inner.lock().prio;
-        if self.ready_queue[prio].is_empty() {
-            self.bitmap.update(prio, false);
-            self.priority = self.bitmap.get_priority();
-        }
-        drop(lock);
+        self.tasks.lock().remove(&cid).unwrap();
     }
 }
