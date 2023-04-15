@@ -61,12 +61,13 @@ pub fn sys_getpid() -> isize {
 pub fn sys_fork() -> isize {
     debug!("Fork start");
     let current_process = current_process().unwrap();
-    let bitmap = current_process.get_bitmap();
-    for i in 0..PRIO_NUM {
-        if bitmap.get_bit(i) {
-            vdso::update_prio(i, true);
-        }
-    }
+    // let bitmap = current_process.get_bitmap();
+    // error!("bitmap {:#b}", bitmap);
+    // for i in 0..PRIO_NUM {
+    //     if bitmap.get_bit(i) {
+    //         vdso::update_prio(i, true);
+    //     }
+    // }
     let new_process = current_process.fork();
     let new_pid = new_process.pid.0;
     // modify trap context of new_task, because it returns immediately after switching
@@ -94,14 +95,15 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
         args_vec.push(translated_str(token, arg_str_ptr as *const u8));
         unsafe { args = args.add(1); }
     }
-    {
-        let bitmap = current_process().unwrap().get_bitmap();
-        for i in 0..PRIO_NUM {
-            if bitmap.get_bit(i) {
-                vdso::update_prio(i, false);
-            }
-        }
-    }
+    // {
+    //     let bitmap = current_process().unwrap().get_bitmap();
+    //     error!("bitmap {:#b}", bitmap);
+    //     for i in 0..PRIO_NUM {
+    //         if bitmap.get_bit(i) {
+    //             vdso::update_prio(i, false);
+    //         }
+    //     }
+    // }
     // debug!("args {:?}", args_vec);
     if let Some(data) = get_app_data_by_name(path.as_str()) {
         let task = current_process().unwrap();

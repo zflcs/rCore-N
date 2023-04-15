@@ -1,3 +1,4 @@
+use super::pool::PID2PCB;
 use super::{TaskControlBlock, get_kernel_prio};
 use alloc::collections::{VecDeque, BTreeSet};
 use alloc::sync::Arc;
@@ -40,52 +41,43 @@ impl TaskManager {
     }
 
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        if let Some(kernel_prio) = get_kernel_prio() {
-            return None;
-        } else {
+        if let Some(target_pid) = self.user_intr_process_set.first() {
             let n = self.ready_queue.len();
-            if n == 0 { return None; }
             let mut cur;
             let mut cnt = 0;
-            if let Some(target_pid) = self.user_intr_process_set.first() {
-                loop {
-                    cur = self.ready_queue.pop_front().unwrap();
-                    let pid = cur.process.upgrade().unwrap().getpid();
-                    if pid == *target_pid {
-                        return Some(cur);
-                    }
-                    self.ready_queue.push_back(cur);
-                    cnt += 1;
-                    if cnt >= n { break; }
-                }
-                return self.ready_queue.pop_front();
-            } else {
+            loop {
                 cur = self.ready_queue.pop_front().unwrap();
-                cnt = 0;
-                let max_prio = cur.process.upgrade().unwrap().get_prio();
-                if max_prio.is_none() { return Some(cur); }  // 这个进程被创建了，但尚未开始运行
-                let mut max_prio = max_prio.unwrap();
-                let mut next;
-                loop {
-                    if self.ready_queue.is_empty() { break; }
-                    next = self.ready_queue.pop_front().unwrap();
-                    if let Some(prio) = next.process.upgrade().unwrap().get_prio(){
-                        if prio < max_prio {
-                            self.ready_queue.push_back(cur);
-                            max_prio = prio;
-                            cur = next;
-                        } else {
-                            self.ready_queue.push_back(next);
-                        }
-                        cnt += 1;
-                        if cnt > n { break; }
-                    } else {
-                        self.ready_queue.push_back(cur);
-                        return Some(next);  // 这个进程被创建了，但尚未开始运行
-                    }
+                let pid = cur.process.upgrade().unwrap().getpid();
+                if pid == *target_pid {
+                    return Some(cur);
                 }
-                return Some(cur);
+                self.ready_queue.push_back(cur);
+                cnt += 1;
+                if cnt >= n { break; }
             }
+            return self.ready_queue.pop_front();
+        } else {
+            let n = self.ready_queue.len();
+            if n == 0 {  return None; }
+            let mut cur = self.ready_queue.pop_front().unwrap();
+            let mut cnt = 0;
+            let mut max_prio = cur.process.upgrade().unwrap().get_prio();
+            let mut next;
+            loop {
+                if self.ready_queue.is_empty() { break; }
+                next = self.ready_queue.pop_front().unwrap();
+                let prio = next.process.upgrade().unwrap().get_prio();
+                if prio < max_prio {
+                    self.ready_queue.push_back(cur);
+                    max_prio = prio;
+                    cur = next;
+                } else {
+                    self.ready_queue.push_back(next);
+                }
+                cnt += 1;
+                if cnt > n { break; }
+            }
+            return Some(cur);
         }
     }
 

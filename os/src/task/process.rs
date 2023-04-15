@@ -136,18 +136,20 @@ impl ProcessControlBlockInner {
 
 impl ProcessControlBlock {
     pub fn get_bitmap(self: &Arc<Self>) -> usize {
-        let bitmap = unsafe { *((*self.heap_buffer.lock() + (PRIO_PTR - HEAP_BUFFER)) as *const usize) };
+        let ptr = (*self.heap_buffer.lock() + (PRIO_PTR - HEAP_BUFFER));
+        error!("ptr {:#x?}", ptr);
+        let bitmap = unsafe { *(ptr as *const usize) };
         return bitmap;
     }
-    pub fn get_prio(self: &Arc<Self>) -> Option<usize> {
+    pub fn get_prio(self: &Arc<Self>) -> usize {
         let bitmap = unsafe { *((*self.heap_buffer.lock() + (PRIO_PTR - HEAP_BUFFER)) as *const usize) };
         for i in 0..PRIO_NUM {
             if bitmap.get_bit(i) {
-                return Some(i);
+                return i;
             }
         }
         // 没有协程的优先级，但是这个 PCB 存在，只能说明进程尚未开始运行，因此返回最高优先级
-        return None;
+        return PRIO_NUM;
     }
 
     pub fn acquire_inner_lock(&self) -> MutexGuard<ProcessControlBlockInner> {

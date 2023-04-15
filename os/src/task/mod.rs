@@ -150,7 +150,7 @@ use config::{PRIO_NUM, PRIO_PTR};
 use bit_field::BitField;
 pub fn get_kernel_prio() -> Option<usize> {
     let bitmap = unsafe { *(PRIO_PTR as *const usize) };
-    // error!("bitmap {:#b}", bitmap);
+    error!("bitmap {:#b}", bitmap);
     for i in 0..PRIO_NUM {
         if bitmap.get_bit(i) {
             return Some(i);
