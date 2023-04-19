@@ -1,5 +1,8 @@
 #![no_std]
 
+mod virtio;
+
+pub use virtio::*;
 /// CPU 数目
 pub const CPU_NUM: usize = 4;
 /// trace 大小

@@ -20,9 +20,10 @@ use basic::PRIO_NUM;
 use config::CPU_NUM;
 use mm::init_kernel_space;
 use sbi::send_ipi;
-use core::{arch::{asm, global_asm}, pin::Pin, ffi::c_void};
+use core::{arch::{asm, global_asm}, pin::Pin};
 
 use crate::{mm::KERNEL_SPACE, lkm::{LKM_MANAGER, ModuleManager}, loader::get_app_data_by_name, task::INITPROC};
+
 
 #[macro_use]
 mod console;
@@ -43,6 +44,7 @@ mod mm;
 mod logger;
 mod loader;
 mod lkm;
+mod device;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.asm"));
@@ -65,8 +67,14 @@ pub fn hart_id() -> usize {
     hart_id
 }
 
+extern "C" {
+    fn boot_stack();
+    fn boot_stack_top();
+}
+
+
 #[no_mangle]
-pub fn rust_main(hart_id: usize) -> ! {
+pub fn rust_main(hart_id: usize, device_tree_paddr: usize) -> ! {
     if hart_id == 0 {
         clear_bss();
         logger::init();
@@ -77,20 +85,8 @@ pub fn rust_main(hart_id: usize) -> ! {
         plic::init();
         plic::init_hart(hart_id);
         uart::init();
-
-        extern "C" {
-            fn boot_stack();
-            fn boot_stack_top();
-        }
-
+        device::init_dt();
         debug!("boot_stack {:#x} top {:#x}", boot_stack as usize, boot_stack_top as usize);
-        // unsafe {
-        //     let satp: usize;
-        //     let sp: usize;
-        //     asm!("csrr {}, satp", out(reg) satp);
-        //     asm!("mv {}, sp", out(reg) sp);
-        //     println_hart!("satp: {:#x}, sp: {:#x}", hart_id, satp, sp);
-        // }
         ModuleManager::init();
         LKM_MANAGER.lock().as_mut().unwrap().init_module("sharedscheduler", "");
         lkm::init();

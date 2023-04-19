@@ -233,16 +233,39 @@ impl MemorySet {
             ),
             None,
         );
-        memory_set.push(
-            MapArea::new(
-                String::from("kernel.plic"),
-                (0xc00_0000 as usize).into(),
-                (0x1000_0000 as usize).into(),
-                MapType::Mmio,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
-        );
+        // memory_set.push(
+        //     MapArea::new(
+        //         String::from("kernel.plic"),
+        //         (0xc00_0000 as usize).into(),
+        //         (0x1000_0000 as usize).into(),
+        //         MapType::Mmio,
+        //         MapPermission::R | MapPermission::W,
+        //     ),
+        //     None,
+        // );
+        use config::MMIO;
+        for pair in MMIO {
+            memory_set.push(
+                MapArea::new(
+                    String::from("kernel.virt_io"),
+                    (*pair).0.into(),
+                    ((*pair).0 + (*pair).1).into(),
+                    MapType::Mmio,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
+        // memory_set.push(
+        //     MapArea::new(
+        //         String::from("kernel.virt_io"),
+        //         (VIRT_MROM.0).into(),
+        //         (VIRT_MROM.1).into(),
+        //         MapType::Mmio,
+        //         MapPermission::R | MapPermission::W,
+        //     ),
+        //     None,
+        // );
         use crate::uart;
         #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
         memory_set.push(
