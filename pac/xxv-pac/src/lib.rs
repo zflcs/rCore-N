@@ -35,40 +35,40 @@ pub union Vector {
 #[no_mangle]
 pub static __EXTERNAL_INTERRUPTS: [Vector; 0] = [];
 #[doc = "XXV Ethernet MAC"]
-pub struct XXV_ETHERNET_0 {
+pub struct XXV_ETHERNET {
     _marker: PhantomData<*const ()>,
 }
-unsafe impl Send for XXV_ETHERNET_0 {}
-impl XXV_ETHERNET_0 {
+unsafe impl Send for XXV_ETHERNET {}
+impl XXV_ETHERNET {
     #[doc = r"Pointer to the register block"]
-    pub const PTR: *const xxv_ethernet_0::RegisterBlock = 0x6011_0000 as *const _;
+    pub const PTR: *const xxv_ethernet::RegisterBlock = 0x6011_0000 as *const _;
     #[doc = r"Return the pointer to the register block"]
     #[inline(always)]
-    pub const fn ptr() -> *const xxv_ethernet_0::RegisterBlock {
+    pub const fn ptr() -> *const xxv_ethernet::RegisterBlock {
         Self::PTR
     }
 }
-impl Deref for XXV_ETHERNET_0 {
-    type Target = xxv_ethernet_0::RegisterBlock;
+impl Deref for XXV_ETHERNET {
+    type Target = xxv_ethernet::RegisterBlock;
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
         unsafe { &*Self::PTR }
     }
 }
-impl core::fmt::Debug for XXV_ETHERNET_0 {
+impl core::fmt::Debug for XXV_ETHERNET {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.debug_struct("XXV_ETHERNET_0").finish()
+        f.debug_struct("XXV_ETHERNET").finish()
     }
 }
 #[doc = "XXV Ethernet MAC"]
-pub mod xxv_ethernet_0;
+pub mod xxv_ethernet;
 #[no_mangle]
 static mut DEVICE_PERIPHERALS: bool = false;
 #[doc = r" All the peripherals."]
 #[allow(non_snake_case)]
 pub struct Peripherals {
-    #[doc = "XXV_ETHERNET_0"]
-    pub XXV_ETHERNET_0: XXV_ETHERNET_0,
+    #[doc = "XXV_ETHERNET"]
+    pub XXV_ETHERNET: XXV_ETHERNET,
 }
 impl Peripherals {
     #[doc = r" Returns all the peripherals *once*."]
@@ -91,7 +91,7 @@ impl Peripherals {
     pub unsafe fn steal() -> Self {
         DEVICE_PERIPHERALS = true;
         Peripherals {
-            XXV_ETHERNET_0: XXV_ETHERNET_0 {
+            XXV_ETHERNET: XXV_ETHERNET {
                 _marker: PhantomData,
             },
         }

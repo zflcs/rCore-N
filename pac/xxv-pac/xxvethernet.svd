@@ -17,7 +17,7 @@
     <!-- xxv_ethernet_0 -->
     <peripheral>
     <size>32</size>            <!-- default bit-width of any register contained in the device -->
-    <name>XXV_ETHERNET_0</name>
+    <name>XXV_ETHERNET</name>
     <description>XXV Ethernet MAC</description>
     <baseAddress>0x60110000</baseAddress>     <!-- mmio baseaddr -->
     <addressBlock>
