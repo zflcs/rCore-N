@@ -55,7 +55,7 @@ pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
     let scause = scause::read();
     let stval = stval::read();
-    push_trace(S_TRAP_HANDLER + scause.bits());
+    // push_trace(S_TRAP_HANDLER + scause.bits());
     let task = current_task().unwrap();
     let mut inner = task.acquire_inner_lock();
     inner.user_time_us += get_time_us() - inner.last_user_time_us;
@@ -102,24 +102,27 @@ pub fn trap_handler() -> ! {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             // let current_time = time::read();
             let mut timer_map = TIMER_MAP[hart_id()].lock();
-            // debug!("test");
+            // debug!("SupervisorTimer");
             while let Some((_, task_id)) = timer_map.pop_first() {
                 if let Some((next_time, _)) = timer_map.first_key_value() {
                     set_timer(*next_time);
                 }
                 drop(timer_map);
                 if task_id.pid == 0 {
+                    // debug!("SupervisorTimer 1");
                     set_next_trigger();
                     suspend_current_and_run_next();
                 } else {
                     if task_id.coroutine_id.is_none() {
                         if task_id.pid == current_task().unwrap().getpid() &&
                         sys_gettid() as usize == current_process().unwrap().get_user_trap_handler_tid() {
+                            // debug!("SupervisorTimer 2");
                             debug!("set UTIP for pid {}", task_id.pid);
                             unsafe {
                                 sip::set_utimer();
                             }
                         } else {
+                            // debug!("SupervisorTimer 3");
                             let _ = push_trap_record(
                                 task_id.pid,
                                 UserTrapRecord {
@@ -129,6 +132,7 @@ pub fn trap_handler() -> ! {
                             );
                         }
                     } else {
+                        // debug!("SupervisorTimer 4");
                         let _ = push_trap_record(
                             task_id.pid, 
                             UserTrapRecord {
@@ -187,11 +191,10 @@ pub fn trap_return() -> ! {
         fn __alltraps();
         fn __restore();
     }
-
     // debug!("current pid: {}, tid: {}", current_process().unwrap().pid.0, sys_gettid());
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
     // trace!("return to user, trap frame: {:x?}", current_trap_cx());
-    push_trace(S_TRAP_RETURN + scause::read().bits());
+    // push_trace(S_TRAP_RETURN + scause::read().bits());
     unsafe {
         sstatus::set_spie();
         sstatus::set_spp(sstatus::SPP::User);

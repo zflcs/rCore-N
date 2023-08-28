@@ -55,7 +55,7 @@ pub fn main() -> i32 {
     
     let end = get_time();
 
-    println!("main tid: {}", gettid());
+    // println!("main tid: {}", gettid());
     for _ in 0..MAX_CONNECTION {
         let mut fds0 = [0usize; 2];
         let mut fds1 = [0usize; 2];
@@ -79,10 +79,10 @@ pub fn main() -> i32 {
         }
 
         let init_res = init_user_trap();
-        println!(
-            "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
-            init_res, pid, end - start
-        );
+        // println!(
+        //     "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
+        //     init_res, pid, end - start
+        // );
 
         for _ in 0..CLIENT_POLL_THREDS {
             add_virtual_core();

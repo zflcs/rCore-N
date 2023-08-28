@@ -41,7 +41,7 @@ pub fn shutdown() -> ! {
 }
 
 pub fn send_ipi(ptr: usize) {
-    push_trace(SEND_IPI_ENTER);
+    // push_trace(SEND_IPI_ENTER);
     sbi_call(SBI_SEND_IPI, ptr, 0, 0);
-    push_trace(SEND_IPI_EXIT);
+    // push_trace(SEND_IPI_EXIT);
 }

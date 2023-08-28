@@ -61,7 +61,7 @@ pub fn main() -> i32 {
         START_TIME = start as usize;
     }
     let end = get_time();
-    println!("main tid: {}", gettid());
+    // println!("main tid: {}", gettid());
     // lib_so::spawn(move ||client_send(0, 0, pid as usize), 1, pid as usize + 1, lib_so::CoroutineKind::UserNorm);
 
     for _ in 0..MAX_CONNECTION {
@@ -84,10 +84,10 @@ pub fn main() -> i32 {
         }
 
         let init_res = init_user_trap();
-        println!(
-            "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
-            init_res, pid, end - start
-        );
+        // println!(
+        //     "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
+        //     init_res, pid, end - start
+        // );
 
         for _ in 0..CLIENT_POLL_THREDS {
             add_virtual_core();
@@ -114,10 +114,10 @@ pub fn main() -> i32 {
         }
 
         let init_res = init_user_trap();
-        println!(
-            "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
-            init_res, pid, end - start
-        );
+        // println!(
+        //     "[hello world] trap init result: {:#x}, pid: {}, cost time: {} ms",
+        //     init_res, pid, end - start
+        // );
         
         for _ in 0..SERVER_POLL_THREDS {
             add_virtual_core();
@@ -186,7 +186,7 @@ async fn msg_server(key: usize, cid: usize) {
         let mut count = COMPLETE_SERVER.lock();
         *count = count.add(1);
         if count.eq(&MAX_CONNECTION) {
-            println!("[msg_server] exit");
+            // println!("[msg_server] exit");
         }
     }
     
@@ -222,7 +222,7 @@ async fn msg_receiver(server_fd: usize, key: usize, cid: usize) {
         let mut count = COMPLETE_RECV.lock();
         *count = count.add(1);
         if count.eq(&MAX_CONNECTION) {
-            println!("[msg_receiver] exit");
+            // println!("[msg_receiver] exit");
         }
     }
     
@@ -252,7 +252,7 @@ async fn msg_sender(server_fd: usize, key: usize, pid: usize) {
         let mut count = COMPLETE_SENDER.lock();
         *count = count.add(1);
         if count.eq(&MAX_CONNECTION) {
-            println!("[msg_sender] exit");
+            // println!("[msg_sender] exit");
         }
     }
 }

@@ -14,14 +14,22 @@ impl File for Stdin {
     fn read(&self, mut user_buf: UserBuffer) -> Result<usize, isize> {
         assert_eq!(user_buf.len(), 1);
         // busy loop
-        if let Ok(ch) = serial_getchar(0) {
-            unsafe {
-                user_buf.buffers[0].as_mut_ptr().write_volatile(ch);
-            }
-            Ok(1)
-        } else {
+        // if let Ok(ch) = serial_getchar(0) {
+        //     unsafe {
+        //         user_buf.buffers[0].as_mut_ptr().write_volatile(ch);
+        //     }
+        //     Ok(1)
+        // } else {
+        //     Err(-1)
+        // }
+        let ch = crate::sbi::console_getchar() as isize;
+        if ch < 0 {
             Err(-1)
+        } else {
+            unsafe { user_buf.buffers[0].as_mut_ptr().write_volatile(ch as _) };
+            Ok(user_buf.len())
         }
+        
     }
     fn write(&self, _user_buf: UserBuffer) -> Result<usize, isize> {
         panic!("Cannot write to stdin!");
@@ -71,7 +79,8 @@ impl File for Stdout {
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.chars() {
-            let _ = serial_putchar(0, c as u8);
+            // let _ = serial_putchar(0, c as u8);
+            let _ = crate::sbi::console_putchar(c as usize);
         }
         Ok(())
     }

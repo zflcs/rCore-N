@@ -50,7 +50,7 @@ impl UserTrapInfo {
     }
 
     pub fn enable_user_ext_int(&self) {
-        push_trace(ENABLE_USER_EXT_INT_ENTER);
+        // push_trace(ENABLE_USER_EXT_INT_ENTER);
 
         let u_context = get_context(hart_id(), 'U');
         for (device_id, is_enabled) in &self.devices {
@@ -66,11 +66,11 @@ impl UserTrapInfo {
         unsafe {
             asm!("fence iorw,iorw");
         }
-        push_trace(ENABLE_USER_EXT_INT_EXIT);
+        // push_trace(ENABLE_USER_EXT_INT_EXIT);
     }
 
     pub fn disable_user_ext_int(&self) {
-        push_trace(DISABLE_USER_EXT_INT_ENTER);
+        // push_trace(DISABLE_USER_EXT_INT_ENTER);
 
         let hart_id = hart_id();
         for (device_id, is_enabled) in &self.devices {
@@ -84,7 +84,7 @@ impl UserTrapInfo {
         unsafe {
             asm!("fence iorw,iorw");
         }
-        push_trace(DISABLE_USER_EXT_INT_EXIT);
+        // push_trace(DISABLE_USER_EXT_INT_EXIT);
     }
 
     pub fn remove_user_ext_int_map(&self) {
@@ -122,7 +122,7 @@ lazy_static! {
 }
 
 pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
-    push_trace(PUSH_TRAP_RECORD_ENTER + pid);
+    // push_trace(PUSH_TRAP_RECORD_ENTER + pid);
     debug!(
         "[push trap record] pid: {}, cause: {}, message: {}",
         pid, trap_record.cause, trap_record.message
@@ -157,7 +157,7 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
         pcb_inner.push_user_trap_record(trap_record)
     } else {
         warn!("[push trap record] Task Not Found!");
-        push_trace(PUSH_TRAP_RECORD_EXIT);
+        // push_trace(PUSH_TRAP_RECORD_EXIT);
         Err(UserTrapError::TaskNotFound)
     }
 }

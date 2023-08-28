@@ -4,7 +4,6 @@ use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
 };
-use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 use lib_so::Executor;
 use spin::Mutex;
 use crate::config::KERNEL_HEAP_SIZE;
@@ -15,7 +14,6 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 
-pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
 #[no_mangle]
 #[link_section = ".data.heap"]
 pub static mut HEAP: Mutex<Heap> = Mutex::new(Heap::empty());
@@ -37,13 +35,7 @@ pub fn init_heap() {
             MEMORY.as_ptr() as usize,
             KERNEL_HEAP_SIZE,
         );
-        // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
-        
     }
-    // error!("heap {:#x}", unsafe{ &mut HEAP as *mut Mutex<MutAllocator<32>> as usize });
-    // error!("heap {:#x}", core::mem::size_of::<Mutex<MutAllocator<32>>>());
-    // error!("EXECUTOR ptr {:#x}", unsafe{ &mut EXECUTOR as *mut Executor as usize });
-    // error!("memory {:#x}", unsafe{ &mut MEMORY as *mut u8 as usize });
     unsafe {
         EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
     }

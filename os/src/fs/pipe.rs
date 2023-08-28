@@ -287,6 +287,7 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
         cause: 1,
         message: cid,
     });
+    debug!("push trap record done");
 }
 
 use core::task::{Context, Poll};

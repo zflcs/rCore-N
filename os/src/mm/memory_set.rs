@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 use lib_so::{vdso_table, get_symbol_addr};
 use core::arch::asm;
 use lazy_static::*;
-use riscv::asm::sfence_vma_all;
+use riscv::asm::{sfence_vma_all, ebreak};
 use riscv::register::satp;
 use spin::Mutex;
 use crate::mm::translate_writable_va;
@@ -99,18 +99,7 @@ impl MemorySet {
         // map trampoline
         memory_set.map_trampoline();
         // map kernel sections
-        debug!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-        debug!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-        debug!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-        debug!(
-            ".bss [{:#x}, {:#x})",
-            sbss_with_stack as usize, ebss as usize
-        );
-        debug!(
-            ".vdso [{:#x}, {:#x})",
-            svdso as usize, evdso as usize
-        );
-        debug!("mapping .text section");
+        debug!("mapping .text section [{:#x}, {:#x})", stext as usize, etext as usize);
         memory_set.push(
             MapArea::new(
                 (stext as usize).into(),
@@ -120,7 +109,7 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("mapping .rodata section");
+        debug!("mapping .rodata section [{:#x}, {:#x})", srodata as usize, erodata as usize);
         memory_set.push(
             MapArea::new(
                 (srodata as usize).into(),
@@ -130,7 +119,7 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("mapping .data section");
+        debug!("mapping .data section [{:#x}, {:#x})", sdata as usize, edata as usize);
         memory_set.push(
             MapArea::new(
                 (sdata as usize).into(),
@@ -140,7 +129,7 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("mapping .bss section");
+        debug!("mapping .bss section [{:#x}, {:#x})", sbss_with_stack as usize, ebss as usize);
         memory_set.push(
             MapArea::new(
                 (sbss_with_stack as usize).into(),
@@ -150,7 +139,7 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("mapping .vdso section");
+        debug!("mapping .vdso section [{:#x}, {:#x})", svdso as usize, evdso as usize);
         memory_set.push(
             MapArea::new(
                 (svdso as usize).into(),
@@ -160,7 +149,7 @@ impl MemorySet {
             ),
             None,
         );
-        debug!("mapping physical memory");
+        debug!("mapping physical memory [{:#x}, {:#x})", ekernel as usize, MEMORY_END);
         memory_set.push(
             MapArea::new(
                 (ekernel as usize).into(),
@@ -180,40 +169,32 @@ impl MemorySet {
             ),
             None,
         );
-
-        debug!("mapping virt device");
-        memory_set.push(
-            MapArea::new(
-                (0x1000_6000 as usize).into(),
-                (0x1000_9000 as usize).into(),
-                MapType::Mmio,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
-        );
-        debug!("mapping uart");
-        use crate::uart;
-        #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
-        memory_set.push(
-            MapArea::new(
-                (uart::SERIAL_BASE_ADDRESS).into(),
-                (uart::SERIAL_BASE_ADDRESS + uart::SERIAL_NUM * uart::SERIAL_ADDRESS_STRIDE).into(),
-                MapType::Mmio,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
-        );
-        debug!("mapping trace");
-        memory_set.push(
-            MapArea::new(
-                MEMORY_END.into(),
-                (MEMORY_END + TRACE_SIZE).into(),
-                MapType::Mmio,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
-        );
-
+        #[cfg(feature = "board_qemu")]
+        {
+            debug!("mapping virt device");
+            memory_set.push(
+                MapArea::new(
+                    (0x1000_6000 as usize).into(),
+                    (0x1000_9000 as usize).into(),
+                    MapType::Mmio,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
+        #[cfg(feature = "board_axu15eg")]
+        {
+            debug!("mapping mmio device");
+            memory_set.push(
+                MapArea::new(
+                    (0x6000_0000 as usize).into(),
+                    (0x6200_0000 as usize).into(),
+                    MapType::Mmio,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
         unsafe { asm!("fence.i") }
         memory_set
     }

@@ -12,20 +12,20 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 elf: $(APPS)
 	@cargo build --features "board_qemu" --release
 
-elf_lrv: $(APPS)
-	@cargo build --features "board_lrv" --release
+elf_axu15eg: $(APPS)
+	@cargo build --features "board_axu15eg" --release
 
 binary: elf
 	$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 	$(foreach elf, $(ELFS), $(OBJDUMP) -S $(elf) > $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.asm, $(elf));)
 
-binary_lrv: elf_lrv
+binary_axu15eg: elf_axu15eg
 	$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 	$(foreach elf, $(ELFS), $(OBJDUMP) -S $(elf) > $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.asm, $(elf));)
 
 build: binary
 
-build_lrv: binary_lrv
+build_axu15eg: binary_axu15eg
 
 clean:
 	@cargo clean

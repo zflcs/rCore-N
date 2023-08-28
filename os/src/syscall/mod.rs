@@ -55,7 +55,7 @@ use net::{sys_accept, sys_listen};
 
 pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
-    push_trace(TRACE_SYSCALL_ENTER + syscall_id);
+    // push_trace(TRACE_SYSCALL_ENTER + syscall_id);
     let ret = match syscall_id {
         SYSCALL_CLOSE => sys_close(args[0]),
         SYSCALL_PIPE => sys_pipe(args[0] as *mut usize),
@@ -94,7 +94,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_ACCEPT => sys_accept(args[0]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
-    push_trace(TRACE_SYSCALL_EXIT + syscall_id);
+    // push_trace(TRACE_SYSCALL_EXIT + syscall_id);
     ret
 }
 

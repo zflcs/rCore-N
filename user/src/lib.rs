@@ -148,5 +148,8 @@ fn user_interrupt_handler() {
 
     loop {
         hang();
+        println!("user_interrupt_handler thread is run");
+
     }
+
 }

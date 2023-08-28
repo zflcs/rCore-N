@@ -189,7 +189,6 @@ pub fn poll_kernel_future() {
             // 更新优先级标记
             let prio = (*exe).priority;
             update_prio(0, prio);
-            // println_hart!("executor prio {}", hart_id(), prio);
             match task {
                 Some(task) => {
                     let cid = task.cid;

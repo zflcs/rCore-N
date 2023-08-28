@@ -4,9 +4,7 @@ use crate::uart;
 use crate::net::net_interrupt_handler;
 use rv_plic::{Priority, PLIC};
 
-#[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 pub const PLIC_BASE: usize = 0xc00_0000;
-#[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 pub const PLIC_PRIORITY_BIT: usize = 3;
 
 pub type Plic = PLIC<{ PLIC_BASE }, { PLIC_PRIORITY_BIT }>;
@@ -35,12 +33,11 @@ pub fn init() {
     }
 }
 
-#[cfg(feature = "board_lrv")]
+#[cfg(feature = "board_axu15eg")]
 pub fn init() {
-    Plic::set_priority(4, Priority::lowest());
-    Plic::set_priority(5, Priority::lowest());
-    Plic::set_priority(6, Priority::lowest());
-    Plic::set_priority(7, Priority::lowest());
+    for i in 1..=6 {
+        Plic::set_priority(i, Priority::lowest());
+    }
 }
 
 #[cfg(feature = "board_qemu")]
@@ -56,15 +53,16 @@ pub fn init_hart(hart_id: usize) {
     Plic::set_threshold(context, Priority::any());
 }
 
-#[cfg(feature = "board_lrv")]
+#[cfg(feature = "board_axu15eg")]
 pub fn init_hart(hart_id: usize) {
     let context = get_context(hart_id, 'S');
     Plic::clear_enable(context, 0);
     Plic::clear_enable(get_context(hart_id, 'U'), 0);
+    Plic::enable(context, 1);
+    Plic::enable(context, 2);
+    Plic::enable(context, 3);
     Plic::enable(context, 4);
     Plic::enable(context, 5);
-    Plic::enable(context, 6);
-    Plic::enable(context, 7);
     Plic::set_threshold(context, Priority::any());
     Plic::set_threshold(get_context(hart_id, 'U'), Priority::any());
     Plic::set_threshold(get_context(hart_id, 'M'), Priority::never());
@@ -73,7 +71,7 @@ pub fn init_hart(hart_id: usize) {
 pub fn handle_external_interrupt(hart_id: usize) {
     let context = get_context(hart_id, 'S');
     while let Some(irq) = Plic::claim(context) {
-        push_trace(S_EXT_INTR_ENTER + irq as usize);
+        // push_trace(S_EXT_INTR_ENTER + irq as usize);
         let mut can_user_handle = false;
         let uei_map = USER_EXT_INT_MAP.lock();
         if let Some(pid) = uei_map.get(&irq).cloned() {
@@ -105,9 +103,10 @@ pub fn handle_external_interrupt(hart_id: usize) {
                         trace!("[PLIC] irq {:?} handled by kenel", irq);
                     }
                 }
-                #[cfg(feature = "board_lrv")]
-                4 | 5 | 6 | 7 => {
-                    uart::handle_interrupt(irq);
+                #[cfg(feature = "board_axu15eg")]
+                
+                2 | 3 | 4 | 5 => {
+                    net_interrupt_handler(irq);
                     // trace!("[PLIC] irq {:?} handled by kenel", irq);
                 }
                 _ => {
@@ -116,6 +115,6 @@ pub fn handle_external_interrupt(hart_id: usize) {
             }
             Plic::complete(context, irq);
         }
-        push_trace(S_EXT_INTR_EXIT + irq as usize);
+        // push_trace(S_EXT_INTR_EXIT + irq as usize);
     }
 }

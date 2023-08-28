@@ -248,7 +248,7 @@ pub fn sys_claim_ext_int(device_id: usize) -> isize {
                         Err(_) => -2,
                     }
                 }
-                #[cfg(feature = "board_lrv")]
+                #[cfg(feature = "board_axu15eg")]
                 5 | 6 | 7 => {
                     let base_address = uart::get_base_addr_from_irq(device_id);
                     match inner

@@ -4,6 +4,8 @@ mod heap_allocator;
 mod memory_set;
 mod page_table;
 
+use core::arch::asm;
+
 pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 pub use address::{StepByOne, VPNRange};
 pub use frame_allocator::{frame_alloc, FrameTracker, frame_alloc_more, frame_dealloc};
@@ -14,7 +16,7 @@ pub use page_table::{
     PageTableEntry, UserBuffer, UserBufferIterator, PageTable
 };
 use page_table::PTEFlags;
-pub use heap_allocator::MutAllocator;
+
 
 pub fn init() {
     heap_allocator::init_heap();

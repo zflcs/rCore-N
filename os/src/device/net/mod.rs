@@ -1,18 +1,18 @@
 
 #[cfg(feature = "board_qemu")]
-mod virtio_net;
+pub mod virtio_net;
 #[cfg(feature = "board_qemu")]
 pub use virtio_net::*;
 
-// #[cfg(feature = "board_lrv")]
-mod xxvethernet;
-// #[cfg(feature = "board_lrv")]
-pub use xxvethernet::*;
+#[cfg(feature = "board_axu15eg")]
+pub mod axi_eth;
+#[cfg(feature = "board_axu15eg")]
+pub use axi_eth::*;
+
 
 pub fn init() {
     #[cfg(feature = "board_qemu")]
     virtio_net::init();
-    #[cfg(feature = "board_lrv")]
-    xxvethernet::init();
-
+    #[cfg(feature = "board_axu15eg")]
+    axi_eth::init();
 }

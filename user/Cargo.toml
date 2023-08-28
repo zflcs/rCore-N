@@ -31,4 +31,4 @@ syscall = { path = "../syscall" }
 
 [features]
 board_qemu = ["uart8250"]
-board_lrv = ["uart_xilinx"]
+board_axu15eg = ["uart_xilinx"]

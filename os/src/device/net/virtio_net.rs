@@ -1,6 +1,6 @@
 use core::{any::Any, ptr::NonNull};
 use alloc::sync::Arc;
-// const VIRTIO8: usize = 0x10008000;
+
 use lazy_static::*;
 use virtio_drivers::{
     device::{blk::VirtIOBlk, gpu::VirtIOGpu, input::VirtIOInput, net::{VirtIONet, RxBuffer}, self},

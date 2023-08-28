@@ -25,7 +25,7 @@ mod serial_config {
     }
 }
 
-#[cfg(feature = "board_lrv")]
+#[cfg(feature = "board_axu15eg")]
 mod serial_config {
     pub use uart_xilinx::uart_16550::{uart::LSR, InterruptType, MmioUartAxi16550};
     pub type SerialHardware = MmioUartAxi16550<'static>;
@@ -92,7 +92,7 @@ impl BufferedSerial {
         hardware.write_fcr(0b10_000_11_1);
     }
 
-    #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
+    #[cfg(any(feature = "board_qemu", feature = "board_axu15eg"))]
     pub fn interrupt_handler(&mut self) {
         // println!("[SERIAL] Interrupt!");
         let hardware = &self.hardware;
@@ -147,7 +147,7 @@ impl BufferedSerial {
 impl Write<u8> for BufferedSerial {
     type Error = Infallible;
 
-    #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
+    #[cfg(any(feature = "board_qemu", feature = "board_axu15eg"))]
     fn try_write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
         let serial = &mut self.hardware;
         if self.tx_buffer.len() < DEFAULT_TX_BUFFER_SIZE {
@@ -230,7 +230,7 @@ impl PollingSerial {
 impl Write<u8> for PollingSerial {
     type Error = Infallible;
 
-    #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
+    #[cfg(any(feature = "board_qemu", feature = "board_axu15eg"))]
     fn try_write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
         let serial = &mut self.hardware;
         while self.tx_fifo_count >= FIFO_DEPTH {
@@ -252,7 +252,7 @@ impl Write<u8> for PollingSerial {
 impl Read<u8> for PollingSerial {
     type Error = Infallible;
 
-    #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
+    #[cfg(any(feature = "board_qemu", feature = "board_axu15eg"))]
     fn try_read(&mut self) -> nb::Result<u8, Self::Error> {
         if let Some(ch) = self.hardware.read_byte() {
             self.rx_count += 1;

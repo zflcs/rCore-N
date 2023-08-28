@@ -26,20 +26,17 @@ mod serial_config {
     }
 }
 
-#[cfg(feature = "board_lrv")]
+#[cfg(feature = "board_axu15eg")]
 mod serial_config {
     pub use uart_xilinx::uart_16550::{InterruptType, MmioUartAxi16550};
     pub type SerialHardware = MmioUartAxi16550<'static>;
     pub const FIFO_DEPTH: usize = 16;
-    pub const SERIAL_NUM: usize = 4;
+    pub const SERIAL_NUM: usize = 1;
     pub const SERIAL_BASE_ADDRESS: usize = 0x6000_1000;
     pub const SERIAL_ADDRESS_STRIDE: usize = 0x1000;
     pub fn irq_to_serial_id(irq: u16) -> usize {
         match irq {
-            4 => 0,
-            5 => 1,
-            6 => 2,
-            7 => 3,
+            1 => 0,
             _ => 0,
         }
     }
@@ -94,7 +91,6 @@ impl BufferedSerial {
         hardware.write_fcr(0b11_000_11_1);
     }
 
-    #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
     pub fn interrupt_handler(&mut self) {
         let hardware = &self.hardware;
         while let Some(int_type) = hardware.read_interrupt_type() {
@@ -148,7 +144,6 @@ impl BufferedSerial {
 impl Write<u8> for BufferedSerial {
     type Error = Infallible;
 
-    #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
     fn try_write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
         let serial = &mut self.hardware;
         if self.tx_buffer.len() < DEFAULT_TX_BUFFER_SIZE {
@@ -167,6 +162,8 @@ impl Write<u8> for BufferedSerial {
     fn try_flush(&mut self) -> nb::Result<(), Self::Error> {
         todo!()
     }
+
+    
 }
 
 impl Read<u8> for BufferedSerial {
@@ -197,7 +194,6 @@ impl Drop for BufferedSerial {
     }
 }
 
-#[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 lazy_static! {
     pub static ref BUFFERED_SERIAL: [Mutex<BufferedSerial>; SERIAL_NUM] =
         array_init::array_init(|i| Mutex::new(BufferedSerial::new(
@@ -214,14 +210,13 @@ lazy_static! {
         Arc::new(Mutex::new(MmioSerialAxiLite::new(0x6000_1000)));
 }
 
-#[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 pub fn init() {
-    for serial_id in 0..2 {
-        BUFFERED_SERIAL[serial_id].lock().hardware_init(115200);
-    }
-    for serial_id in 2..SERIAL_NUM {
-        BUFFERED_SERIAL[serial_id].lock().hardware_init(6_250_000);
-    }
+    // for serial_id in 0..2 {
+    //     BUFFERED_SERIAL[serial_id].lock().hardware_init(115200);
+    // }
+    // for serial_id in 2..SERIAL_NUM {
+    //     BUFFERED_SERIAL[serial_id].lock().hardware_init(6_250_000);
+    // }
 }
 
 #[cfg(feature = "board_lrv_seriallite")]
@@ -263,12 +258,10 @@ pub fn handle_interrupt() {
     }
 }
 
-#[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 pub fn serial_putchar(serial_id: usize, c: u8) -> nb::Result<(), Infallible> {
     BUFFERED_SERIAL[serial_id].lock().try_write(c)
 }
 
-#[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 pub fn serial_getchar(serial_id: usize) -> nb::Result<u8, Infallible> {
     BUFFERED_SERIAL[serial_id].lock().try_read()
 }

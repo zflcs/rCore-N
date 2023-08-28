@@ -2,10 +2,12 @@ pub mod plic;
 pub mod uart;
 mod bus;
 mod net;
+mod dma;
 
-#[cfg(feature = "board_qemu")]
 pub use net::NetDevice;
+pub use dma::*;
 
 pub fn init() {
     net::init();
+    dma::init();
 }

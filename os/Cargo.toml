@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 bitflags = "1.2.1"
-customizable-buddy = "0.0.2"
 buddy_system_allocator = "0.6"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 log = "0.4"
@@ -18,18 +17,19 @@ riscv = { git = "https://github.com/duskmoon314/riscv", branch = "extN", feature
 spin = { version = "0.9", features = ["use_ticket_mutex"] }
 xmas-elf = "0.7.0"
 rv-plic = { git = "https://github.com/duskmoon314/rv-plic" }
-# uart8250 = { version = "*", features = ["fmt"], optional = true }
 uart8250 = { version = "0.5.0", features = ["fmt"], optional = true }
 uart_xilinx = { version = "*", features = ["fmt"], optional = true }
 embedded-hal = "=1.0.0-alpha.4"
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "a35c6e6" }
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "a35c6e6", optional = true }
 device_tree = { git = "https://github.com/rcore-os/device_tree-rs", rev = "2fa8411" }
 lose-net-stack = { git = "https://github.com/yfblock/lose-net-stack", rev = "db42380" }
 nb = "1.0.0"
 array-init = "2.0.0"
 heapless = "0.7.5"
 lib_so = { path = "../lib_so", features = ["kernel"] }
-xxv-pac = { path = "../pac/xxv-pac" }
+axi-ethernet = { git = "https://github.com/zflcs/axiethernet.git", optional = true }
+axidma = { path = "../axidma", optional = true }
+sbi-rt = { version = "0.0.2", features = ["legacy"] }
 
 [dependencies.smoltcp]
 version = "0.9.1"
@@ -43,10 +43,10 @@ features = [
 
 
 [features]
-board_qemu = ["uart8250"]
-board_lrv = ["uart_xilinx"]
+board_qemu = ["uart8250", "virtio-drivers"]
+board_axu15eg = ["uart_xilinx", "axi-ethernet", "axidma"]
 
-default = ["board_qemu"]
+default = ["board_axu15eg"]
 
 [build-dependencies]
 serde_derive = "1.0"

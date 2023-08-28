@@ -118,7 +118,7 @@ impl ProcessControlBlockInner {
         if self.is_user_trap_enabled() && sys_gettid() as usize == self.user_trap_handler_tid {
             if let Some(trap_info) = &mut self.user_trap_info {
                 if !trap_info.get_trap_queue().is_empty() {
-                    trace!("restore {} user trap", trap_info.user_trap_record_num());
+                    debug!("restore {} user trap", trap_info.user_trap_record_num());
                     uscratch::write(trap_info.user_trap_record_num());
                     unsafe {
                         uip::set_usoft();
@@ -133,6 +133,7 @@ impl ProcessControlBlockInner {
         if let Some(trap_info) = &mut self.user_trap_info {
             if let Some(task) = self.user_trap_handler_task.take() {
                 res = trap_info.push_trap_record(trap_record);
+                debug!("add wake thread");
                 add_task(task);
             } else {
                 self.user_trap_info_cache.push(trap_record);
