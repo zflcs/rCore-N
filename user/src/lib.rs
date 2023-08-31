@@ -29,11 +29,8 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() {
     heap::init();
-    let v = vec![0, 1, 2, 3];
-    println!("vec {:#x?}", v.as_ptr());
-    println!("here");
-    let v = vec![0, 1, 2, 3];
-    println!("vec {:#x?}", v.as_ptr());
+    // println!("getpid {}", getpid());
+    // main();
     vdso::spawn(move || async{ main(); }, executor::PRIO_NUM - 1, getpid() as usize + 1, executor::CoroutineKind::UserNorm);
 }
 

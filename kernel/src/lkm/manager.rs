@@ -685,7 +685,7 @@ impl ModuleManager {
                             vspace.0 = start;
                         }
                         let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
-                        let end = end_va.page_align().value();
+                        let end = (end_va + PAGE_SIZE - 1).page_align().value();
                         if end > vspace.1 {
                             vspace.1 = end;
                         }
@@ -804,7 +804,7 @@ impl ModuleManager {
             Some((start, end)) => {
                 for p in page_range(start.into(), end.into()) {
                     let (_, pte) = KERNEL_MM.lock().page_table.walk(Page::from(p)).unwrap();
-                    // info!("map {:?}", p);
+                    log::trace!("map {:?}", p);
                     memory_set.page_table.map(p, pte.frame(), pte.flags() | PTEFlags::USER_ACCESSIBLE).map_err(|_| {
                         error!("[LKM] link module, set pte error!!!");
                         Errno(ENOEXEC)
@@ -817,7 +817,7 @@ impl ModuleManager {
                 let so_item_paddr = memory_set.translate(so_item.1.into()).unwrap().value() as *mut usize;
                 let ptr = self.resolve_symbol(&so_item.0.to_lowercase()).unwrap();
                 unsafe { *so_item_paddr = ptr; }
-                debug!("get func {} ptr {:#x}", so_item.0.to_lowercase(), ptr);
+                log::trace!("get func {} ptr {:#x}", so_item.0.to_lowercase(), ptr);
             }
         }
         Ok(())

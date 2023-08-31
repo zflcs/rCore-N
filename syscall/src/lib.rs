@@ -32,6 +32,7 @@ pub enum SyscallId{
     #[arguments(args = "time_ptr, tz")]
     GetTime = 169,
     GetPid = 172,
+    GetTid = 178,
     Fork = 220,
     #[arguments(args = "path_ptr, args_ptr")]
     Exec = 221,
@@ -56,7 +57,7 @@ pub enum SyscallId{
     SetExtIntEnable = 604,
     #[arguments(args = "entry, arg")]
     ThreadCreate = 1000,
-    GetTid = 1001,
+    
     #[arguments(args = "tid")]
     WaitTid = 1002,
     Hang = 1003,

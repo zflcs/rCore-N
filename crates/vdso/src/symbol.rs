@@ -49,7 +49,7 @@ pub fn so_table<'a>(elf: &ElfFile<'a>) -> Vec<(&'a str, usize)> {
     for sym  in symbol_table(elf){
         let name = sym.get_name(elf);
         if name.unwrap().contains("VDSO") {
-            info!("name {}", name.unwrap());
+            log::trace!("name {}", name.unwrap());
             res_vec.push((sym.get_name(&elf).unwrap().trim_start_matches("VDSO_"), sym.value() as usize));
         }
     }

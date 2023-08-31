@@ -9,6 +9,6 @@ mod uipi;
 pub use register::*;
 pub use uipi::*;
 
-// pub unsafe fn uret() {
-//     core::arch::asm!("uret");
-// }
+pub unsafe fn uret() {
+    core::arch::asm!("uret");
+}

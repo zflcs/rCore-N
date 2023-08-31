@@ -20,4 +20,7 @@ SECTIONS {
         *(.bss .bss.*)
         *(.sbss .sbss.*)
     }
+    .rcore-lkm : ALIGN(4K) {
+        *(.rcore-lkm)
+    }
 }

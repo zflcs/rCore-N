@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(atomic_from_mut, inline_const)]
+#![feature(alloc_error_handler)]
 // #![deny(warnings, missing_docs)]
 
 
@@ -69,6 +70,11 @@ unsafe impl GlobalAlloc for Global {
 }
 
 
+#[alloc_error_handler]
+pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+    panic!("Heap allocation error, layout = {:?}", layout);
+}
+
 use syscall::exit;
 
 core::arch::global_asm!(include_str!("info.asm"));
@@ -120,14 +126,14 @@ fn user_entry() {
         let user_fn: fn() = core::mem::transmute(ENTRY);
         user_fn();
     }
-    // 将主协程添加到 Executor 中
-    let start = get_time();
+    // // 将主协程添加到 Executor 中
+    // let start = get_time();
 
     poll_user_future();
-    wait_other_cores();
+    // wait_other_cores();
 
-    let end = get_time();
-    println!("total time: {} ms", end - start);
+    // let end = get_time();
+    // println!("total time: {} ms", end - start);
     
     exit(0);
 }
@@ -175,6 +181,7 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
     unsafe {
         let heapptr = *(HEAP_POINTER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
+        // println!("here");
         let cid = (*exe).spawn(future, prio, kind);
         // 更新优先级标记
         let prio = (*exe).priority;

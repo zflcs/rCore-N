@@ -7,7 +7,6 @@
 #![feature(sync_unsafe_cell)]
 #![feature(linked_list_remove)]
 #![feature(linked_list_cursors)]
-#![feature(extract_if)]
 
 mod config;
 mod cons;
