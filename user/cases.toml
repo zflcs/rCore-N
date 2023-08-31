@@ -1,9 +1,8 @@
 [usercases]
 cases = [
-    "initproc",
+    "shell",
     "sharedscheduler",
     "async_demo",
-    "async_pipe",
     "threads",
     "threads_arg",
     "tcp_test",

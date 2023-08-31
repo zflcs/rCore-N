@@ -10,11 +10,11 @@ use user_lib::*;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let init_res = init_user_trap();
-    println!(
-        "[hello world] trap init result: {:#x}, now using timer to sleep",
-        init_res
-    );
+    // let init_res = init_user_trap();
+    // println!(
+    //     "[hello world] trap init result: {:#x}, now using timer to sleep",
+    //     init_res
+    // );
     let mut pipe_fd = [0usize; 2];
     pipe(&mut pipe_fd);
     let read_end = pipe_fd[0];

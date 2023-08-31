@@ -6,7 +6,7 @@ extern crate user_lib;
 extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use user_lib::{get_time, getpid, init_user_trap, sleep};
+use user_lib::{get_time, getpid, sleep};
 use syscall::set_timer;
 static IS_TIMEOUT: AtomicBool = AtomicBool::new(false);
 
@@ -14,11 +14,6 @@ static IS_TIMEOUT: AtomicBool = AtomicBool::new(false);
 pub fn main() -> i32 {
     println!("[hello world] from pid: {}", getpid());
     sleep(1000);
-    let init_res = init_user_trap();
-    println!(
-        "[hello world] trap init result: {:#x}, now using timer to sleep",
-        init_res
-    );
     let time_us = get_time() * 1000;
     set_timer!(time_us + 1000_000);
     while !IS_TIMEOUT.load(Relaxed) {}
