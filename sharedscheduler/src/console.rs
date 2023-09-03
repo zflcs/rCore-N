@@ -7,7 +7,7 @@ struct Stdout;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        syscall::write!(STDOUT, s.as_bytes());
+        user_syscall::write(STDOUT, s.as_bytes());
         Ok(())
     }
 }

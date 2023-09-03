@@ -1,7 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use errno::Errno;
 use syscall_interface::*;
-use vfs::{OpenFlags, Path};
+use vfs::Path;
 
 use crate::{
     arch::{__move_to_next, mm::VirtAddr},
@@ -19,7 +19,6 @@ impl SyscallProc for SyscallImpl {
         if flags.is_none() {
             return Err(Errno::EINVAL);
         }
-
         do_clone(
             flags.unwrap(),
             stack,
@@ -65,46 +64,45 @@ impl SyscallProc for SyscallImpl {
         }
     }
 
-    // fn execve(pathname: usize, argv: usize, _envp: usize) -> SyscallResult {
-    //     let curr = cpu().curr.as_ref().unwrap();
+    fn execve(pathname: usize, argv: usize, _envp: usize) -> SyscallResult {
+        let curr = cpu().curr.as_ref().unwrap();
 
-    //     // get relative path under current working directory
-    //     let rela_path = curr.mm().get_str(VirtAddr::from(pathname))?;
+        // get relative path under current working directory
+        let rela_path = curr.mm().get_str(VirtAddr::from(pathname))?;
+        // get absolute path of the file to execute
+        let fs_info = curr.fs_info.lock();
+        let mut path = Path::from(fs_info.cwd.clone() + "/" + rela_path.as_str());
+        drop(fs_info);
 
-    //     // get absolute path of the file to execute
-    //     let fs_info = curr.fs_info.lock();
-    //     let mut path = Path::from(fs_info.cwd.clone() + "/" + rela_path.as_str());
-    //     drop(fs_info);
+        // // read file from disk
+        // let file = open(path.clone(), OpenFlags::O_RDONLY)?;
+        // if !file.is_reg() {
+        //     return Err(Errno::EACCES);
+        // }
+        // let elf_data = unsafe { file.read_all() };
+        let elf_data = crate::loader::get_app_data_by_name(&rela_path).unwrap();
+        // get argument list
+        let mut args = Vec::new();
+        let mut argv = argv;
+        let mut argc: usize = 0;
+        let mut curr_mm = curr.mm();
+        loop {
+            read_user!(curr_mm, VirtAddr::from(argv), argc, usize)?;
+            if argc == 0 {
+                break;
+            }
+            args.push(curr_mm.get_str(VirtAddr::from(argc))?);
+            argv += core::mem::size_of::<usize>();
+        }
+        drop(curr_mm);
 
-    //     // read file from disk
-    //     let file = open(path.clone(), OpenFlags::O_RDONLY)?;
-    //     if !file.is_reg() {
-    //         return Err(Errno::EACCES);
-    //     }
-    //     let elf_data = unsafe { file.read_all() };
+        path.pop().unwrap(); // unwrap a regular filename freely
+        do_exec(String::from(path.as_str()), elf_data, args)?;
 
-    //     // get argument list
-    //     let mut args = Vec::new();
-    //     let mut argv = argv;
-    //     let mut argc: usize = 0;
-    //     let mut curr_mm = curr.mm();
-    //     loop {
-    //         read_user!(curr_mm, VirtAddr::from(argv), argc, usize)?;
-    //         if argc == 0 {
-    //             break;
-    //         }
-    //         args.push(curr_mm.get_str(VirtAddr::from(argc))?);
-    //         argv += core::mem::size_of::<usize>();
-    //     }
-    //     drop(curr_mm);
+        unsafe { __move_to_next(curr_ctx()) };
 
-    //     path.pop().unwrap(); // unwrap a regular filename freely
-    //     do_exec(String::from(path.as_str()), elf_data.as_slice(), args)?;
-
-    //     unsafe { __move_to_next(curr_ctx()) };
-
-    //     unreachable!()
-    // }
+        unreachable!()
+    }
 
     fn getpid() -> SyscallResult {
         Ok(cpu().curr.as_ref().unwrap().pid)

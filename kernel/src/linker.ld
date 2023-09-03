@@ -52,6 +52,11 @@ SECTIONS
 
     . = ALIGN(4K);
     ebss = .;
+    sshared = .;
+    .shared : {
+        *(.shared.*)
+    }
+    . = ALIGN(4K);
     ekernel = .;
 
     /DISCARD/ : {

@@ -20,5 +20,5 @@ lazy_static! {
 }
 
 pub fn add_shell() {
-    TASK_MANAGER.lock().add(SHELL.clone());
+    TASK_MANAGER.lock().add(KernTask::Proc(SHELL.clone()));
 }

@@ -18,7 +18,7 @@ clean:
     cd ../sharedscheduler && cargo clean
     cd ../user && make clean && cd -
 
-unifi-sche:
+sharedscheduler:
     cd ../sharedscheduler && make build
 
 user:
@@ -27,11 +27,11 @@ user:
 user_axu15eg:
     cd ../user && make build_axu15eg
 
-build: user unifi-sche
+build: user sharedscheduler
     LOG=debug cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
 
-build_axu15eg: user_axu15eg
+build_axu15eg: user_axu15eg sharedscheduler
     LOG=debug cargo build --features "board_axu15eg" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
     cp {{KERNEL_BIN}} {{KERNEL_BIN_axu15eg}}

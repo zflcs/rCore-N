@@ -9,11 +9,14 @@ use core::{
 };
 
 pub(super) struct AxiDmaBdRingConfig {
+    #[allow(unused)]
     pub chan_base_addr: usize,
+    #[allow(unused)]
     pub is_rx_chan: bool,
     pub has_sts_cntrl_strm: bool,
     pub has_dre: bool,
     pub data_width: usize,
+    #[allow(unused)]
     pub addr_ext: bool,
     pub max_transfer_len: usize,
 }
@@ -34,6 +37,7 @@ pub(super) struct AxiDmaBdRing {
     pub(super) submit_cnt: usize,
     done_cnt: usize,
     all_cnt: usize,
+    #[allow(unused)]
     cyclic: usize,
 }
 
@@ -55,10 +59,12 @@ impl AxiDmaBdRing {
         }
     }
 
+    #[allow(unused)]
     pub fn snaphot_curr_bd(&self) {
         todo!();
     }
 
+    #[allow(unused)]
     pub fn start(&mut self) -> Result<(), ()> {
         todo!()
     }

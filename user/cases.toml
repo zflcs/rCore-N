@@ -2,9 +2,7 @@
 cases = [
     "shell",
     "sharedscheduler",
-    "async_demo",
-    "threads",
-    "threads_arg",
-    "tcp_test",
-    "tcp_test_with_prio",
+    "forktest",
+    "hello"
+
 ]

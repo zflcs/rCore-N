@@ -3,10 +3,10 @@ mod init;
 
 use core::arch::global_asm;
 
-use alloc::{collections::BTreeMap, string::String, sync::Arc, vec::Vec};
+use alloc::{collections::BTreeMap, string::String, vec::Vec};
 use log::info;
+use mm_rv::{Frame, PTEFlags};
 use vdso::so_table;
-use vfs::{OpenFlags, Path};
 use xmas_elf::{
     header,
     program::{self, SegmentData},
@@ -15,11 +15,10 @@ use xmas_elf::{
 
 use crate::{
     arch::mm::{Page, VirtAddr, PAGE_SIZE},
-    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, USER_HEAP_BASE, USER_HEAP_SIZE, HEAP_POINTER},
+    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, HEAP_POINTER, GLOBAL_BITMAP_BASE},
     error::{KernelError, KernelResult},
-    // fs::open,
     mm::{VMFlags, MM},
-    task::Task, lkm::LKM_MANAGER,
+    lkm::LKM_MANAGER,
 };
 
 use self::{
@@ -134,15 +133,18 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
     mm.start_brk = max_page.start_address() + dyn_base;
     mm.brk = mm.start_brk;
     // link sharedscheduler
-    {
-        LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", mm, Some(so_table(&elf)))?;
-    }
+    LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", mm, Some(so_table(&elf)))?;
     // recore lockheap into HEAP_POINTER
     let heap_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
-    // info!("{:#x?}, {:#x?}", elf.find_section_by_name(".data").unwrap().address(), heap_addr);
     mm.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE | VMFlags::USER)?;
     let paddr = mm.translate(HEAP_POINTER.into())?;
     unsafe { *(paddr.value() as *mut usize) = heap_addr; }
+
+    // set Global bitmap
+    extern "C" { fn sshared(); }
+    mm.page_table.map(Page::from(GLOBAL_BITMAP_BASE), Frame::from(sshared as usize), PTEFlags::READABLE | PTEFlags::USER_ACCESSIBLE | PTEFlags::VALID);
+    let (_, pte) = mm.page_table.walk(Page::from(GLOBAL_BITMAP_BASE)).unwrap();
+    log::trace!("map {:?}", pte);
     // Set user entry
     // mm.entry = VirtAddr::from(elf_hdr.pt2.entry_point() as usize) + dyn_base;
     mm.entry = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("user_entry").unwrap().into();

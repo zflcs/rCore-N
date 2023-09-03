@@ -1,14 +1,12 @@
 use alloc::string::String;
 use core::{mem::size_of, convert::TryFrom};
 use errno::Errno;
-use log::trace;
 use syscall_interface::*;
-use vfs::{OpenFlags, Path, SeekWhence, StatMode};
+use vfs::{Path, SeekWhence};
 
 use crate::{
     arch::mm::VirtAddr,
     error::KernelResult,
-    // fs::{open, unlink},
     task::{cpu, Task},
 };
 
@@ -23,6 +21,7 @@ use super::SyscallImpl;
 /// is interpreted relative to the current working directory of the calling process.
 ///
 /// If pathname is absolute, then dirfd is ignored.
+#[allow(unused)]
 pub fn resolve_path(task: &Task, dirfd: usize, pathname: String) -> KernelResult<Path> {
     if pathname.starts_with("/") {
         Ok(Path::new(pathname.as_str()))

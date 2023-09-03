@@ -3,11 +3,13 @@ use core::fmt::{self, Write};
 const STDIN: usize = 0;
 const STDOUT: usize = 1;
 
+use user_syscall::{read, write};
+
 struct Stdout;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        syscall::write!(STDOUT, s.as_bytes());
+        write(STDOUT, s.as_bytes());
         Ok(())
     }
 }
@@ -26,15 +28,12 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::print(format_args!(concat!($fmt, "\r\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }
 }
 
 pub fn getchar() -> u8 {
     let mut c = [0u8; 1];
-    let mut res = -1;
-    while res < 0 {
-        res = read!(STDIN, &mut c);
-    }
+    read(STDIN, &mut c);
     c[0]
 }

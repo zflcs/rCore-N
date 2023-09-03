@@ -7,6 +7,4 @@ edition = "2021"
 
 [dependencies]
 spin = "0.9"
-bit_field = "0.10"
-syscall = { path = "../../syscall" }
-
+crossbeam = {version = "0.8", features = ["alloc"], default-features = false }

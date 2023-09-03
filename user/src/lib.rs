@@ -2,22 +2,22 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![feature(naked_functions)]
 
 #[macro_use]
 pub mod console;
-#[macro_use]
-extern crate syscall;
 mod lang_items;
 pub mod matrix;
+mod usertrap;
 
 extern crate alloc;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-use alloc::vec;
-pub use syscall::*;
+pub use time_subsys::*;
 mod heap;
+pub use user_syscall::*;
 
 
 #[alloc_error_handler]
@@ -29,9 +29,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() {
     heap::init();
-    // println!("getpid {}", getpid());
-    // main();
-    vdso::spawn(move || async{ main(); }, executor::PRIO_NUM - 1, getpid() as usize + 1, executor::CoroutineKind::UserNorm);
+    vdso::spawn(move || async{ main(); }, executor::MAX_PRIO - 1, getpid() as usize + 1, executor::CoroutineKind::UserNorm);
 }
 
 
@@ -52,7 +50,7 @@ pub fn add_virtual_core() {
 pub fn spawn<F, T>(f: F, prio: usize) -> usize 
     where F: FnOnce() -> T,
     T: Future<Output = ()> + 'static + Send + Sync {
-        vdso::spawn(f, prio, sys_get_pid() as usize + 1, executor::CoroutineKind::UserNorm)
+        vdso::spawn(f, prio, getpid() as usize + 1, executor::CoroutineKind::UserNorm)
 }
 
 pub fn get_pending_status(cid: usize) -> bool {
@@ -83,34 +81,6 @@ impl Future for AwaitHelper {
     }
 }
 
-pub struct TimerHelper {
-    interval: usize,
-    time: usize,
-}
-
-impl TimerHelper {
-    pub fn new(interval: usize) -> Self {
-        TimerHelper {
-            interval,
-            time: get_time() as usize,
-        }
-    }
-}
-
-impl Future for TimerHelper {
-    type Output = ();
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let cur_time = get_time() as usize;
-        if self.time + self.interval > cur_time {
-            // println!("send start: {}", current_cid());
-            set_timer!(((self.time + self.interval) * 1000) as isize, current_cid());
-            return Poll::Pending;
-        }
-        
-        return Poll::Ready(());
-    }
-}
 
 
 #[linkage = "weak"]
@@ -118,3 +88,4 @@ impl Future for TimerHelper {
 fn main() -> i32 {
     panic!("Cannot find main!");
 }
+

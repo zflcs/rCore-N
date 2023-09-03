@@ -1,9 +1,10 @@
 use kernel_sync::SpinLock;
 use log::info;
+use mm_rv::PAGE_SIZE;
 use spin::Lazy;
 
 use crate::{
-    config::{MMIO, PHYSICAL_MEMORY_END},
+    config::{MMIO, PHYSICAL_MEMORY_END, HEAP_POINTER},
     error::KernelResult,
     mm::VMFlags,
 };
@@ -24,6 +25,7 @@ fn new_kernel() -> KernelResult<MM> {
         fn edata();
         fn sbss_with_stack();
         fn ebss();
+        fn sshared();
         fn ekernel();
     }
 
@@ -77,6 +79,18 @@ fn new_kernel() -> KernelResult<MM> {
         ".bss", sbss_with_stack as usize, ebss as usize
     );
 
+    // Map kernel .shared section
+    mm.alloc_write_vma(
+        None,
+        (sshared as usize).into(),
+        (ekernel as usize).into(),
+        VMFlags::READ | VMFlags::WRITE | VMFlags::IDENTICAL,
+    )?;
+    info!(
+        "{:>10} [{:#x}, {:#x})",
+        ".shared", sshared as usize, ekernel as usize
+    );
+
     // Physical memory area
     mm.alloc_write_vma(
         None,
@@ -108,6 +122,10 @@ fn new_kernel() -> KernelResult<MM> {
         )?;
         info!("{:>10} [{:#x}, {:#x})", "arch mmio", base, base + len);
     }
+    // Heap pointer
+    mm.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE)?;
+    let paddr = mm.translate(HEAP_POINTER.into())?;
+    unsafe { *(paddr.value() as *mut usize) = sdata as usize; }
 
     Ok(mm)
 }

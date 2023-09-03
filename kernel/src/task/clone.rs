@@ -230,8 +230,7 @@ pub fn do_clone(
     }
 
     /* New task will not be dropped from now on. */
-
-    TASK_MANAGER.lock().add(new_task.clone());
+    TASK_MANAGER.lock().add(KernTask::Proc(new_task.clone()));
 
     // we don't need to lock the new task
     let locked = unsafe { &mut *new_task.locked_inner.as_mut_ptr() };
@@ -274,11 +273,12 @@ pub fn do_exec(dir: String, elf_data: &[u8], args: Vec<String>) -> KernelResult 
             PTEFlags::READABLE | PTEFlags::WRITABLE | PTEFlags::VALID,
         )
         .map_err(|_| KernelError::PageTableInvalid)?;
+    log::trace!("\nTask \n{:#?}", mm);
+
     curr.inner().mm = Arc::new(SpinLock::new(mm));
 
     // the dispositions of any signals that are being caught are reset to the default
     *curr.sig_actions.lock() = [SigAction::default(); NSIG];
-
     /*
      * The file descriptor table is unshared, undoing the effect of the
      * CLONE_FILES flag of clone(2). By default, file descriptors remain
@@ -295,6 +295,5 @@ pub fn do_exec(dir: String, elf_data: &[u8], args: Vec<String>) -> KernelResult 
         curr.uintr_inner().uirs = Some(UIntrReceiverTracker::new());
         curr.uintr_inner().mask = 0;
     }
-
     Ok(())
 }

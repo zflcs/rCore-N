@@ -5,6 +5,6 @@ DISASM_TMP := target/riscv64gc-unknown-none-elf/release/sharedscheduler.asm
 
 build:
 	cargo build --release
-	@$(OBJDUMP) -S $(ELF) > $(DISASM_TMP)
+	# @$(OBJDUMP) -S $(ELF) > $(DISASM_TMP)
 	cp target/riscv64gc-unknown-none-elf/release/sharedscheduler \
         ../user/target/riscv64gc-unknown-none-elf/release/sharedscheduler

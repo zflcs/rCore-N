@@ -33,11 +33,13 @@ pub static RX_FRAMES: AtomicUsize = AtomicUsize::new(0);
 pub struct AxiDma {
     base_address: usize,
     has_sg: bool,
+    #[allow(unused)]
     is_micro_dma: bool,
     is_initialized: bool,
 
     tx_bd_ring: Option<AxiDmaBdRing>,
     rx_bd_ring: Option<AxiDmaBdRing>,
+    #[allow(unused)]
     addr_width: isize,
 }
 

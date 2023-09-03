@@ -372,7 +372,7 @@ mod syscall {
             uirs.mode |= 0x2; // 64 bits
             uirs.sync(index);
 
-            log::trace!("uirs_restore {:x} {:x?}", index, uirs);
+            log::debug!("uirs_restore {:x} {:x?}", index, uirs);
 
             // user configurations
             uepc::write(uintr_inner.uepc);
@@ -400,7 +400,7 @@ mod syscall {
     pub fn uist_init() {
         let curr = cpu().curr.as_ref().unwrap();
         if let Some(uist) = &curr.uintr_inner().uist {
-            log::trace!("uist_init {:x?}", uist.frames);
+            log::debug!("uist_init {:x?}", uist.frames);
 
             uintr::suist::write((1 << 63) | (1 << 44) | uist.frames.first().unwrap().number());
         }
@@ -442,7 +442,6 @@ mod syscall {
 pub unsafe fn test_uintr(hartid: usize) {
     suicfg::write(UINTC_BASE);
     assert_eq!(suicfg::read(), UINTC_BASE);
-
     // Enable receiver status.
     let uirs_index = hartid;
     // Receiver on hart hartid

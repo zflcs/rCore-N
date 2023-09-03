@@ -3,9 +3,6 @@ use crate::arch::mm::{LOW_MAX_VA, PAGE_SIZE_BITS};
 /// User maximum pages
 pub const USER_MAX_PAGES: usize = (LOW_MAX_VA + 1) >> PAGE_SIZE_BITS;
 
-/// User heap base
-pub const USER_HEAP_BASE: usize = 0x4000_0000;
-
 /// User heap size
 pub const USER_HEAP_SIZE: usize = 0x40_0000;
 

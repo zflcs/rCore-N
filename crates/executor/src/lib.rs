@@ -4,17 +4,15 @@
 // //! 共享调度器通过 `Executor` 对象的虚拟地址来完成对应的操作
 
 #![no_std]
+#![feature(inline_const)]
 #[warn(non_snake_case)]
 
 extern crate alloc;
-mod bitmap;
 mod coroutine;
 mod executor;
 mod config;
 
-// extern crate alloc;
 
-pub use executor::Executor;
+pub use executor::{Executor, EMPTY_QUEUE};
 pub use coroutine::{CoroutineId, Coroutine, CoroutineKind};
-use bitmap::BitMap;
-pub use config::PRIO_NUM;
+pub use config::MAX_PRIO;

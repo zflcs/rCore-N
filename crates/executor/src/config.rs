@@ -1,7 +1,8 @@
-/// CPU数量 + 用户态中断处理线程
-pub const MAX_THREAD_NUM: usize = 30;
+/// The amount of thread
+pub const MAX_THREAD: usize = 30;
 
-/// 协程支持的优先级数目
-pub const PRIO_NUM: usize = 8;
-/// 支持的最大进程数量
-pub const MAX_PROC_NUM: usize = 0x1000;
+/// The amount of priority
+pub const MAX_PRIO: usize = 8;
+
+/// Priority pointer
+pub(crate) const PRIO_POINTER: usize = 0x9000_1020;

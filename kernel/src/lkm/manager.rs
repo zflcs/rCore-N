@@ -271,7 +271,7 @@ impl ModuleManager {
             let map_len = max_addr - min_addr + off_start;
 
             // We first map a huge piece. This requires the kernel model to be dense and not abusing vaddr.
-            let mut vspace_start = KERNEL_MM.lock()
+            let vspace_start = KERNEL_MM.lock()
                 .alloc_vma(min_addr.into(), (min_addr + map_len).into(), VMFlags::empty(), true, None)?;
             let vspace = (vspace_start.value(), map_len + vspace_start.value());
             let base = vspace_start.value();
@@ -599,7 +599,7 @@ impl ModuleManager {
     pub fn init() {
         //assert_has_not_been_called!("[LKM] ModuleManager::init must be called only once");
         info!("[LKM] Loadable Kernel Module Manager loading...");
-        let mut kmm = ModuleManager {
+        let kmm = ModuleManager {
             stub_symbols: ModuleManager::init_stub_symbols(),
             loaded_modules: Vec::new(),
         };
@@ -804,7 +804,7 @@ impl ModuleManager {
             Some((start, end)) => {
                 for p in page_range(start.into(), end.into()) {
                     let (_, pte) = KERNEL_MM.lock().page_table.walk(Page::from(p)).unwrap();
-                    log::trace!("map {:?}", p);
+                    log::trace!("map {:?}", pte);
                     memory_set.page_table.map(p, pte.frame(), pte.flags() | PTEFlags::USER_ACCESSIBLE).map_err(|_| {
                         error!("[LKM] link module, set pte error!!!");
                         Errno(ENOEXEC)

@@ -1,68 +1,175 @@
 use alloc::{
-    collections::{vec_deque, VecDeque},
-    string::String,
     sync::Arc,
-    vec::Vec,
+    vec::Vec, collections::{VecDeque, vec_deque},
 };
-use log::info;
+use bit_field::BitField;
 use core::cell::SyncUnsafeCell;
 use kernel_sync::{CPUs, SpinLock};
 use spin::Lazy;
 
 use crate::{
     arch::{get_cpu_id, TaskContext, __switch},
-    config::*,
+    config::*, error::{KernelResult, self},
     // loader::from_args,
 };
 
 use super::{Task, TaskState};
 
+pub enum KernTask {
+    Corou(Arc<Coroutine>),
+    Proc(Arc<Task>)
+}
+
 /// Possible interfaces for task schedulers.
 pub trait Scheduler {
     /// Add a task to be scheduled sooner or later.
-    fn add(&mut self, task: Arc<Task>);
+    fn add(&mut self, task: KernTask) -> KernelResult;
 
     /// Get a task to run on the target processor.
-    fn fetch(&mut self) -> Option<Arc<Task>>;
+    fn fetch(&mut self) -> Option<KernTask>;
 }
 
-pub struct QueueScheduler {
-    queue: VecDeque<Arc<Task>>,
+// pub struct QueueScheduler {
+//     queue: VecDeque<Arc<Task>>,
+// }
+
+// impl QueueScheduler {
+//     pub fn new() -> Self {
+//         Self {
+//             queue: VecDeque::new(),
+//         }
+//     }
+
+//     /// Returns a front-to-back iterator that returns immutable references.
+//     pub fn iter(&self) -> vec_deque::Iter<Arc<Task>> {
+//         self.queue.iter()
+//     }
+// }
+
+// impl Scheduler for QueueScheduler {
+//     fn add(&mut self, task: Arc<Task>) -> Result<(), error::KernelError> {
+//         self.queue.push_back(task);
+//         Ok(())
+//     }
+
+//     fn fetch(&mut self) -> Option<Arc<Task>> {
+//         if self.queue.is_empty() {
+//             return None;
+//         }
+
+//         let task = self.queue.pop_front().unwrap();
+
+//         // State cannot be set to other states except [`TaskState::Runnable`] by other harts,
+//         // e.g. this task is waken up by another task that releases the resources.
+//         if task.locked_inner().state != TaskState::RUNNABLE {
+//             self.queue.push_back(task);
+//             None
+//         } else {
+//             Some(task)
+//         }
+//     }
+// }
+
+use core::sync::atomic::AtomicUsize;
+use errno::Errno;
+use executor::{Executor, MAX_PRIO, Coroutine};
+use mm_rv::VirtAddr;
+use crate::{read_user, config::PRIO_POINTER, error::KernelError};
+
+#[repr(C, align(0x1000))]
+pub struct GlobalBitmap(usize);
+
+impl GlobalBitmap {
+    fn update(&mut self, bit: usize, value: bool) {
+        self.0.set_bit(bit, value);
+    }
 }
 
-impl QueueScheduler {
+// unsafe impl Sync for GlobalBitmap { }
+// unsafe impl Send for GlobalBitmap { }
+
+#[no_mangle]
+#[link_section = ".data.executor"]
+pub static mut EXECUTOR: Executor = Executor::new();
+
+#[link_section = ".shared.bitmap"]
+pub static mut GLOBAL_BITMAP: GlobalBitmap = GlobalBitmap(0);
+
+const EMPTY_QUEUE:  VecDeque<Arc<Task>> = VecDeque::new();
+#[repr(C)]
+pub struct SharedScheduler {
+    bitmap: &'static mut GlobalBitmap,
+    executor: &'static mut Executor,
+    queue: [VecDeque<Arc<Task>>; MAX_PRIO],
+}
+
+impl SharedScheduler {
     pub fn new() -> Self {
         Self {
-            queue: VecDeque::new(),
+            bitmap: unsafe { &mut GLOBAL_BITMAP },
+            executor: unsafe { &mut EXECUTOR },
+            queue: [EMPTY_QUEUE; MAX_PRIO],
         }
     }
 
-    /// Returns a front-to-back iterator that returns immutable references.
-    pub fn iter(&self) -> vec_deque::Iter<Arc<Task>> {
-        self.queue.iter()
+    pub fn iter(&self) -> VecDeque<&Arc<Task>> {
+        let mut all_task: VecDeque<&Arc<Task>> = VecDeque::new();
+        for i in 0..self.queue.len() {
+            for t in self.queue[i].iter() {
+                all_task.push_back(t);
+            }
+        }        
+        all_task
+    }
+
+    pub fn pending(&mut self, c: Arc<Coroutine>) {
+        self.executor.pending(c);
     }
 }
 
-impl Scheduler for QueueScheduler {
-    fn add(&mut self, task: Arc<Task>) {
-        self.queue.push_back(task);
+impl Scheduler for SharedScheduler {
+    fn add(&mut self, task: KernTask) -> KernelResult {
+        match task {
+            KernTask::Proc(t) => {
+                let mut mm = t.mm();
+                let mut atomic_prio = AtomicUsize::new(0);
+                read_user!(mm, VirtAddr::from(PRIO_POINTER), atomic_prio, AtomicUsize).map_err(|e| KernelError::Errno(e))?;
+                let prio = atomic_prio.load(core::sync::atomic::Ordering::Relaxed);
+                drop(mm);
+                self.queue[prio].push_back(t);
+                self.bitmap.update(prio, true);
+                Ok(())
+            },
+            KernTask::Corou(c) => {
+                let prio = c.inner.lock().prio;
+                self.executor.add(c);
+                self.bitmap.update(prio, true);
+                Ok(())
+            }
+        }
     }
 
-    fn fetch(&mut self) -> Option<Arc<Task>> {
-        if self.queue.is_empty() {
-            return None;
+    fn fetch(&mut self) -> Option<KernTask> {
+        for i in 0..MAX_PRIO {
+            // there is only ready coroutine in this queue, so only pop once
+            if let Some(c) = self.executor.ready_queue[i].pop() {
+                return Some(KernTask::Corou(c));
+            }
+            for _ in 0..self.queue[i].len() {
+                if let Some(task) = self.queue[i].pop_front() {
+                    // State cannot be set to other states except [`TaskState::Runnable`] by other harts,
+                    // e.g. this task is waken up by another task that releases the resources.
+                    if task.locked_inner().state != TaskState::RUNNABLE {
+                        self.queue[i].push_back(task);
+                    } else {
+                        return Some(KernTask::Proc(task));
+                    }
+                }
+            }
+            // when both two queue has no ready task, we need to update global bitmap
+            self.bitmap.update(i, false);
         }
-
-        let task = self.queue.pop_front().unwrap();
-
-        // State cannot be set to other states except [`TaskState::Runnable`] by other harts,
-        // e.g. this task is waken up by another task that releases the resources.
-        if task.locked_inner().state != TaskState::RUNNABLE {
-            self.queue.push_back(task);
-            None
-        } else {
-            Some(task)
-        }
+        None
     }
 }
 
@@ -86,8 +193,8 @@ impl CPUContext {
 }
 
 /// Global task manager shared by CPUs.
-pub static TASK_MANAGER: Lazy<SpinLock<QueueScheduler>> =
-    Lazy::new(|| SpinLock::new(QueueScheduler::new()));
+pub static TASK_MANAGER: Lazy<SpinLock<SharedScheduler>> =
+    Lazy::new(|| SpinLock::new(SharedScheduler::new()));
 
 /// Global cpu local states.
 pub static CPU_LIST: Lazy<SyncUnsafeCell<Vec<CPUContext>>> = Lazy::new(|| {
@@ -139,19 +246,36 @@ pub unsafe fn idle() -> ! {
         let mut task_manager = TASK_MANAGER.lock();
 
         if let Some(task) = task_manager.fetch() {
-            let next_ctx = {
-                let mut locked_inner = task.locked_inner();
-                locked_inner.state = TaskState::RUNNING;
-                &task.inner().ctx as *const TaskContext
-            };
-            log::trace!("Run {:?}", task);
-            // Ownership moved to `current`.
-            cpu().curr = Some(task);
-
-            // Release the lock.
-            drop(task_manager);
-
-            __switch(idle_ctx(), next_ctx);
+            match task {
+                KernTask::Proc(t) => {
+                    let next_ctx = {
+                        let mut locked_inner = t.locked_inner();
+                        locked_inner.state = TaskState::RUNNING;
+                        &t.inner().ctx as *const TaskContext
+                    };
+                    // log::trace!("Run {:?}", t);
+                    // Ownership moved to `current`.
+                    cpu().curr = Some(t);
+        
+                    // Release the lock.
+                    drop(task_manager);
+        
+                    __switch(idle_ctx(), next_ctx);
+                    if cpu().curr.is_some() {
+                        let cur = cpu().curr.take().unwrap();
+                        match cur.get_state() {
+                            TaskState::RUNNABLE => {TASK_MANAGER.lock().add(KernTask::Proc(cur)); },
+                            _ => {},
+                        };
+                    }
+                },
+                KernTask::Corou(c) => {
+                    drop(task_manager);
+                    if c.clone().execute().is_pending() {
+                        TASK_MANAGER.lock().pending(c);
+                    }
+                }
+            }
         }
     }
 }
@@ -162,16 +286,13 @@ pub unsafe fn idle() -> ! {
 ///
 /// Unsafe context switch will be called in this function.
 pub unsafe fn do_yield() {
-    let curr = cpu().curr.take().unwrap();
-    log::trace!("{:#?} suspended", curr);
+    let curr = cpu().curr.as_ref().unwrap();
+    // log::trace!("{:#?} suspended", curr);
     let curr_ctx = {
         let mut locked_inner = curr.locked_inner();
         locked_inner.state = TaskState::RUNNABLE;
         &curr.inner().ctx as *const TaskContext
     };
-
-    // push back to scheduler
-    TASK_MANAGER.lock().add(curr);
 
     // Saves and restores CPU local variable, intena.
     let intena = CPUs[get_cpu_id()].intena;

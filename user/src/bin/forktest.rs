@@ -47,13 +47,13 @@ static NUM: usize = 30;
 pub fn main() -> i32 {
     println!("forktest2=========");
     for _ in 0..NUM {
-        let pid = fork();
+        let pid = fork(17);
         if pid == 0 {
             let current_time = get_time();
             let sleep_length =
                 (current_time as i32 as isize) * (current_time as i32 as isize) % 1000 + 1000;
             println!("pid {} sleep for {} ms", getpid(), sleep_length);
-            sleep(sleep_length as usize);
+            sleep(sleep_length as f64);
             println!("pid {} OK!", getpid());
             exit(0);
         }

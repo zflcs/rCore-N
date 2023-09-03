@@ -22,7 +22,7 @@ impl NetDevice {
     fn fill_frame(&self, tx_frame: &mut [u8], data: &[u8]) {
         trace!("fill tx frame");
         // fill payload
-        let mut payload_size = data.len();
+        let payload_size = data.len();
         tx_frame[0..0 + payload_size].copy_from_slice(data);
         trace!("fill tx frame success");
     }

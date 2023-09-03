@@ -1,6 +1,8 @@
 use mm_rv::PAGE_SIZE_BITS;
 pub use mm_rv::{LOW_MAX_VA, MAX_VA, PAGE_SIZE};
 
+use crate::cons;
+
 /// Address alignment
 pub const ADDR_ALIGN: usize = core::mem::size_of::<usize>();
 
@@ -42,6 +44,12 @@ pub const PHYSICAL_MEMORY_END: usize = 0x9000_0000;
 
 /// heap pointer
 pub const HEAP_POINTER: usize = PHYSICAL_MEMORY_END + PAGE_SIZE;
+
+/// priority pointer
+pub const PRIO_POINTER: usize = HEAP_POINTER + 0x20;
+
+/// global bitmap virtual address
+pub const GLOBAL_BITMAP_BASE: usize = HEAP_POINTER + PAGE_SIZE;
 
 /// DMA MMIO BASE
 pub const DMA: usize = 0x60100000;

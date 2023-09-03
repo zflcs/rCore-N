@@ -22,14 +22,12 @@ impl CoroutineId {
         }
         CoroutineId(id)
     }
-    /// 根据 usize 生成协程 Id
-    pub fn from_val(v: usize) -> Self {
-        Self(v)
+}
+
+impl From<usize> for CoroutineId {
+    fn from(value: usize) -> Self {
+        Self(value)
     }
-    /// 获取协程 Id 的 usize
-    pub fn get_val(&self) -> usize {
-        self.0
-    } 
 }
 
 /// 协程 waker，在这里只提供一个上下文

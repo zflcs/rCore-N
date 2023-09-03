@@ -18,7 +18,7 @@ use super::*;
 /// Unsafe context switch will be called in this function.
 pub unsafe fn do_exit(exit_code: i32) {
     let curr = cpu().curr.take().unwrap();
-    log::debug!("{:?} exited with code {}", curr, exit_code);
+    log::trace!("{:?} exited with code {}", curr, exit_code);
     let curr_ctx = {
         let mut locked_inner = curr.locked_inner();
         curr.inner().exit_code = exit_code;
@@ -151,7 +151,6 @@ pub fn do_wait(
     _rusage: usize,
 ) -> SyscallResult {
     log::trace!("WAIT4 {} {:?} status=0x{:x}", pid, options, wstatus);
-
     loop {
         let mut flag = false;
         let mut need_sched = false;
@@ -188,7 +187,7 @@ pub fn do_wait(
         }
         if !flag {
             if options.contains(WaitOptions::WNONHANG) || !need_sched {
-                log::info!("{:?}", locked.children);
+                log::trace!("{:?}", locked.children);
                 return Err(Errno::ECHILD);
             }
 

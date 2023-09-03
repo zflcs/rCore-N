@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use log::info;
 use xmas_elf::sections::SectionData::{SymbolTable64, DynSymbolTable64};
 use xmas_elf::symbol_table::{Entry, Entry64, DynEntry64};
 use xmas_elf::ElfFile;

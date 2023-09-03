@@ -1,9 +1,5 @@
-use alloc::{vec, collections::VecDeque};
-use syscall::yield_;
-use core::{
-    alloc::{GlobalAlloc, Layout}, ptr::NonNull,
-};
-use executor::Executor;
+use core::alloc::{GlobalAlloc, Layout};
+use executor::{Executor, EMPTY_QUEUE, MAX_PRIO};
 use buddy_system_allocator::LockedHeap;
 const HEAP_ORDER: usize = 32;
 type Heap = LockedHeap<HEAP_ORDER>;
@@ -14,7 +10,7 @@ pub static mut HEAP: Heap = Heap::empty();
 
 #[no_mangle]
 #[link_section = ".data.executor"]
-pub static mut EXECUTOR: Executor = Executor::new(false);
+pub static mut EXECUTOR: Executor = Executor::new();
 
 // 托管空间 16 KiB
 const MEMORY_SIZE: usize = 2 << 21;
@@ -30,7 +26,8 @@ pub fn init() {
             MEMORY.as_ptr() as usize,
             MEMORY_SIZE,
         );
-        EXECUTOR.ready_queue = vec![VecDeque::new(); executor::PRIO_NUM];
+        EXECUTOR.ready_queue = [EMPTY_QUEUE; MAX_PRIO];
+        // EXECUTOR.ready_queue = vec![VecDeque::new(); executor::PRIO_NUM];
         // println!("heap {:#x}", &mut HEAP as *mut Heap as usize);
     }
 }

@@ -449,7 +449,7 @@ pub fn ustack_layout(tid: usize) -> (usize, usize) {
 impl kernel_sync::SleepLockSched for TaskLockedInner {
     unsafe fn sched(guard: SpinLockGuard<Self>) {
         // Lock might be released after the task is pushed back to the scheduler.
-        TASK_MANAGER.lock().add(cpu().curr.clone().unwrap());
+        TASK_MANAGER.lock().add(KernTask::Proc(cpu().curr.clone().unwrap()));
         drop(guard);
 
         __switch(curr_ctx(), idle_ctx());
@@ -465,7 +465,7 @@ impl kernel_sync::SleepLockSched for TaskLockedInner {
 
     /// Wakes up tasks sleeping on this lock.
     fn wakeup(id: usize) {
-        TASK_MANAGER.lock().iter().for_each(|task| {
+        TASK_MANAGER.lock().iter().iter().for_each(|task| {
             let mut inner = task.locked_inner();
             if inner.state == TaskState::INTERRUPTIBLE
                 && inner.sleeping_on.is_some()
