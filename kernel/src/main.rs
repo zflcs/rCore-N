@@ -72,6 +72,7 @@ pub extern "C" fn rust_main(hartid: usize) -> ! {
     timer::set_next_trigger();
     loader::list_apps();
     task::add_shell();
+    // unsafe { arch::uintr::test_uintr(hartid) };
     // IDLE loop
     unsafe { task::idle() };
 }

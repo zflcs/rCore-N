@@ -8,7 +8,7 @@
 pub mod console;
 mod lang_items;
 pub mod matrix;
-mod usertrap;
+mod uintrtrap;
 
 extern crate alloc;
 use core::future::Future;
@@ -18,6 +18,7 @@ use core::task::{Context, Poll};
 pub use time_subsys::*;
 mod heap;
 pub use user_syscall::*;
+pub use uintrtrap::*;
 
 
 #[alloc_error_handler]

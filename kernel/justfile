@@ -47,8 +47,12 @@ disasm: build
 disasm_axu15eg: build_axu15eg
     {{OBJDUMP}} -S -t {{KERNEL_ELF}} > {{KERNEL_ASM}}
 
+# run: build
+#     {{QEMU}} -machine virt -smp 4 -nographic -bios default -kernel {{KERNEL_BIN}} -d unimp -D debug.log
+
 run: build
-    {{QEMU}} -machine virt -smp 4 -nographic -bios default -kernel {{KERNEL_BIN}} 
+    cd /home/zfl/u-intr/opensbi && make CROSS_COMPILE=riscv64-unknown-elf- PLATFORM=generic
+    {{QEMU}} -machine virt -smp 4 -nographic -bios /home/zfl/u-intr/opensbi/build/platform/generic/firmware/fw_dynamic.bin -kernel {{KERNEL_BIN}} -d unimp -D debug.log
 
 # debug_qemu: build
 #     {{QEMU}} -machine virt -smp 4 {{SERIAL_FLAGS}} -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000 -d int -D debug.log

@@ -95,10 +95,10 @@ pub fn uintr_register_receiver() -> usize {
     sys_uintr_register_receiver() as usize
 }
 
-pub fn uintr_register_sender(fd: usize) -> usize {
-    sys_uintr_register_sender(fd) as usize
+pub fn uintr_register_sender(fd: usize) -> isize {
+    sys_uintr_register_sender(fd)
 }
 
-pub fn uintr_create_fd(vector: usize) -> usize {
-    sys_uintr_create_fd(vector) as usize
+pub fn uintr_create_fd(vector: usize) -> isize {
+    sys_uintr_create_fd(vector)
 }

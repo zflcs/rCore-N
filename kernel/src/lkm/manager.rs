@@ -805,7 +805,7 @@ impl ModuleManager {
                 for p in page_range(start.into(), end.into()) {
                     let (_, pte) = KERNEL_MM.lock().page_table.walk(Page::from(p)).unwrap();
                     log::trace!("map {:?}", pte);
-                    memory_set.page_table.map(p, pte.frame(), pte.flags() | PTEFlags::USER_ACCESSIBLE).map_err(|_| {
+                    memory_set.page_table.map(p, pte.frame(), pte.flags() | PTEFlags::USER_ACCESSIBLE | PTEFlags::ACCESSED | PTEFlags::DIRTY).map_err(|_| {
                         error!("[LKM] link module, set pte error!!!");
                         Errno(ENOEXEC)
                     })?

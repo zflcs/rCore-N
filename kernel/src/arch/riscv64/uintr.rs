@@ -311,7 +311,9 @@ mod syscall {
 
             // save user status
             uintr_inner.utvec = utvec::read().bits();
+            log::trace!("utvec {:#x?}", uintr_inner.utvec);
             uintr_inner.uscratch = uscratch::read();
+            log::trace!("uscratch {:#x?}", uintr_inner.uscratch);
 
             Ok(0)
         }
@@ -325,6 +327,7 @@ mod syscall {
                         uirs_index: uirs.0,
                         vector,
                     }))?;
+                    log::trace!("create uintr fd {}", fd);
                     return Ok(fd);
                 } else {
                     return Err(Errno::EINVAL);
@@ -348,6 +351,7 @@ mod syscall {
                     uiste.set_valid(true);
                     uiste.set_vec(file.vector);
                     uiste.set_index(file.uirs_index);
+                    log::trace!("create uintr index {}", index);
                     return Ok(index);
                 } else {
                     return Err(Errno::EINVAL);
@@ -372,10 +376,11 @@ mod syscall {
             uirs.mode |= 0x2; // 64 bits
             uirs.sync(index);
 
-            log::debug!("uirs_restore {:x} {:x?}", index, uirs);
+            log::trace!("uirs_restore {:x} {:x?} uepc {:#x?}", index, uirs, uintr_inner.uepc);
 
             // user configurations
             uepc::write(uintr_inner.uepc);
+            // log::debug!("uepc {:#x?}", uintr_inner.uepc);
             utvec::write(uintr_inner.utvec, utvec::TrapMode::Direct);
             uscratch::write(uintr_inner.uscratch);
             uie::set_usoft();
@@ -400,7 +405,7 @@ mod syscall {
     pub fn uist_init() {
         let curr = cpu().curr.as_ref().unwrap();
         if let Some(uist) = &curr.uintr_inner().uist {
-            log::debug!("uist_init {:x?}", uist.frames);
+            log::trace!("uist_init {:x?}", uist.frames);
 
             uintr::suist::write((1 << 63) | (1 << 44) | uist.frames.first().unwrap().number());
         }
@@ -440,8 +445,8 @@ mod syscall {
 /// 3. Test UIPI: READ, WRITE, SEND
 #[allow(unused)]
 pub unsafe fn test_uintr(hartid: usize) {
-    suicfg::write(UINTC_BASE);
-    assert_eq!(suicfg::read(), UINTC_BASE);
+    sideleg::set_usoft();
+    uie::set_usoft();
     // Enable receiver status.
     let uirs_index = hartid;
     // Receiver on hart hartid
@@ -466,7 +471,7 @@ pub unsafe fn test_uintr(hartid: usize) {
         if uintr::sip::read().usoft() {
             log::info!("Receive UINT!");
             uintr::sip::clear_usoft();
-            assert!(uipi_read() == (0x00010000 | (1 << hartid)));
+            assert!(uipi_read() == ((1 << hartid)));
             break;
         }
     }

@@ -291,9 +291,9 @@ pub fn do_exec(dir: String, elf_data: &[u8], args: Vec<String>) -> KernelResult 
     curr.inner().ctx = TaskContext::new(user_trap_return as usize, kstack_base);
 
     {
-        curr.uintr_inner().uist = Some(UIntrSender::new(1));
-        curr.uintr_inner().uirs = Some(UIntrReceiverTracker::new());
-        curr.uintr_inner().mask = 0;
+        // curr.uintr_inner().uist = Some(UIntrSender::new(1));
+        // curr.uintr_inner().uirs = Some(UIntrReceiverTracker::new());
+        // curr.uintr_inner().mask = 0;
     }
     Ok(())
 }

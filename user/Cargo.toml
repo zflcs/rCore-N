@@ -26,6 +26,7 @@ executor = { path = "../crates/executor" }
 vdso = { path = "../crates/vdso" }
 time-subsys = { path = "../crates/time-subsys"}
 user_syscall = { path = "../crates/user_syscall" }
+uintr = { path = "../crates/uintr" }
 
 
 [features]
