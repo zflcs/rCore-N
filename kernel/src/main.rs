@@ -30,6 +30,7 @@ extern crate alloc;
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
+use driver::plic;
 use log::info;
 
 use crate::config::CPU_NUM;
@@ -69,7 +70,11 @@ pub extern "C" fn rust_main(hartid: usize) -> ! {
     lkm::init();
     // Enable timer interrupt
     arch::trap::enable_timer_intr();
+    arch::trap::enable_ext_intr();
     timer::set_next_trigger();
+    driver::init();
+    plic::init();
+    plic::init_hart(hartid);
     loader::list_apps();
     task::add_shell();
     // unsafe { arch::uintr::test_uintr(hartid) };
@@ -85,7 +90,9 @@ pub extern "C" fn rust_main_others(hartid: usize) -> ! {
     info!("(Secondary) Start executing tasks.");
     // Enable timer interrupt
     arch::trap::enable_timer_intr();
+    arch::trap::enable_ext_intr();
     timer::set_next_trigger();
+    plic::init_hart(hartid);
     // IDLE loop
     unsafe { task::idle() };
 }

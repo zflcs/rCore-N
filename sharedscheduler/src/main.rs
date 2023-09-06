@@ -15,6 +15,7 @@ pub mod config;
 extern crate alloc;
 use alloc::boxed::Box;
 use bit_field::BitField;
+use core::arch::asm;
 use core::future::Future;
 use core::pin::Pin;
 
@@ -112,6 +113,7 @@ use core::task::Poll;
 #[inline(never)]
 fn user_entry() {
     unsafe {
+        println!("here");
         let user_fn: fn() = core::mem::transmute(ENTRY);
         user_fn();
     }

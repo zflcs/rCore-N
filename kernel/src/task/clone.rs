@@ -270,7 +270,7 @@ pub fn do_exec(dir: String, elf_data: &[u8], args: Vec<String>) -> KernelResult 
         .map(
             Page::from(VirtAddr::from(trapframe_base(curr.tid.0))),
             Frame::from(curr.trapframe.as_ref().unwrap().0),
-            PTEFlags::READABLE | PTEFlags::WRITABLE | PTEFlags::VALID,
+            PTEFlags::READABLE | PTEFlags::WRITABLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY,
         )
         .map_err(|_| KernelError::PageTableInvalid)?;
     log::trace!("\nTask \n{:#?}", mm);

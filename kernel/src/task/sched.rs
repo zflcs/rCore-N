@@ -253,13 +253,12 @@ pub unsafe fn idle() -> ! {
                         locked_inner.state = TaskState::RUNNING;
                         &t.inner().ctx as *const TaskContext
                     };
-                    // log::trace!("Run {:?}", t);
+                    log::trace!("Run {:?}", t);
                     // Ownership moved to `current`.
                     cpu().curr = Some(t);
         
                     // Release the lock.
                     drop(task_manager);
-        
                     __switch(idle_ctx(), next_ctx);
                     if cpu().curr.is_some() {
                         let cur = cpu().curr.take().unwrap();

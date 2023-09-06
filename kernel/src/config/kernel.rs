@@ -59,9 +59,14 @@ pub const DMA_SIZE: usize = 0x10000;
 pub const ETH: usize = 0x60140000;
 /// ETH MMIO SIZE 
 pub const ETH_SIZE: usize = 0x40000;
+/// plic base
+pub const PLIC: usize = 0xc000000;
+/// plic size
+pub const PLIC_SIZE: usize = 0x4000000;
 
 /// MMIO
 pub const MMIO: &[(usize, usize)] = &[
+    (PLIC, PLIC_SIZE),
     (DMA, DMA_SIZE),    // DMA
     (ETH, ETH_SIZE)     // ETH
 ];

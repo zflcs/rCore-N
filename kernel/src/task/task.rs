@@ -427,7 +427,7 @@ pub fn init_trapframe(mm: &mut MM, tid: usize) -> KernelResult<PhysAddr> {
         .map(
             Page::from(trapframe_va),
             trapframe.clone(),
-            PTEFlags::READABLE | PTEFlags::WRITABLE | PTEFlags::VALID,
+            PTEFlags::READABLE | PTEFlags::WRITABLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY,
         )
         .map_err(|_| KernelError::PageTableInvalid)?;
     // Will be manually dropped

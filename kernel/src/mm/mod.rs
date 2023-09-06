@@ -77,7 +77,7 @@ impl MM {
                     .map(
                         VirtAddr::from(TRAMPOLINE_VA).into(),
                         PhysAddr::from(__trampoline as usize).into(),
-                        PTEFlags::READABLE | PTEFlags::EXECUTABLE | PTEFlags::VALID,
+                        PTEFlags::READABLE | PTEFlags::EXECUTABLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY,
                     )
                     .map_err(|err| {
                         log::warn!("{}", err);
@@ -124,7 +124,7 @@ impl MM {
             .map(
                 VirtAddr::from(TRAMPOLINE_VA).into(),
                 PhysAddr::from(__trampoline as usize).into(),
-                PTEFlags::READABLE | PTEFlags::EXECUTABLE | PTEFlags::VALID,
+                PTEFlags::READABLE | PTEFlags::EXECUTABLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY,
             )
             .map_err(|err| {
                 log::warn!("{}", err);

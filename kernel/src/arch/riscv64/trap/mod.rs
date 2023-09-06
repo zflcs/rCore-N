@@ -2,20 +2,20 @@ mod trampoline;
 mod trapframe;
 
 use core::{arch::asm, panic};
-use log::trace;
+use log::{trace, debug};
 use riscv::register::{scause::*, utvec::TrapMode, *};
 pub use trampoline::__trampoline;
 pub use trapframe::TrapFrame;
 
 use crate::{
-    arch::mm::VirtAddr,
+    arch::{mm::VirtAddr, get_cpu_id},
     config::TRAMPOLINE_VA,
     error::KernelError,
     mm::{do_handle_page_fault, VMFlags},
     println,
     syscall::syscall,
     task::*,
-    timer::set_next_trigger,
+    timer::set_next_trigger, driver::plic,
 };
 
 use self::trapframe::KernelTrapContext;
@@ -46,6 +46,10 @@ pub fn enable_timer_intr() {
         sie::set_stimer();
         // sstatus::set_sie();
     }
+}
+
+pub fn enable_ext_intr() {
+    unsafe { sie::set_sext(); }
 }
 
 /// User trap handler manages the task according to the cause:
@@ -115,6 +119,10 @@ pub fn user_trap_handler() -> ! {
             trap_info();
             set_next_trigger();
             unsafe { do_yield() };
+        }
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            trap_info();
+            plic::handle_external_interrupt(get_cpu_id());
         }
         _ => {
             let curr = cpu().curr.as_ref().unwrap();

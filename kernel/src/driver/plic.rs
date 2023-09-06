@@ -37,6 +37,7 @@ pub fn init_hart(hart_id: usize) {
     Plic::enable(context, 3);
     Plic::enable(context, 4);
     Plic::enable(context, 5);
+    Plic::enable(context, 6);
     Plic::set_threshold(context, Priority::any());
     Plic::set_threshold(get_context(hart_id, 'U'), Priority::any());
     Plic::set_threshold(get_context(hart_id, 'M'), Priority::never());
@@ -45,17 +46,14 @@ pub fn init_hart(hart_id: usize) {
 pub fn handle_external_interrupt(hart_id: usize) {
     let context = get_context(hart_id, 'S');
     while let Some(irq) = Plic::claim(context) {
-        let mut can_user_handle: bool = false;
-        if !can_user_handle {
-            match irq {
-                2 | 3 | 4 | 5 => {
-                    trace!("[PLIC] irq {:?} handled by kenel", irq);
-                }
-                _ => {
-                    warn!("[PLIC]: irq {:?} not supported!", irq);
-                }
+        match irq {
+            2 | 3 | 4 | 5 => {
+                log::debug!("[PLIC] irq {:?} handled by kenel", irq);
             }
-            Plic::complete(context, irq);
+            _ => {
+                warn!("[PLIC]: irq {:?} not supported!", irq);
+            }
         }
+        Plic::complete(context, irq);
     }
 }

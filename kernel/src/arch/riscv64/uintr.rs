@@ -213,10 +213,17 @@ impl TaskUIntrInner {
 }
 
 /// UINTC base
+#[cfg(feature = "board_qemu")]
 pub const UINTC_BASE: usize = 0x2F1_0000;
+#[cfg(feature = "board_axu15eg")]
+pub const UINTC_BASE: usize = 0x300_0000;
 
 /// UINTC size
+#[cfg(feature = "board_qemu")]
 pub const UINTC_SIZE: usize = 0x4000;
+#[cfg(feature = "board_axu15eg")]
+pub const UINTC_SIZE: usize = 0x400;
+
 
 /// Maximum number of UINTC entries
 pub const UINTC_ENTRY_NUM: usize = 512;

@@ -27,13 +27,6 @@ impl File for Stdin {
             }
         };
         Some(1)
-        // let c = getchar();
-        // if c ==0 || c == 255 {
-        //     None
-        // } else {
-        //     buf[0] = c;
-        //     Some(1)
-        // }
     }
 
     fn read_ready(&self) -> bool {
