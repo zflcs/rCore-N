@@ -119,6 +119,10 @@ impl TrapFrame {
         self.user_regs[9] = a0;
     }
 
+    pub fn get_a0(&mut self) -> usize{
+        self.user_regs[9]
+    }
+
     /// Set stack pointer while cloning task
     pub fn set_sp(&mut self, sp: usize) {
         self.user_regs[1] = sp;

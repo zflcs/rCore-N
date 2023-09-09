@@ -72,6 +72,11 @@ pub enum KernelError {
 
     /// Run out of free memory
     VMAAllocFailed,
+
+    /// Port is used
+    PortOccupied,
+    /// Port is not existed
+    PortNotExist,
 }
 
 pub type KernelResult<T = ()> = Result<T, KernelError>;
@@ -85,7 +90,8 @@ impl From<KernelError> for Errno {
             KernelError::FDNotFound => Errno::EBADF,
             KernelError::VMANotFound | KernelError::VMAAllocFailed => Errno::ENOMEM,
             KernelError::VMAFailedIO => Errno::EACCES,
-            
+            KernelError::PortOccupied => Errno::EINVAL,
+            KernelError::PortNotExist => Errno::EINVAL,
             // TODO
             _ => Errno::EINVAL,
         }

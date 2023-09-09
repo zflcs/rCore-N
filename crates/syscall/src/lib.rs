@@ -25,6 +25,7 @@ mod file;
 mod io;
 mod proc;
 mod timer;
+mod net;
 
 pub use comm::*;
 use errno::Errno;
@@ -33,6 +34,7 @@ pub use io::*;
 use numeric_enum_macro::numeric_enum;
 pub use proc::*;
 pub use timer::*;
+pub use net::*;
 
 numeric_enum! {
     #[repr(usize)]
@@ -77,6 +79,10 @@ numeric_enum! {
         UINTR_REGISTER_RECEIVER = 244,
         UINTR_CREATE_FD = 246,
         UINTR_REGISTER_SENDER = 247,
+
+        // NET
+        LISTEN = 300,
+        ACCEPT = 301,
     }
 }
 

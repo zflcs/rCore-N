@@ -22,6 +22,8 @@ const SYSCALL_WAITPID: usize = 260;
 const SYSCALL_UINTR_REGISTER_RECEIVER: usize = 244;
 const SYSCALL_UINTR_CREATE_FD: usize = 246;
 const SYSCALL_UINTR_REGISTER_SENDER: usize = 247;
+const SYSCALL_LISTEN: usize = 300;
+const SYSCALL_ACCEPT: usize = 301;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -119,4 +121,12 @@ pub(crate) fn sys_uintr_register_sender(fd: usize) -> isize {
 
 pub(crate) fn sys_uintr_create_fd(vector: usize) -> isize {
     syscall(SYSCALL_UINTR_CREATE_FD, [vector, 0, 0])
+}
+
+pub(crate) fn sys_listen(port: usize) -> isize {
+    syscall(SYSCALL_LISTEN, [port, 0, 0])
+}
+
+pub(crate) fn sys_accept(fd: usize) -> isize {
+    syscall(SYSCALL_ACCEPT, [fd, 0, 0])
 }

@@ -3,6 +3,6 @@ cases = [
     "shell",
     "sharedscheduler",
     "forktest",
-    "hello"
-
+    "hello",
+    "tcp"
 ]

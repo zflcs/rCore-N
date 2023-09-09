@@ -252,7 +252,7 @@ impl AxiDma {
     }
 
     pub fn tx_intr_disable(&self) {
-        debug!("axidma::tx_intr_disable");
+        trace!("axidma::tx_intr_disable");
         self.hardware().mm2s_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .disable()
@@ -264,7 +264,7 @@ impl AxiDma {
     }
 
     pub fn rx_intr_disable(&self) {
-        debug!("axidma::rx_intr_disable");
+        trace!("axidma::rx_intr_disable");
         self.hardware().s2mm_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .disable()
@@ -276,7 +276,7 @@ impl AxiDma {
     }
 
     pub fn tx_intr_enable(&self) {
-        debug!("axidma::tx_intr_enable");
+        trace!("axidma::tx_intr_enable");
         self.hardware().mm2s_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .enable()
@@ -288,7 +288,7 @@ impl AxiDma {
     }
 
     pub fn rx_intr_enable(&self) {
-        debug!("axidma::rx_intr_enable");
+        trace!("axidma::rx_intr_enable");
         self.hardware().s2mm_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .enable()
@@ -346,7 +346,7 @@ impl AxiDma {
                 let addr = ring.head_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::tx_to_hw: cur desc addr: 0x{:x}", addr);
+                trace!("axidma::tx_to_hw: cur desc addr: 0x{:x}", addr);
                 unsafe {
                     hardware
                         .mm2s_curdesc
@@ -371,7 +371,7 @@ impl AxiDma {
                 let addr = ring.tail_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::tx_to_hw: tail desc addr: 0x{:x}", addr);
+                trace!("axidma::tx_to_hw: tail desc addr: 0x{:x}", addr);
                 unsafe {
                     hardware
                         .mm2s_taildesc
@@ -397,7 +397,7 @@ impl AxiDma {
                 let addr = ring.head_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::rx_to_hw: cur desc addr: 0x{:x}", addr);
+                trace!("axidma::rx_to_hw: cur desc addr: 0x{:x}", addr);
 
                 unsafe {
                     hardware
@@ -423,7 +423,7 @@ impl AxiDma {
                 let addr = ring.tail_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::rx_to_hw: tail desc addr: 0x{:x}", addr);
+                trace!("axidma::rx_to_hw: tail desc addr: 0x{:x}", addr);
                 unsafe {
                     hardware
                         .s2mm_taildesc
@@ -479,12 +479,12 @@ impl AxiDmaIntr {
             sr.modify(|_, w| w.err_irq().set_bit());
         }
         if sr.read().ioc_irq().is_detected() {
-            debug!("axidma_intr: tx cplt intr detected");
+            trace!("axidma_intr: tx cplt intr detected");
             sr.modify(|_, w| w.ioc_irq().set_bit());
             TX_FRAMES.fetch_add(1, Relaxed);
         }
         if sr.read().dly_irq().is_detected() {
-            debug!("axidma_intr: tx dly intr detected");
+            trace!("axidma_intr: tx dly intr detected");
             sr.modify(|_, w| w.dly_irq().set_bit());
             TX_FRAMES.fetch_add(1, Relaxed);
         }
@@ -500,12 +500,12 @@ impl AxiDmaIntr {
             sr.modify(|_, w| w.err_irq().set_bit());
         }
         if sr.read().ioc_irq().is_detected() {
-            debug!("axidma_intr: rx cplt intr detected");
+            trace!("axidma_intr: rx cplt intr detected");
             sr.modify(|_, w| w.ioc_irq().set_bit());
             RX_FRAMES.fetch_add(1, Relaxed);
         }
         if sr.read().dly_irq().is_detected() {
-            debug!("axidma_intr: rx dly intr detected");
+            trace!("axidma_intr: rx dly intr detected");
             sr.modify(|_, w| w.dly_irq().set_bit());
             RX_FRAMES.fetch_add(1, Relaxed);
         }

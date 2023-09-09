@@ -20,6 +20,7 @@ mod syscall;
 mod task;
 mod tests;
 mod lkm;
+mod net;
 
 #[path = "arch/riscv64/mod.rs"]
 // #[cfg(target_arch = "riscv64")]

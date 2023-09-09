@@ -102,3 +102,11 @@ pub fn uintr_register_sender(fd: usize) -> isize {
 pub fn uintr_create_fd(vector: usize) -> isize {
     sys_uintr_create_fd(vector)
 }
+
+pub fn listen(port: usize) -> isize {
+    sys_listen(port)
+}
+
+pub fn accept(fd: usize) -> isize {
+    sys_accept(fd)
+}

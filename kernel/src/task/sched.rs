@@ -1,6 +1,6 @@
 use alloc::{
     sync::Arc,
-    vec::Vec, collections::{VecDeque, vec_deque},
+    vec::Vec, collections::VecDeque,
 };
 use bit_field::BitField;
 use core::cell::SyncUnsafeCell;
@@ -9,7 +9,7 @@ use spin::Lazy;
 
 use crate::{
     arch::{get_cpu_id, TaskContext, __switch},
-    config::*, error::{KernelResult, self},
+    config::*, error::KernelResult,
     // loader::from_args,
 };
 
@@ -290,6 +290,22 @@ pub unsafe fn do_yield() {
     let curr_ctx = {
         let mut locked_inner = curr.locked_inner();
         locked_inner.state = TaskState::RUNNABLE;
+        &curr.inner().ctx as *const TaskContext
+    };
+
+    // Saves and restores CPU local variable, intena.
+    let intena = CPUs[get_cpu_id()].intena;
+    __switch(curr_ctx, idle_ctx());
+    CPUs[get_cpu_id()].intena = intena;
+}
+
+/// block current task
+pub unsafe fn do_block() {
+    let curr = cpu().curr.as_ref().unwrap();
+    log::debug!("{:#?} block", curr);
+    let curr_ctx = {
+        let mut locked_inner = curr.locked_inner();
+        locked_inner.state = TaskState::INTERRUPTIBLE;
         &curr.inner().ctx as *const TaskContext
     };
 

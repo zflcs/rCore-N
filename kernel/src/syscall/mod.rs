@@ -1,6 +1,6 @@
 use log::trace;
 use syscall_interface::{
-    IoVec, SyscallComm, SyscallFile, SyscallIO, SyscallNO, SyscallProc, SyscallResult, SyscallTimer,
+    IoVec, SyscallComm, SyscallFile, SyscallIO, SyscallNO, SyscallProc, SyscallResult, SyscallTimer, SyscallNET
 };
 
 mod comm;
@@ -8,6 +8,7 @@ mod file;
 mod io;
 mod proc;
 mod timer;
+mod net;
 
 #[derive(Debug)]
 pub struct SyscallArgs(pub SyscallNO, pub [usize; 6]);
@@ -54,6 +55,10 @@ pub fn syscall(args: SyscallArgs) -> SyscallResult {
         SyscallNO::UINTR_REGISTER_RECEIVER => SyscallImpl::uintr_register_receier(),
         SyscallNO::UINTR_REGISTER_SENDER => SyscallImpl::uintr_register_sender(args[0]),
         SyscallNO::UINTR_CREATE_FD => SyscallImpl::uintr_create_fd(args[0]),
+        
+        // NET
+        SyscallNO::LISTEN => SyscallImpl::listen(args[0] as u16),
+        SyscallNO::ACCEPT => SyscallImpl::accept(args[0]),
         _ => {
             unimplemented!("{:?}", id)
         }

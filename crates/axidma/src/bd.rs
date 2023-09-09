@@ -55,7 +55,7 @@ impl AxiDmaBlockDesc {
         let addr = buf.as_ptr() as usize;
         let addr_lsb = (addr & 0xFFFF_FFFF) as _;
         let addr_msb = (addr >> 32) as _;
-        debug!("bd::set_buf: addr: {:x}, len: {}", addr, buf.len());
+        trace!("bd::set_buf: addr: {:x}, len: {}", addr, buf.len());
         unsafe {
             self.desc.buf_addr.write(|w| w.buf_addr().bits(addr_lsb));
             self.desc
