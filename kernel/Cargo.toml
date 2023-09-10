@@ -19,8 +19,8 @@ xmas-elf = "0.8"
 # device driver dependencies
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "4ee80e5", optional = true }
 axi-ethernet = { git = "https://github.com/zflcs/axiethernet.git", optional = true }
-axidma = { path = "../crates/axidma", optional = true }
-
+# axidma = { path = "../crates/axidma", optional = true }
+axidma = { path = "../axidma", optional = true }
 # tCore crates (private)
 errno = { path = "../crates/errno" }
 id-alloc = { path = "../crates/id-alloc" }

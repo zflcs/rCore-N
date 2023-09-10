@@ -34,6 +34,7 @@ lazy_static::lazy_static! {
 
 #[cfg(feature = "board_axu15eg")]
 pub fn net_interrupt_handler(irq: u16) {
+
     if irq == 4 {
         log::debug!("new mm2s intr");
         AXI_DMA_INTR.lock().tx_intr_handler();
@@ -45,7 +46,8 @@ pub fn net_interrupt_handler(irq: u16) {
                 let packet = LOSE_NET_STACK
                     .0
                     .lock()
-                    .analysis(buf.as_slice());
+                    .analysis(&buf);
+                log::debug!("{:?}", packet);
                 match packet {
                     Packet::ARP(arp_packet) => {
                         let lose_stack = LOSE_NET_STACK.0.lock();

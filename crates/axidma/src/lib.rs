@@ -556,3 +556,17 @@ pub fn io_fence() {
         asm!("fence iorw,iorw");
     }
 }
+
+// #[test]
+// fn pin_test() {
+//     extern crate std;
+//     use alloc::boxed::Box;
+//     let frame = Box::pin([0u8; 64]);
+//     let t = move |f: Pin<Box<[u8; 64]>>| {
+//         std::println!("{:#x?}", f.as_ptr() as *const _ as usize);
+//         f
+//     };
+//     let f = t(frame);
+//     // core::mem::forget(frame);
+//     std::println!("{:#x?}", f.as_ptr() as *const _ as usize);
+// }

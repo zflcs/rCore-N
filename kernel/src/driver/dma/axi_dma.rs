@@ -2,11 +2,14 @@ use axi_ethernet::XAE_MAX_FRAME_SIZE;
 use lazy_static::lazy_static;
 use alloc::{sync::Arc, boxed::Box};
 use axidma::{AxiDma, AxiDmaIntr, AXI_DMA_CONFIG, RX_FRAMES, TX_FRAMES};
-use core::sync::atomic::Ordering::Relaxed;
+use core::{sync::atomic::Ordering::Relaxed, pin::Pin};
 use kernel_sync::SpinLock;
 
+static mut TX_BUF: [u8; XAE_MAX_FRAME_SIZE] = [0u8; XAE_MAX_FRAME_SIZE];
+static mut RX_BUF: [u8; XAE_MAX_FRAME_SIZE] = [0u8; XAE_MAX_FRAME_SIZE];
+
 lazy_static! {
-    pub static ref AXI_DMA: Arc<SpinLock<AxiDma>> = Arc::new(SpinLock::new(AxiDma::default()));
+    pub static ref AXI_DMA: Arc<SpinLock<AxiDma>> = Arc::new(SpinLock::new(AxiDma::new(AXI_DMA_CONFIG, Pin::new(unsafe {&mut TX_BUF}), Pin::new(unsafe {&mut RX_BUF}))));
     pub static ref AXI_DMA_INTR: Arc<SpinLock<AxiDmaIntr>> =
         Arc::new(SpinLock::new(AxiDmaIntr::new(AXI_DMA_CONFIG.base_address)));
 }
@@ -27,8 +30,7 @@ pub fn init() {
     AXI_DMA.lock().tx_intr_enable();
     AXI_DMA.lock().rx_intr_enable();
     // 提交接收的缓冲区
-    let rx_frame = Box::pin([0u8; XAE_MAX_FRAME_SIZE]);
-    AXI_DMA.lock().rx_submit(&[&rx_frame]);
-    AXI_DMA.lock().rx_to_hw();
-
+    // let rx_frame = Box::pin([0u8; XAE_MAX_FRAME_SIZE]);
+    AXI_DMA.lock().rx_submit();
+    AXI_DMA.lock().rx_to_hw();    
 }
