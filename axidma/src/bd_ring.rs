@@ -184,7 +184,7 @@ impl AxiDmaBdRing {
         let mut bd_cnt = 0;
         let mut partial_cnt = 0;
         let mut cur_bd = self.bd_head;
-        info!(
+        trace!(
             "bd_ring::from_hw: head: {}, tail: {}",
             self.bd_head, self.bd_tail
         );

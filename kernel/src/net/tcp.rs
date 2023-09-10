@@ -57,14 +57,15 @@ impl File for TCP {
 
     fn read(&self, mut buf: &mut [u8]) -> Option<usize> {
         let socket = get_mutex_socket(self.socket_index).unwrap();
+        log::trace!("read from tcp");
         loop {
             let mut mutex_socket = socket.lock();
             if let Some(data) = mutex_socket.buffers.pop_front() {
                 drop(mutex_socket);
                 let data_len = data.len();
                 let mut count = 0;
-                buf.copy_from_slice(&data);
-                count += data.len();
+                buf[0..data_len].copy_from_slice(&data);
+                count += data_len;
                 return Some(count);
             } else {
                 let cur = cpu().curr.as_ref().unwrap();
@@ -85,11 +86,11 @@ impl File for TCP {
         count += buf.len();
 
         let len = data.len();
-        log::debug!("socket send len: {}", len);
+        log::trace!("socket send len: {}", len);
 
         // get sock and sequence
         let (seq, ack) = get_s_a_by_index(self.socket_index).map_or((0, 0), |x| x);
-        log::debug!("[TCP write] seq: {}, ack: {}", seq, ack);
+        log::trace!("[TCP write] seq: {}, ack: {}", seq, ack);
         let tcp_packet = TCPPacket {
             source_ip: lose_net_stack.ip,
             source_mac: lose_net_stack.mac,

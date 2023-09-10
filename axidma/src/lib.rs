@@ -318,7 +318,7 @@ impl AxiDma {
             ring.fill_buf(buf);
             ring.submit();
         } else {
-            warn!("axidma::tx_submit: no tx ring!");
+            trace!("axidma::tx_submit: no tx ring!");
         }
     }
 
@@ -327,7 +327,7 @@ impl AxiDma {
         if let Some(ring) = self.rx_bd_ring.as_mut() {
             ring.submit();
         } else {
-            warn!("axidma::rx_submit: no rx ring!");
+            trace!("axidma::rx_submit: no rx ring!");
         }
     }
 
@@ -350,7 +350,7 @@ impl AxiDma {
                         .write(|w| w.curdesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::tx_to_hw: ring running, cur desc not updated");
+                trace!("axidma::tx_to_hw: ring running, cur desc not updated");
             }
             compiler_fence(SeqCst);
             fence(SeqCst);
@@ -375,10 +375,10 @@ impl AxiDma {
                         .write(|w| w.taildesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::tx_to_hw: no pending BD, tail desc not updated");
+                trace!("axidma::tx_to_hw: no pending BD, tail desc not updated");
             }
         } else {
-            warn!("axidma::tx_to_hw: no tx ring!");
+            trace!("axidma::tx_to_hw: no tx ring!");
         }
     }
 
@@ -402,7 +402,7 @@ impl AxiDma {
                         .write(|w| w.curdesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::rx_to_hw: ring running, cur desc not updated");
+                trace!("axidma::rx_to_hw: ring running, cur desc not updated");
             }
 
             compiler_fence(SeqCst);
@@ -427,10 +427,10 @@ impl AxiDma {
                         .write(|w| w.taildesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::rx_to_hw: no pending BD, tail desc not updated");
+                trace!("axidma::rx_to_hw: no pending BD, tail desc not updated");
             }
         } else {
-            warn!("axidma::rx_to_hw: no rx ring!");
+            trace!("axidma::rx_to_hw: no rx ring!");
         }
     }
 
@@ -438,7 +438,7 @@ impl AxiDma {
         if let Some(ring) = self.tx_bd_ring.as_mut() {
             ring.from_hw()
         } else {
-            warn!("axidma::tx_from_hw: no tx ring!");
+            trace!("axidma::tx_from_hw: no tx ring!");
             None
         }
     }
@@ -447,7 +447,7 @@ impl AxiDma {
         if let Some(ring) = self.rx_bd_ring.as_mut() {
             ring.from_hw()
         } else {
-            warn!("axidma::rx_from_hw: no rx ring!");
+            trace!("axidma::rx_from_hw: no rx ring!");
             None
         }
     }

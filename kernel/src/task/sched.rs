@@ -302,7 +302,7 @@ pub unsafe fn do_yield() {
 /// block current task
 pub unsafe fn do_block() {
     let curr = cpu().curr.as_ref().unwrap();
-    log::debug!("{:#?} block", curr);
+    log::trace!("{:#?} block", curr);
     let curr_ctx = {
         let mut locked_inner = curr.locked_inner();
         locked_inner.state = TaskState::INTERRUPTIBLE;

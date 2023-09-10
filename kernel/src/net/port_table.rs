@@ -71,7 +71,7 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
             })
             .collect();
     if listen_ports.len() == 0 {
-        log::debug!("no listen");
+        log::trace!("no listen");
         None
     } else {
         let listen_port = listen_ports[0].as_mut().unwrap();
@@ -86,13 +86,10 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
         } else {
             None
         }
-        
-        
     }
 }
 
 pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<Task>) -> bool {
-    let cur = cpu().curr.as_ref().unwrap();
     match TCP::new(
         tcp_packet.source_ip,
         tcp_packet.dest_port,
@@ -101,13 +98,13 @@ pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<Task>) ->
         tcp_packet.seq + 1,
     ) {
         Some(tcp_socket) => {
-            let fd = cur.files().push(Arc::new(tcp_socket)).unwrap();
-            log::debug!("[accept_connection]: local fd: {}, sport: {}, dport: {}", fd, tcp_packet.dest_port, tcp_packet.source_port);
-            cur.trapframe().set_a0(fd);
+            let fd = task.files().push(Arc::new(tcp_socket)).unwrap();
+            log::trace!("[accept_connection]: local fd: {}, sport: {}, dport: {}", fd, tcp_packet.dest_port, tcp_packet.source_port);
+            task.trapframe().set_a0(fd);
             true
         }
         _ => {
-            log::debug!("invaild accept req");
+            log::trace!("invaild accept req");
             false
         }
     }

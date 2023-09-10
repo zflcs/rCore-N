@@ -195,6 +195,51 @@ pub unsafe extern "C" fn __trampoline() {
         .globl __kernelret
     __kernelret:
         ",
+        // restore sstatus and sepc
+        "
+        ld t1, 240(sp)
+        ld t0, 232(sp)
+        csrw sstatus, t1
+        csrw sepc, t0
+        ",
+        // restore general register
+        "
+        ld t6, 224(sp)
+        ld t5, 216(sp)
+        ld t4, 208(sp)
+        ld t3, 200(sp)
+        ld s11, 192(sp)
+        ld s10, 184(sp)
+        ld s9, 176(sp)
+        ld s8, 168(sp)
+        ld s7, 160(sp)
+        ld s6, 152(sp)
+        ld s5, 144(sp)
+        ld s4, 136(sp)
+        ld s3, 128(sp)
+        ld s2, 120(sp)
+        ld a7, 112(sp)
+        ld a6, 104(sp)
+        ld a5, 96(sp)
+        ld a4, 88(sp)
+        ld a3, 80(sp)
+        ld a2, 72(sp)
+        ld a1, 64(sp)
+        ld a0, 56(sp)
+        ld s1, 48(sp)
+        ld s0, 40(sp)
+        ld t2, 32(sp)
+        ld t1, 24(sp)
+        ld t0, 16(sp)
+        ",
+        // restore ra gp
+        "
+        ld gp, 8(sp) 
+        ld ra, 0(sp)
+        ",
+        // restore sp
+        "addi sp, sp, 248",
+        "sret",
         options(noreturn),
     );
 }

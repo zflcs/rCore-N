@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use lose_net_stack::{IPv4, packets::tcp::TCPPacket};
 use spin::Mutex;
 
-use crate::task::{Task, TASK_MANAGER, Scheduler};
+use crate::task::{Task, TASK_MANAGER, Scheduler, TaskState};
 
 // TODO: specify the protocol, TCP or UDP
 pub struct Socket {
@@ -113,10 +113,11 @@ pub fn push_data(index: usize, packet: &TCPPacket) {
     socket.buffers.push_back(packet.data.to_vec());
     socket.ack = packet.seq + packet.data_len as u32;
     socket.seq = packet.ack;
-    log::debug!("[push_data] index: {}, socket.ack:{}, socket.seq:{}", index, socket.ack, socket.seq);
+    log::trace!("[push_data] index: {}, socket.ack:{}, socket.seq:{}", index, socket.ack, socket.seq);
     match socket.block_task.take() {
         Some(task) => {
-            log::debug!("wake read task");
+            log::trace!("wake read task");
+            task.locked_inner().state = TaskState::RUNNABLE;
             TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
         }
         _ => {

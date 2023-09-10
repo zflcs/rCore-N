@@ -34,10 +34,12 @@ pub fn set_kernel_trap() {
         );
         sscratch::write(kernel_trap_handler as usize);
     }
+    enable_supervisor_intr();
 }
 
 /// Set user trap entry.
 pub fn set_user_trap() {
+    disable_supervisor_intr();
     unsafe { stvec::write(TRAMPOLINE_VA as usize, TrapMode::Direct) };
 }
 
@@ -50,6 +52,14 @@ pub fn enable_timer_intr() {
 
 pub fn enable_ext_intr() {
     unsafe { sie::set_sext(); }
+}
+
+pub fn enable_supervisor_intr() {
+    unsafe { sstatus::set_sie() }
+}
+
+pub fn disable_supervisor_intr() {
+    unsafe { sstatus::clear_sie(); }
 }
 
 /// User trap handler manages the task according to the cause:
@@ -175,10 +185,16 @@ pub fn user_trap_return() -> ! {
 }
 
 #[no_mangle]
-pub fn kernel_trap_handler(ctx: &KernelTrapContext) -> ! {
+pub fn kernel_trap_handler(ctx: &KernelTrapContext) {
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            set_next_trigger();
+        },
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            plic::handle_external_interrupt(get_cpu_id());
+        },
         _ => {
             panic!(
                 "[S] {:X?}, stval = {:#X}, ctx = {:#X?} ",
@@ -187,5 +203,5 @@ pub fn kernel_trap_handler(ctx: &KernelTrapContext) -> ! {
                 ctx
             );
         }
-    }
+    };
 }

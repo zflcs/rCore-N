@@ -36,10 +36,10 @@ lazy_static::lazy_static! {
 pub fn net_interrupt_handler(irq: u16) {
 
     if irq == 4 {
-        log::debug!("new mm2s intr");
+        log::trace!("new mm2s intr");
         AXI_DMA_INTR.lock().tx_intr_handler();
     } else if irq == 5 {
-        log::debug!("new s2mm intr");
+        log::trace!("new s2mm intr");
         AXI_DMA_INTR.lock().rx_intr_handler();
         match NetDevice.receive() {
             Some(buf) => {
@@ -47,16 +47,16 @@ pub fn net_interrupt_handler(irq: u16) {
                     .0
                     .lock()
                     .analysis(&buf);
-                log::debug!("{:?}", packet);
+                log::trace!("{:?}", packet);
                 match packet {
                     Packet::ARP(arp_packet) => {
                         let lose_stack = LOSE_NET_STACK.0.lock();
                         if let Ok(reply_packet) = arp_packet.reply_packet(lose_stack.ip, lose_stack.mac) {
-                            log::debug!("receive arp, need reply");
+                            log::trace!("receive arp, need reply");
                             let reply_data = reply_packet.build_data();
                             NetDevice.transmit(&reply_data)
                         } else {
-                            log::debug!("receive arp, do not need reply");
+                            log::trace!("receive arp, do not need reply");
                         }
                     }
                     Packet::TCP(tcp_packet) => {
@@ -64,7 +64,7 @@ pub fn net_interrupt_handler(irq: u16) {
                         let lport = tcp_packet.dest_port;
                         let rport = tcp_packet.source_port;
                         let flags = tcp_packet.flags;
-                        log::debug!("[TCP] target: {}, lport: {}, rport: {}", target, lport, rport);
+                        log::trace!("[TCP] target: {}, lport: {}, rport: {}", target, lport, rport);
                         if flags.contains(TcpFlags::S) {
                             // if it has a port to accept, then response the request
                             if check_accept(lport, &tcp_packet).is_some() {
@@ -95,22 +95,22 @@ pub fn net_interrupt_handler(irq: u16) {
                         if let Some(socket_index) = get_socket(target, lport, rport) {
                             let packet_seq = tcp_packet.seq;
                             if let Some((seq, ack)) = get_s_a_by_index(socket_index) {
-                                log::debug!("packet_seq: {}, ack: {}", packet_seq, ack);
+                                log::trace!("packet_seq: {}, ack: {}", packet_seq, ack);
                                 if ack == packet_seq && tcp_packet.data_len > 0 {
-                                    log::debug!("push data: {}, {}", socket_index, tcp_packet.data_len);
+                                    log::trace!("push data: {}, {}", socket_index, tcp_packet.data_len);
                                     push_data(socket_index, &tcp_packet);
                                 }
                             }
                         }
                     }
                     _ => {
-                        log::debug!("packet not match {:?}", packet);
+                        log::trace!("packet not match {:?}", packet);
                     }
                 }
                 NetDevice.recycle_rx_buffer(buf);
             }
             None => {
-                log::debug!("do nothing");
+                log::trace!("do nothing");
             },
         }
     }
