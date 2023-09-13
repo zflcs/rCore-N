@@ -82,6 +82,7 @@ impl TrapFrame {
     }
 
     /// Gets syscall number.
+    #[allow(unused)]
     pub fn syscall_no(&self) -> usize {
         self.user_regs[16]
     }
@@ -119,6 +120,7 @@ impl TrapFrame {
         self.user_regs[9] = a0;
     }
 
+    #[allow(unused)]
     pub fn get_a0(&mut self) -> usize{
         self.user_regs[9]
     }

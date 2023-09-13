@@ -4,5 +4,6 @@ cases = [
     "sharedscheduler",
     "forktest",
     "hello",
-    "tcp"
+    "tcp",
+    "test",
 ]

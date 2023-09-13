@@ -366,6 +366,20 @@ mod syscall {
             }
             Err(Errno::EINVAL)
         }
+
+        // kernel send user interrupt
+        pub fn uintr_test(fd: usize) -> SyscallResult {
+            let uintr_inner = cpu().curr.as_ref().unwrap().uintr_inner();
+            if let Some(uirs) = &uintr_inner.uirs {
+                let index = uirs.0;
+                let mut uirs = UIntrReceiver::from(index);
+                uirs.hartid = get_cpu_id() as u16;
+                uirs.mode |= 0x2; // 64 bits
+                uirs.irq = 2;
+                uirs.sync(index);
+            }
+            Ok(0)
+        }
     }
 
     /// Synchronize receiver status to UINTC and raise user interrupt if kernel returns to
@@ -387,7 +401,7 @@ mod syscall {
 
             // user configurations
             uepc::write(uintr_inner.uepc);
-            // log::debug!("uepc {:#x?}", uintr_inner.uepc);
+            // log::trace!("uepc {:#x?}", uintr_inner.uepc);
             utvec::write(uintr_inner.utvec, utvec::TrapMode::Direct);
             uscratch::write(uintr_inner.uscratch);
             uie::set_usoft();

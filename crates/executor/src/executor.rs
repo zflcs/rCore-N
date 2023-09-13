@@ -20,10 +20,15 @@ struct Priority(usize);
 impl Priority {
     pub const DEFAULT: Self = Self(PRIO_POINTER);
 
-    // This is used when spawn a coroutine or after a coroutine is executed
+    // This is used when spawn or wake up a coroutine
     pub fn update(&self, prio: usize) {
         let priority = unsafe { &*(self.0 as *mut AtomicUsize) };
         priority.fetch_min(prio, Relaxed);
+    }
+
+    pub fn set_prio(&self, prio: usize) {
+        let priority = unsafe { &*(self.0 as *mut AtomicUsize) };
+        priority.store(prio, Relaxed);
     }
 
     pub fn get_prio(&self) -> usize {
@@ -135,10 +140,11 @@ impl Executor {
                 self.pending_queue.push(task);
             }
         };
-        let task = target_task.unwrap();
-        let prio = task.inner.lock().prio;
-        self.ready_queue[prio].push(task);
-        self.priority.update(prio);
+        if let Some(task) = target_task {
+            let prio = task.inner.lock().prio;
+            self.ready_queue[prio].push(task);
+            self.priority.update(prio);
+        }
     }
 
     /// remove a coroutine
@@ -157,10 +163,11 @@ impl Executor {
         self.currents[tid] = None;
         for i in 0..MAX_PRIO {
             if !self.ready_queue[i].is_empty() {
-                self.priority.update(i);
-                break;
+                self.priority.set_prio(i);
+                return;
             }
         }
+        self.priority.set_prio(MAX_PRIO - 1);
     }
 
     /// get prio

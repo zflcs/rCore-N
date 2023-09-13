@@ -16,7 +16,6 @@ use crate::{
     error::*,
     loader::from_elf,
     mm::{KERNEL_MM, MM},
-    task::{TrapFrameTracker, TID},
 };
 
 use crate::arch::uintr::*;
@@ -230,7 +229,7 @@ pub fn do_clone(
     }
 
     /* New task will not be dropped from now on. */
-    TASK_MANAGER.lock().add(KernTask::Proc(new_task.clone()));
+    let _ = TASK_MANAGER.lock().add(KernTask::Proc(new_task.clone()));
 
     // we don't need to lock the new task
     let locked = unsafe { &mut *new_task.locked_inner.as_mut_ptr() };

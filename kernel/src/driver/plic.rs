@@ -19,7 +19,6 @@ pub fn get_context(hart_id: usize, mode: char) -> usize {
 }
 
 
-#[cfg(feature = "board_axu15eg")]
 pub fn init() {
     for i in 4..=6 {
         Plic::set_priority(i, Priority::lowest());
@@ -28,7 +27,6 @@ pub fn init() {
 
 
 
-#[cfg(feature = "board_axu15eg")]
 pub fn init_hart(hart_id: usize) {
     let context = get_context(hart_id, 'S');
     Plic::clear_enable(context, 0);

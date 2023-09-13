@@ -199,7 +199,7 @@ pub static TASK_MANAGER: Lazy<SpinLock<SharedScheduler>> =
 /// Global cpu local states.
 pub static CPU_LIST: Lazy<SyncUnsafeCell<Vec<CPUContext>>> = Lazy::new(|| {
     let mut cpu_list = Vec::new();
-    for cpu_id in 0..CPU_NUM {
+    for _ in 0..CPU_NUM {
         cpu_list.push(CPUContext::new());
     }
     SyncUnsafeCell::new(cpu_list)
@@ -263,7 +263,7 @@ pub unsafe fn idle() -> ! {
                     if cpu().curr.is_some() {
                         let cur = cpu().curr.take().unwrap();
                         match cur.get_state() {
-                            TaskState::RUNNABLE => {TASK_MANAGER.lock().add(KernTask::Proc(cur)); },
+                            TaskState::RUNNABLE => {let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); },
                             _ => {},
                         };
                     }
@@ -300,6 +300,7 @@ pub unsafe fn do_yield() {
 }
 
 /// block current task
+#[allow(unused)]
 pub unsafe fn do_block() {
     let curr = cpu().curr.as_ref().unwrap();
     log::trace!("{:#?} block", curr);

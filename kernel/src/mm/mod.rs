@@ -368,6 +368,7 @@ impl MM {
     /// # Argument
     /// - `start_va`: starting virtual address.
     /// - `end_va`: ending virtual address.
+    #[allow(unused)]
     pub fn alloc_frame_range(
         &mut self,
         start_va: VirtAddr,
@@ -387,6 +388,7 @@ impl MM {
     ///
     /// # Argument
     /// - `va`: starting virtual address where the data type locates.
+    #[allow(unused)]
     pub fn alloc_type<T: Sized>(&mut self, va: VirtAddr) -> KernelResult {
         self.alloc_frame_range(va, va + size_of::<T>())?;
         Ok(())
@@ -397,6 +399,7 @@ impl MM {
     /// # Argument
     /// - `va`: starting virtual address where the data type locates.
     /// - `data`: reference of data type.
+    #[allow(unused)]
     pub fn alloc_write_type<T: Sized>(&mut self, va: VirtAddr, data: &T) -> KernelResult {
         let size = size_of::<T>();
         let end_va = va + size;

@@ -2,21 +2,23 @@ mod trampoline;
 mod trapframe;
 
 use core::{arch::asm, panic};
-use log::{trace, debug};
+use log::*;
 use riscv::register::{scause::*, utvec::TrapMode, *};
 pub use trampoline::__trampoline;
 pub use trapframe::TrapFrame;
 
 use crate::{
-    arch::{mm::VirtAddr, get_cpu_id},
+    arch::mm::VirtAddr,
     config::TRAMPOLINE_VA,
     error::KernelError,
     mm::{do_handle_page_fault, VMFlags},
     println,
     syscall::syscall,
     task::*,
-    timer::set_next_trigger, driver::plic,
+    timer::set_next_trigger,
 };
+#[cfg(feature = "board_axu15eg")]
+use crate::driver::plic;
 
 use self::trapframe::KernelTrapContext;
 
@@ -130,6 +132,7 @@ pub fn user_trap_handler() -> ! {
             set_next_trigger();
             unsafe { do_yield() };
         }
+        #[cfg(feature = "board_axu15eg")]
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
             trap_info();
             plic::handle_external_interrupt(get_cpu_id());
@@ -192,6 +195,7 @@ pub fn kernel_trap_handler(ctx: &KernelTrapContext) {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
         },
+        #[cfg(feature = "board_axu15eg")]
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
             plic::handle_external_interrupt(get_cpu_id());
         },

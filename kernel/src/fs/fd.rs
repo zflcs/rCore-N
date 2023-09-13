@@ -103,6 +103,7 @@ impl FDManager {
     }
 
     /// Returns true if the number of file descriptors exceeds the limit.
+    #[allow(unused)]
     pub fn is_full(&self) -> bool {
         self.count() >= self.limit
     }

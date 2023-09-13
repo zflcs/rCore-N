@@ -107,6 +107,7 @@ impl VMArea {
     }
 
     /// Returns if this area covers the given virtual address range.
+    #[allow(unused)]
     pub fn covers(&self, start_va: VirtAddr, end_va: VirtAddr) -> bool {
         self.start_va <= start_va && self.end_va > end_va && start_va < end_va
     }

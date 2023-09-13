@@ -30,7 +30,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() {
     heap::init();
-    vdso::spawn(move || async{ main(); }, executor::MAX_PRIO - 1, getpid() as usize + 1, executor::CoroutineKind::UserNorm);
+    vdso::spawn(move || async{ main(); }, executor::MAX_PRIO - 1, executor::CoroutineKind::UserNorm);
 }
 
 
@@ -51,7 +51,7 @@ pub fn add_virtual_core() {
 pub fn spawn<F, T>(f: F, prio: usize) -> usize 
     where F: FnOnce() -> T,
     T: Future<Output = ()> + 'static + Send + Sync {
-        vdso::spawn(f, prio, getpid() as usize + 1, executor::CoroutineKind::UserNorm)
+        vdso::spawn(f, prio, executor::CoroutineKind::UserNorm)
 }
 
 pub fn get_pending_status(cid: usize) -> bool {

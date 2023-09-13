@@ -15,7 +15,6 @@ pub mod config;
 extern crate alloc;
 use alloc::boxed::Box;
 use bit_field::BitField;
-use core::arch::asm;
 use core::future::Future;
 use core::pin::Pin;
 
@@ -113,7 +112,6 @@ use core::task::Poll;
 #[inline(never)]
 fn user_entry() {
     unsafe {
-        println!("here");
         let user_fn: fn() = core::mem::transmute(ENTRY);
         user_fn();
     }
@@ -134,7 +132,7 @@ fn user_entry() {
 /// 添加协程，内核和用户态都可以调用
 #[no_mangle]
 #[inline(never)]
-pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {
+pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
     unsafe {
         let heapptr = *(HEAP_POINTER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
@@ -177,9 +175,7 @@ pub fn poll_user_future() {
             }
             
         }
-        if tid != 0 {
-            exit(2);
-        }
+        exit(0);
     }
 }
 /// hart_id

@@ -65,10 +65,10 @@ features = [
 
 
 [features]
-board_qemu = ["virtio-drivers"]
+board_qemu = ["virtio-drivers", "uintr"]
 board_axu15eg = ["axi-ethernet", "axidma", "uintr"]
 
-default = ["board_axu15eg"]
+default = ["board_qemu"]
 
 [build-dependencies]
 serde_derive = "1.0"

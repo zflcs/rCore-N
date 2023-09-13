@@ -27,14 +27,14 @@ pub fn init_spawn(ptr:usize){
   }
 }
 #[inline(never)]
-pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) -> usize 
+pub fn spawn<F, T>(f: F, prio: usize, kind: CoroutineKind) -> usize 
 where 
     F: FnOnce() -> T,
     T: Future<Output = ()> + 'static + Send + Sync
 {
   unsafe {
-    let func:fn(f:Pin<Box<dyn Future<Output = ()> +'static+Send+Sync> > ,prio:usize,pid:usize,kind:CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
-    func(Box::pin(f()),prio,pid,kind)
+    let func:fn(f:Pin<Box<dyn Future<Output = ()> +'static+Send+Sync> > ,prio: usize, kind: CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
+    func(Box::pin(f()), prio, kind)
   }
 }
 

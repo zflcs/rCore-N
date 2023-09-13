@@ -8,8 +8,10 @@
 #![feature(linked_list_remove)]
 #![feature(linked_list_cursors)]
 
+
 mod config;
 mod cons;
+#[cfg(feature = "board_axu15eg")]
 mod driver;
 mod error;
 mod fs;
@@ -20,6 +22,7 @@ mod syscall;
 mod task;
 mod tests;
 mod lkm;
+#[cfg(feature = "board_axu15eg")]
 mod net;
 
 #[path = "arch/riscv64/mod.rs"]
@@ -30,7 +33,7 @@ mod timer;
 extern crate alloc;
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
-
+#[cfg(feature = "board_axu15eg")]
 use driver::plic;
 use log::info;
 
@@ -73,8 +76,11 @@ pub extern "C" fn rust_main(hartid: usize) -> ! {
     arch::trap::enable_timer_intr();
     arch::trap::enable_ext_intr();
     timer::set_next_trigger();
+    #[cfg(feature = "board_axu15eg")]
     driver::init();
+    #[cfg(feature = "board_axu15eg")]
     plic::init();
+    #[cfg(feature = "board_axu15eg")]
     plic::init_hart(hartid);
     loader::list_apps();
     task::add_shell();
@@ -93,6 +99,7 @@ pub extern "C" fn rust_main_others(hartid: usize) -> ! {
     arch::trap::enable_timer_intr();
     arch::trap::enable_ext_intr();
     timer::set_next_trigger();
+    #[cfg(feature = "board_axu15eg")]
     plic::init_hart(hartid);
     // IDLE loop
     unsafe { task::idle() };

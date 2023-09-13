@@ -7,7 +7,7 @@ extern crate alloc;
 
 use uintr::uipi_send;
 use user_lib::{UintrFrame, uintr_register_receier};
-use user_syscall::{exit, uintr_create_fd, fork, uintr_register_sender, close, waitpid};
+use user_syscall::{exit, uintr_create_fd, fork, uintr_register_sender, close};
 
 static mut UINTR_RECEIVED: bool = false;
 static mut UINTR_FD: isize = 0;
@@ -47,7 +47,7 @@ pub fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn uintr_handler(uintr_frame: &mut UintrFrame, irqs: usize) -> usize {
+pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, irqs: usize) -> usize {
     println!("\t-- User Interrupt handler --");
     // read pending bits
     println!("\tPending User Interrupts: {:b}", irqs);

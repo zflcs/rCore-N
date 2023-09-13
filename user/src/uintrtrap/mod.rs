@@ -59,7 +59,5 @@ pub fn uintr_register_receier(handler_ptr: usize) -> usize {
         ustatus::set_uie();
         uie::set_usoft();
     }
-    // println!("utvec {:#x?}", uintrvec as usize);
-    // println!("uscratch {:#x?}", handler_ptr);
     user_syscall::uintr_register_receiver()
 }

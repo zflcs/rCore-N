@@ -8,7 +8,7 @@ use core::{cell::SyncUnsafeCell, fmt};
 use errno::Errno;
 use id_alloc::*;
 use kernel_sync::{SpinLock, SpinLockGuard};
-use log::{trace, info};
+use log::*;
 use signal_defs::*;
 use spin::Lazy;
 use syscall_interface::AT_FDCWD;
@@ -104,6 +104,7 @@ impl KernelStack {
     }
 
     /// Returns top address of [`KernelStack`].
+    #[allow(unused)]
     pub fn top(&self) -> usize {
         self.0.start_address().value()
     }
@@ -438,6 +439,7 @@ pub fn init_trapframe(mm: &mut MM, tid: usize) -> KernelResult<PhysAddr> {
 /// Returns task stack layout [top, base) by task identification.
 ///
 /// Stack grows from high address to low address.
+#[allow(unused)]
 pub fn ustack_layout(tid: usize) -> (usize, usize) {
     let ustack_base = USER_STACK_BASE - tid * (USER_STACK_SIZE + PAGE_SIZE);
     let ustack_top = ustack_base - USER_STACK_SIZE;
@@ -449,7 +451,7 @@ pub fn ustack_layout(tid: usize) -> (usize, usize) {
 impl kernel_sync::SleepLockSched for TaskLockedInner {
     unsafe fn sched(guard: SpinLockGuard<Self>) {
         // Lock might be released after the task is pushed back to the scheduler.
-        TASK_MANAGER.lock().add(KernTask::Proc(cpu().curr.clone().unwrap()));
+        let _ = TASK_MANAGER.lock().add(KernTask::Proc(cpu().curr.clone().unwrap()));
         drop(guard);
 
         __switch(curr_ctx(), idle_ctx());
@@ -479,6 +481,7 @@ impl kernel_sync::SleepLockSched for TaskLockedInner {
 
 impl Task {
     /// Signal is ignored for this task.
+    #[allow(unused)]
     pub fn sig_ignored(&self, sig_actions: &SigActions, sig: usize) -> bool {
         /*
          * Blocked signals are never ignored, since the

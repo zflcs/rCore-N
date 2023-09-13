@@ -457,6 +457,7 @@ impl ModuleManager {
             .expect("[LKM] resolve symbol failed!");
         match itype as usize {
             loader::REL_NONE => {},
+            #[allow(unused)]
             loader::REL_OFFSET32 => {
                 panic!("[LKM] REL_OFFSET32 detected!")
                 //    addend-=reloc_addr;
@@ -464,6 +465,7 @@ impl ModuleManager {
             loader::REL_SYMBOLIC => unsafe {
                 write_to_addr(base, reloc_addr, sym_val + addend);
             },
+            #[allow(unused)]
             loader::REL_GOT => unsafe {
                 write_to_addr(base, reloc_addr, sym_val + addend);
             },
@@ -538,6 +540,8 @@ impl ModuleManager {
             }
         }
     }
+    
+    #[allow(unused)]
     pub fn delete_module(&mut self, name: &str, _flags: u32) -> KernelResult {
         //unimplemented!("[LKM] You can't plug out what's INSIDE you, RIGHT?");
 

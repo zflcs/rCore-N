@@ -83,6 +83,9 @@ numeric_enum! {
         // NET
         LISTEN = 300,
         ACCEPT = 301,
+
+        // UINTR_TEST
+        UINT_TEST= 302,
     }
 }
 

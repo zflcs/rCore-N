@@ -44,6 +44,7 @@ impl MemFile {
     }
 
     /// Gets the limit size of this file.
+    #[allow(unused)]
     pub fn get_limit(&self) -> usize {
         self.max_size
     }

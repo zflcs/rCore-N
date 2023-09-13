@@ -1,13 +1,16 @@
 use log::trace;
 use syscall_interface::{
-    IoVec, SyscallComm, SyscallFile, SyscallIO, SyscallNO, SyscallProc, SyscallResult, SyscallTimer, SyscallNET
+    IoVec, SyscallComm, SyscallFile, SyscallIO, SyscallNO, SyscallProc, SyscallResult, SyscallTimer
 };
+#[cfg(feature = "board_axu15eg")]
+use syscall_interface::SyscallNET;
 
 mod comm;
 mod file;
 mod io;
 mod proc;
 mod timer;
+#[cfg(feature = "board_axu15eg")]
 mod net;
 
 #[derive(Debug)]
@@ -55,9 +58,12 @@ pub fn syscall(args: SyscallArgs) -> SyscallResult {
         SyscallNO::UINTR_REGISTER_RECEIVER => SyscallImpl::uintr_register_receier(),
         SyscallNO::UINTR_REGISTER_SENDER => SyscallImpl::uintr_register_sender(args[0]),
         SyscallNO::UINTR_CREATE_FD => SyscallImpl::uintr_create_fd(args[0]),
+        SyscallNO::UINT_TEST => SyscallImpl::uintr_test(args[0]),
         
         // NET
+        #[cfg(feature = "board_axu15eg")]
         SyscallNO::LISTEN => SyscallImpl::listen(args[0] as u16),
+        #[cfg(feature = "board_axu15eg")]
         SyscallNO::ACCEPT => SyscallImpl::accept(args[0]),
         _ => {
             unimplemented!("{:?}", id)

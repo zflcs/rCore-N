@@ -71,7 +71,7 @@ impl SyscallComm for SyscallImpl {
         Ok(0)
     }
 
-    fn sigprocmask(how: usize, set: usize, oldset: usize, sigsetsize: usize) -> SyscallResult {
+    fn sigprocmask(_how: usize, _set: usize, _oldset: usize, _sigsetsize: usize) -> SyscallResult {
         Ok(0)
     }
 }

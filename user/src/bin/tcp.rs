@@ -23,7 +23,7 @@ pub fn main() -> i32 {
     }
     let client_fd = accept(tcp_fd as usize);
 
-    let str = "connect ok";
+    let _str = "connect ok";
     let mut begin_buf = vec![0u8; BUF_LEN];
     read(client_fd as usize, begin_buf.as_mut());
     for i in begin_buf {

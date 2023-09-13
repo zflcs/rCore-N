@@ -11,6 +11,7 @@ use super::*;
 
 pub fn do_prlimit(resource: i32, new_limit: usize, old_limit: usize) -> SyscallResult {
     let curr = cpu().curr.as_ref().unwrap();
+    #[allow(unused)]
     let mut old_rlimit = Rlimit::default();
     let mut new_rlimit = Rlimit::default();
 
