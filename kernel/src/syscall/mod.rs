@@ -29,7 +29,7 @@ pub fn syscall(args: SyscallArgs) -> SyscallResult {
         SyscallNO::CLOSE => SyscallImpl::close(args[0]),
         SyscallNO::PIPE => SyscallImpl::pipe(args[0] as *const u32, args[1]),
         SyscallNO::LSEEK => SyscallImpl::lseek(args[0], args[1], args[2]),
-        SyscallNO::READ => SyscallImpl::read(args[0], args[1] as *mut u8, args[2]),
+        SyscallNO::READ => SyscallImpl::read(args[0], args[1] as *mut u8, args[2], args[3]),
         SyscallNO::WRTIE => SyscallImpl::write(args[0], args[1] as *const u8, args[2]),
         SyscallNO::READV => SyscallImpl::readv(args[0], args[1] as *const IoVec, args[2]),
         SyscallNO::WRITEV => SyscallImpl::writev(args[0], args[1] as *const IoVec, args[2]),

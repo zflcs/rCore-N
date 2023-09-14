@@ -1,4 +1,4 @@
-use crate::task::{Task, TASK_MANAGER, Scheduler, cpu, TaskState};
+use crate::task::{Task, TASK_MANAGER, Scheduler, TaskState};
 use alloc::{sync::Arc, vec::Vec};
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -12,8 +12,7 @@ pub struct Port {
 }
 
 lazy_static! {
-    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> =
-        unsafe { Mutex::new(Vec::new()) };
+    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> = Mutex::new(Vec::new());
 }
 
 pub fn listen(port: u16) -> Option<usize> {
@@ -81,7 +80,7 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
             listen_port.receivable = false;
             let task = listen_port.schedule.take().unwrap();
             task.locked_inner().state = TaskState::RUNNABLE;
-            TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
+            let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
             Some(())
         } else {
             None

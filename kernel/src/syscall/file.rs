@@ -53,7 +53,7 @@ impl SyscallFile for SyscallImpl {
         Ok(write_len)
     }
 
-    fn read(fd: usize, buf: *mut u8, count: usize) -> SyscallResult {
+    fn read(fd: usize, buf: *mut u8, count: usize, cid: usize) -> SyscallResult {
         let curr = cpu().curr.as_ref().unwrap();
 
         // Get the real buffer translated into physical address.
@@ -61,16 +61,21 @@ impl SyscallFile for SyscallImpl {
 
         // Get the file with the given file descriptor.
         let file = curr.files().get(fd)?;
-
-        let mut read_len = 0;
-        for bytes in buf.inner {
-            if let Some(count) = file.read(bytes) {
-                read_len += count;
-            } else {
-                break;
+        if cid == 0 {       // sync
+            let mut read_len = 0;
+            for bytes in buf.inner {
+                if let Some(count) = file.read(bytes) {
+                    read_len += count;
+                } else {
+                    break;
+                }
             }
+            Ok(read_len)
+        } else {            // async
+            file.aread(buf, cid);
+            Ok(0)
         }
-        Ok(read_len)
+        
     }
 
     fn close(fd: usize) -> SyscallResult {
@@ -143,7 +148,7 @@ impl SyscallFile for SyscallImpl {
         let mut read_len = 0;
         for bytes in buf.into_iter().step_by(iov_size) {
             let iov = unsafe { &*(bytes as *const IoVec) };
-            match Self::read(fd, iov.iov_base as *mut _, iov.iov_len) {
+            match Self::read(fd, iov.iov_base as *mut _, iov.iov_len, 0) {
                 Ok(count) => read_len += count,
                 Err(_) => break,
             }

@@ -31,7 +31,7 @@ pub const KERNEL_STACK_SIZE: usize = 0x8_0000;
 pub const KERNEL_STACK_PAGES: usize = KERNEL_STACK_SIZE >> PAGE_SIZE_BITS;
 
 /// Kernel heap size
-pub const KERNEL_HEAP_SIZE: usize = 0x200_0000;
+pub const KERNEL_HEAP_SIZE: usize = 0x100_0000;
 
 /// Kernel heap pages
 pub const KERNEL_HEAP_PAGES: usize = KERNEL_HEAP_SIZE >> PAGE_SIZE_BITS;

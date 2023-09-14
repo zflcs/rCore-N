@@ -1,13 +1,20 @@
 
+use alloc::boxed::Box;
 use alloc::vec;
+use executor::Coroutine;
 use lose_net_stack::packets::tcp::TCPPacket;
 use lose_net_stack::IPv4;
 use lose_net_stack::MacAddress;
 use lose_net_stack::TcpFlags;
+use ubuf::UserBuffer;
 use vfs::File;
+use crate::arch::uintr::uirs_send;
 use crate::driver::net::NetDevice;
+use crate::task::Scheduler;
+use crate::task::TASK_MANAGER;
 use crate::task::cpu;
 use crate::task::do_block;
+use crate::task::KernTask;
 
 use super::socket::get_mutex_socket;
 use super::socket::{add_socket, get_s_a_by_index, remove_socket};
@@ -55,7 +62,30 @@ impl File for TCP {
         true
     }
 
-    fn read(&self, mut buf: &mut [u8]) -> Option<usize> {
+    fn areadable(&self) -> bool {
+        true
+    }
+
+    fn aread(&self, buf: UserBuffer, cid: usize) -> Option<usize> {
+        if !self.areadable() {
+            return None;
+        }
+        let cur = cpu().curr.as_ref().unwrap();
+        let coroutine = Coroutine::new(
+            Box::pin(aread_coroutine(self.socket_index, buf, cid)), 
+            0, 
+            executor::CoroutineKind::Norm
+        );
+        log::debug!("cid {:?}", coroutine.cid);
+        let socket = get_mutex_socket(self.socket_index).unwrap();
+        socket.lock().block_task = Some(cur.clone());
+        socket.lock().block_coroutine = Some(coroutine.clone());
+        log::debug!("aread from tcp");
+        let _ = TASK_MANAGER.lock().add(KernTask::Corou(coroutine));
+        Some(0)
+    }
+
+    fn read(&self, buf: &mut [u8]) -> Option<usize> {
         let socket = get_mutex_socket(self.socket_index).unwrap();
         log::trace!("read from tcp");
         loop {
@@ -85,8 +115,7 @@ impl File for TCP {
         data.copy_from_slice(buf);
         count += buf.len();
 
-        let len = data.len();
-        log::trace!("socket send len: {}", len);
+        log::trace!("socket send len: {}", count);
 
         // get sock and sequence
         let (seq, ack) = get_s_a_by_index(self.socket_index).map_or((0, 0), |x| x);
@@ -98,7 +127,7 @@ impl File for TCP {
             dest_ip: self.target,
             dest_mac: MacAddress::new([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
             dest_port: self.dport,
-            data_len: len,
+            data_len: count,
             seq,
             ack,
             flags: TcpFlags::A,
@@ -107,14 +136,8 @@ impl File for TCP {
             data: data.as_ref(),
         };
         NetDevice.transmit(&tcp_packet.build_data());
-        Some(len)
+        Some(count)
     }
-
-
-    // fn aread(&self, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
-    //     Box::pin(async_read(self.socket_index, buf, cid, pid))
-
-    // }
 }
 
 impl Drop for TCP {
@@ -123,42 +146,56 @@ impl Drop for TCP {
     }
 }
 
+async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
+    let socket = get_mutex_socket(socket_index).unwrap();
+    loop {
+        let mut mutex_socket = socket.lock();
+        if let Some(data) = mutex_socket.buffers.pop_front() {
+            drop(mutex_socket);
+            let data_len = data.len();
+            let mut left = 0;
+            for i in 0..buf.inner.len() {
+                let buffer_i_len = buf.inner[i].len().min(data_len - left);
+                buf.inner[i][..buffer_i_len]
+                    .copy_from_slice(&data[left..(left + buffer_i_len)]);
+                left += buffer_i_len;
+                if left == data_len {
+                    break;
+                }
+            }
+            break;
+        } else {    // await the current coroutine
+            drop(mutex_socket);
+            // leaf future await
+            ReadHelper::new().await;
+        }
+    }
+    // send user interrupt
+    let task = socket.lock().block_task.take().unwrap();
+    log::debug!("send user interrupt {}", cid);
+    unsafe { uirs_send(task, cid) };
+}
 
-// async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize) {
-//     let mut helper = Box::new(ReadHelper::new());
-//     let socket = get_mutex_socket(socket_index).unwrap();
-//     // info!("async read!: {}", socket_index);
-//     loop {
-//         let mut mutex_socket = socket.lock();
-//         // info!("async get lock!: {}", socket_index);
-//         if let Some(data) = mutex_socket.buffers.pop_front() {
-//             drop(mutex_socket);
-//             let data_len = data.len();
-//             let mut left = 0;
-//             for i in 0..buf.buffers.len() {
-//                 let buffer_i_len = buf.buffers[i].len().min(data_len - left);
+use core::{future::Future, pin::Pin, task::{Poll, Context}};
 
-//                 buf.buffers[i][..buffer_i_len]
-//                     .copy_from_slice(&data[left..(left + buffer_i_len)]);
 
-//                 left += buffer_i_len;
-//                 if left == data_len {
-//                     break;
-//                 }
-//             }
-//             break;
-//         } else {
-//             // info!("suspend current coroutine!: {}", socket_index);
-//             ASYNC_RDMP.lock().insert(socket_index, lib_so::current_cid(true));
-//             drop(mutex_socket);
-//             // suspend_current_and_run_next();
-//             helper.as_mut().await;
-//         }
-//     }
-//     // info!("wake: {}", cid);
-    
-//     let _ = push_trap_record(pid, UserTrapRecord {
-//         cause: 1,
-//         message: cid,
-//     });
-// }
+pub struct ReadHelper(usize);
+
+impl ReadHelper {
+    pub fn new() -> Self {
+        Self(0)
+    }
+}
+
+impl Future for ReadHelper {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.0 += 1;
+        if (self.0 & 1) == 1 {
+            return Poll::Pending;
+        } else {
+            return Poll::Ready(());
+        }
+    }
+}

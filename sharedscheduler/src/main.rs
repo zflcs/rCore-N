@@ -173,7 +173,6 @@ pub fn poll_user_future() {
                     sleep(0.5);
                 }
             }
-            
         }
         exit(0);
     }

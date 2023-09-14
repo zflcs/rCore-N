@@ -10,3 +10,5 @@ spin = "0.9"
 
 errno = { path = "../errno" }
 kernel-sync = {  git = "https://github.com/tkf2019/kernel-sync" }
+
+ubuf = { path = "../ubuf" }

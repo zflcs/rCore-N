@@ -70,11 +70,8 @@ pub trait Scheduler {
 //     }
 // }
 
-use core::sync::atomic::AtomicUsize;
-use errno::Errno;
+
 use executor::{Executor, MAX_PRIO, Coroutine};
-use mm_rv::VirtAddr;
-use crate::{read_user, config::PRIO_POINTER, error::KernelError};
 
 #[repr(C, align(0x1000))]
 pub struct GlobalBitmap(usize);
@@ -122,6 +119,7 @@ impl SharedScheduler {
         all_task
     }
 
+    #[allow(unused)]
     pub fn pending(&mut self, c: Arc<Coroutine>) {
         self.executor.pending(c);
     }
@@ -131,11 +129,7 @@ impl Scheduler for SharedScheduler {
     fn add(&mut self, task: KernTask) -> KernelResult {
         match task {
             KernTask::Proc(t) => {
-                let mut mm = t.mm();
-                let mut atomic_prio = AtomicUsize::new(0);
-                read_user!(mm, VirtAddr::from(PRIO_POINTER), atomic_prio, AtomicUsize).map_err(|e| KernelError::Errno(e))?;
-                let prio = atomic_prio.load(core::sync::atomic::Ordering::Relaxed);
-                drop(mm);
+                let prio = t.get_prio().unwrap();
                 self.queue[prio].push_back(t);
                 self.bitmap.update(prio, true);
                 Ok(())
@@ -244,7 +238,6 @@ pub unsafe fn idle() -> ! {
         init_reclaim();
 
         let mut task_manager = TASK_MANAGER.lock();
-
         if let Some(task) = task_manager.fetch() {
             match task {
                 KernTask::Proc(t) => {
@@ -253,7 +246,7 @@ pub unsafe fn idle() -> ! {
                         locked_inner.state = TaskState::RUNNING;
                         &t.inner().ctx as *const TaskContext
                     };
-                    log::trace!("Run {:?}", t);
+                    // log::debug!("Run {}", t.get_prio().unwrap());
                     // Ownership moved to `current`.
                     cpu().curr = Some(t);
         
@@ -262,16 +255,27 @@ pub unsafe fn idle() -> ! {
                     __switch(idle_ctx(), next_ctx);
                     if cpu().curr.is_some() {
                         let cur = cpu().curr.take().unwrap();
+                        // if cur.pid > 1 {
+                        //     log::debug!("task {:?} need add to task", cur);
+                        // }
                         match cur.get_state() {
-                            TaskState::RUNNABLE => {let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); },
+                            TaskState::RUNNABLE => {
+                                let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); 
+                            },
+                            TaskState::RUNNING | TaskState::INTERRUPTIBLE => {
+                                let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); 
+                            },
+                            TaskState::ZOMBIE => {log::debug!("zombie");},
                             _ => {},
                         };
+                    } else {
+                        log::debug!("task is take");
                     }
                 },
                 KernTask::Corou(c) => {
                     drop(task_manager);
                     if c.clone().execute().is_pending() {
-                        TASK_MANAGER.lock().pending(c);
+                        // TASK_MANAGER.lock().pending(c);
                     }
                 }
             }
@@ -286,7 +290,6 @@ pub unsafe fn idle() -> ! {
 /// Unsafe context switch will be called in this function.
 pub unsafe fn do_yield() {
     let curr = cpu().curr.as_ref().unwrap();
-    // log::trace!("{:#?} suspended", curr);
     let curr_ctx = {
         let mut locked_inner = curr.locked_inner();
         locked_inner.state = TaskState::RUNNABLE;
@@ -294,6 +297,7 @@ pub unsafe fn do_yield() {
     };
 
     // Saves and restores CPU local variable, intena.
+    drop(curr);
     let intena = CPUs[get_cpu_id()].intena;
     __switch(curr_ctx, idle_ctx());
     CPUs[get_cpu_id()].intena = intena;

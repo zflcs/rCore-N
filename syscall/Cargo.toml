@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 log = "0.4.17"
 spin = "0.9.4"
-bitflags = "1.2.1"
+bitflags = "2.4.0"
 
 
 syscall_macro = {path = "./syscall_macro"}

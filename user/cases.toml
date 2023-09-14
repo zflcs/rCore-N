@@ -2,8 +2,9 @@
 cases = [
     "shell",
     "sharedscheduler",
-    "forktest",
+    "f",
     "hello",
     "tcp",
     "test",
+    "ptest",
 ]

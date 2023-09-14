@@ -43,7 +43,7 @@ get_libfn!(
 );
 
 get_libfn!(
-    pub fn re_back(cid: usize, pid: usize) {}
+    pub fn re_back(cid: usize) {}
 );
 
 get_libfn!(

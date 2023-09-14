@@ -122,7 +122,7 @@ pub fn main() -> i32 {
                         }
                         let mut children: Vec<_> = Vec::new();
                         for (i, process_argument) in process_arguments_list.iter().enumerate() {
-                            let pid = fork(17);
+                            let pid = fork();
                             if pid == 0 {
                                 let input = &process_argument.input;
                                 let output = &process_argument.output;

@@ -134,6 +134,7 @@ pub fn user_trap_handler() -> ! {
         }
         #[cfg(feature = "board_axu15eg")]
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            use crate::arch::get_cpu_id;
             trap_info();
             plic::handle_external_interrupt(get_cpu_id());
         }
@@ -197,6 +198,7 @@ pub fn kernel_trap_handler(ctx: &KernelTrapContext) {
         },
         #[cfg(feature = "board_axu15eg")]
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            use crate::arch::get_cpu_id;
             plic::handle_external_interrupt(get_cpu_id());
         },
         _ => {

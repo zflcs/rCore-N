@@ -14,7 +14,7 @@ impl CoroutineId {
     /// 生成新的协程 Id
     pub fn generate() -> CoroutineId {
         // 任务编号计数器，任务编号自增
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
         let id = COUNTER.fetch_add(1, Ordering::Relaxed);
         if id > usize::MAX / 2 {
             // TODO: 不让系统 Panic
@@ -63,7 +63,7 @@ pub enum CoroutineKind {
     /// 内核系统调用协程
     KernSyscall,
     /// 用户协程
-    UserNorm,
+    Norm,
 }
 
 pub struct CoroutineInner {
@@ -76,7 +76,7 @@ pub struct CoroutineInner {
 
 impl Coroutine {
     /// 生成协程
-    pub fn new(future: Pin<Box<dyn Future<Output=()> + Send + Sync>>, prio: usize, kind: CoroutineKind) -> Arc<Self> {
+    pub fn new(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> Arc<Self> {
         let cid = CoroutineId::generate();
         Arc::new(
             Coroutine {

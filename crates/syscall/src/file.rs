@@ -101,7 +101,7 @@ pub trait SyscallFile {
     /// or the file was opened with the O_DIRECT flag, and either the address
     /// specified in buf, the value specified in count, or the file offset is
     /// not suitably aligned.
-    fn read(fd: usize, buf: *mut u8, count: usize) -> SyscallResult {
+    fn read(fd: usize, buf: *mut u8, count: usize, cid: usize) -> SyscallResult {
         Ok(0)
     }
 

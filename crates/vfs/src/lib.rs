@@ -17,6 +17,7 @@ pub use flags::*;
 pub use link::*;
 pub use path::*;
 pub use stat::*;
+use ubuf::UserBuffer;
 
 /// In UNIX, everything is a File, such as:
 ///
@@ -30,6 +31,10 @@ pub trait File: Send + Sync + AsAny {
         None
     }
 
+    fn aread(&self, buf: UserBuffer, cid: usize) -> Option<usize> {
+        None
+    }
+
     /// Writes bytes from the buffer to this file.
     ///
     /// Returns the number of bytes written to this file.
@@ -39,6 +44,10 @@ pub trait File: Send + Sync + AsAny {
     }
 
     fn readable(&self) -> bool {
+        false
+    }
+
+    fn areadable(&self) -> bool {
         false
     }
 

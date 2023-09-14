@@ -227,7 +227,7 @@ pub fn do_clone(
             }
         };
     }
-
+    // log::debug!("mm {:?}", new_task.mm());
     /* New task will not be dropped from now on. */
     let _ = TASK_MANAGER.lock().add(KernTask::Proc(new_task.clone()));
 

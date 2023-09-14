@@ -1,6 +1,7 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use executor::Coroutine;
 use lazy_static::lazy_static;
 use lose_net_stack::{IPv4, packets::tcp::TCPPacket};
 use spin::Mutex;
@@ -16,13 +17,13 @@ pub struct Socket {
     pub seq: u32,
     pub ack: u32,
     pub block_task: Option<Arc<Task>>,
+    pub block_coroutine: Option<Arc<Coroutine>>,
 }
 
 const MAX_SOCKETS_NUM: usize = 512;
 
 lazy_static! {
-    static ref SOCKET_TABLE: Mutex<Vec<Option<Arc<Mutex<Socket>>>>> =
-        unsafe { Mutex::new(Vec::with_capacity(MAX_SOCKETS_NUM)) };
+    static ref SOCKET_TABLE: Mutex<Vec<Option<Arc<Mutex<Socket>>>>> = Mutex::new(Vec::with_capacity(MAX_SOCKETS_NUM));
 }
 
 pub fn get_mutex_socket(index: usize) -> Option<Arc<Mutex<Socket>>> {
@@ -84,6 +85,7 @@ pub fn add_socket(raddr: IPv4, lport: u16, rport: u16, seq: u32, ack: u32) -> Op
         seq: seq,
         ack: ack,
         block_task: None,
+        block_coroutine: None,
     };
 
     if index == usize::MAX {
@@ -114,25 +116,15 @@ pub fn push_data(index: usize, packet: &TCPPacket) {
     socket.ack = packet.seq + packet.data_len as u32;
     socket.seq = packet.ack;
     log::trace!("[push_data] index: {}, socket.ack:{}, socket.seq:{}", index, socket.ack, socket.seq);
-    match socket.block_task.take() {
-        Some(task) => {
+    if let Some(coroutine) = socket.block_coroutine.take() {        // aread
+        let cid = coroutine.cid;
+        log::trace!("wake up coroutine {:?}", cid);
+        let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Corou(coroutine));
+    } else {
+        if let Some(task) = socket.block_task.take() {
             log::trace!("wake read task");
             task.locked_inner().state = TaskState::RUNNABLE;
-            TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
-        }
-        _ => {
-
+            let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
         }
     }
-
-
 }
-
-// pub fn pop_data(index: usize) -> Option<Vec<u8>> {
-//     let mut socket_table = SOCKET_TABLE.lock();
-
-//     assert!(socket_table.len() > index);
-//     assert!(socket_table[index].is_some());
-
-//     socket_table[index].as_mut().unwrap().buffers.pop_front()
-// }

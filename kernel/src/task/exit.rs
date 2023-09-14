@@ -1,15 +1,20 @@
 use alloc::sync::Arc;
 use errno::Errno;
+use kernel_sync::SpinLock;
 use mm_rv::VirtAddr;
 use signal_defs::*;
+use spin::Lazy;
 use syscall_interface::SyscallResult;
 
 use crate::{
-    arch::{TaskContext, __move_to_next},
+    arch::__move_to_next,
     write_user,
 };
 
 use super::*;
+
+pub static _WAIT_LOCK: Lazy<SpinLock<()>> = Lazy::new(|| SpinLock::new(()));
+
 
 /// Current task exits. Run next task.
 ///
@@ -18,17 +23,14 @@ use super::*;
 /// Unsafe context switch will be called in this function.
 pub unsafe fn do_exit(exit_code: i32) {
     let curr = cpu().curr.take().unwrap();
+    curr.inner().exit_code = exit_code;
     log::trace!("{:?} exited with code {}", curr, exit_code);
-    let _ = {
-        let mut locked_inner = curr.locked_inner();
-        curr.inner().exit_code = exit_code;
-        locked_inner.state = TaskState::ZOMBIE;
-        &curr.inner().ctx as *const TaskContext
-    };
-
+    log::debug!("handle zombie");
     handle_zombie(curr);
+    log::debug!("handle zombie done");
 
     __move_to_next(idle_ctx());
+
 }
 
 // Handle zombie tasks.
@@ -63,9 +65,11 @@ pub fn handle_zombie(task: Arc<Task>) {
     let mut locked_inner = task.locked_inner();
     for child in locked_inner.children.iter() {
         let mut child_inner = child.locked_inner();
-        let mut init_task_inner = INIT_TASK.locked_inner();
         child_inner.parent = Some(Arc::downgrade(&INIT_TASK));
+        let mut init_task_inner = INIT_TASK.locked_inner();
         init_task_inner.children.push_back(child.clone());
+        drop(init_task_inner);
+        drop(child_inner);
     }
     locked_inner.children.clear();
     locked_inner.state = TaskState::ZOMBIE;
@@ -163,10 +167,12 @@ pub fn do_wait(
             }
             // a valid child exists but current task needs to suspend
             need_sched = true;
-
             let state = task.get_state();
+            // log::debug!("state {:?}", state);
             if state == TaskState::STOPPED {
                 todo!()
+            } else if state == TaskState::RUNNING | TaskState::INTERRUPTIBLE {
+                continue;
             } else {
                 if state == TaskState::DEAD {
                     continue;

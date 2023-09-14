@@ -3,7 +3,7 @@ mod tcp;
 mod socket;
 
 use spin::Mutex;
-use alloc::{sync::Arc, vec, collections::BTreeMap};
+use alloc::{sync::Arc, collections::BTreeMap};
 use lose_net_stack::{results::Packet, LoseStack, MacAddress, TcpFlags, IPv4};
 use socket::{get_socket, push_data, get_s_a_by_index};
 use port_table::check_accept;
@@ -17,12 +17,10 @@ pub struct NetStack(Mutex<LoseStack>);
 #[cfg(feature = "board_axu15eg")]
 impl NetStack {
     pub fn new() -> Self {
-        unsafe {
-            NetStack(Mutex::new(LoseStack::new(
-                IPv4::new(192, 168, 1, 2),
-                MacAddress::new([0x00, 0x0A, 0x35, 0x01, 0x02, 0x03]),
-            )))
-        }
+        NetStack(Mutex::new(LoseStack::new(
+            IPv4::new(192, 168, 1, 2),
+            MacAddress::new([0x00, 0x0A, 0x35, 0x01, 0x02, 0x03]),
+        )))
     }
 }
 
@@ -94,7 +92,7 @@ pub fn net_interrupt_handler(irq: u16) {
                         }
                         if let Some(socket_index) = get_socket(target, lport, rport) {
                             let packet_seq = tcp_packet.seq;
-                            if let Some((seq, ack)) = get_s_a_by_index(socket_index) {
+                            if let Some((_seq, ack)) = get_s_a_by_index(socket_index) {
                                 log::trace!("packet_seq: {}, ack: {}", packet_seq, ack);
                                 if ack == packet_seq && tcp_packet.data_len > 0 {
                                     log::trace!("push data: {}, {}", socket_index, tcp_packet.data_len);

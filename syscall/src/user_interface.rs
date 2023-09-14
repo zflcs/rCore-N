@@ -17,7 +17,7 @@ bitflags! {
 }
 
 pub fn open(path: &str, flags: OpenFlags) -> isize {
-    sys_open(path.as_ptr() as usize, flags.bits as usize)
+    sys_open(path.as_ptr() as usize, flags.bits() as usize)
 }
 
 pub fn close(fd: usize) -> isize {

@@ -27,7 +27,7 @@ pub fn main() -> i32 {
     println!("Receiver enabled interrupts");
 
     // thread_create(sender_thread as usize);
-    let pid = fork(17);
+    let pid = fork();
     if pid == 0 {
         let uipi_index = uintr_register_sender(unsafe { UINTR_FD as usize });
         if uipi_index < 0 {

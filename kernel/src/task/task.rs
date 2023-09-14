@@ -4,7 +4,7 @@ use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
-use core::{cell::SyncUnsafeCell, fmt};
+use core::{cell::SyncUnsafeCell, fmt, sync::atomic::AtomicUsize};
 use errno::Errno;
 use id_alloc::*;
 use kernel_sync::{SpinLock, SpinLockGuard};
@@ -25,7 +25,7 @@ use crate::{
     fs::{FDManager, FSInfo},
     loader::from_elf,
     mm::{KERNEL_MM, MM},
-    task::sched::Scheduler,
+    task::sched::Scheduler, read_user,
 };
 
 use crate::arch::uintr::*;
@@ -393,6 +393,13 @@ impl Task {
         } else {
             TaskState::RUNNING | TaskState::INTERRUPTIBLE
         }
+    }
+
+    pub fn get_prio(&self) -> KernelResult<usize> {
+        let mut mm = self.mm();
+        let mut atomic_prio = AtomicUsize::new(0);
+        read_user!(mm, VirtAddr::from(PRIO_POINTER), atomic_prio, AtomicUsize).map_err(|e| KernelError::Errno(e))?;
+        Ok(atomic_prio.load(core::sync::atomic::Ordering::Relaxed))
     }
 }
 

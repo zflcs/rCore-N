@@ -1,9 +1,10 @@
 pub mod flags;
 mod init;
 
-use core::arch::global_asm;
+use core::{arch::global_asm, sync::atomic::{AtomicUsize, Ordering}};
 
 use alloc::{collections::BTreeMap, string::String, vec::Vec};
+use executor::MAX_PRIO;
 use log::info;
 use mm_rv::{Frame, PTEFlags};
 use vdso::so_table;
@@ -15,7 +16,7 @@ use xmas_elf::{
 
 use crate::{
     arch::mm::{Page, VirtAddr, PAGE_SIZE},
-    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, HEAP_POINTER, GLOBAL_BITMAP_BASE},
+    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, HEAP_POINTER, GLOBAL_BITMAP_BASE, PRIO_POINTER},
     error::{KernelError, KernelResult},
     mm::{VMFlags, MM},
     lkm::LKM_MANAGER,
@@ -139,6 +140,8 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
     mm.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE | VMFlags::USER)?;
     let paddr = mm.translate(HEAP_POINTER.into())?;
     unsafe { *(paddr.value() as *mut usize) = heap_addr; }
+    let prio_ptr = mm.translate(PRIO_POINTER.into())?.value() as *mut AtomicUsize;
+    (unsafe { &*prio_ptr }).store(MAX_PRIO - 1, Ordering::Relaxed);
 
     // set Global bitmap
     extern "C" { fn sshared(); }

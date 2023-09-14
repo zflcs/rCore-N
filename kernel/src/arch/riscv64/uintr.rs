@@ -382,6 +382,21 @@ mod syscall {
         }
     }
 
+    /// send a user interrupt to the specific user process
+    pub unsafe fn uirs_send(task: Arc<Task>, irq: usize) {
+        let uintr_inner = task.uintr_inner();
+        if let Some(uirs) = &uintr_inner.uirs {
+            let index = uirs.0;
+            let mut uirs = UIntrReceiver::from(index);
+            uirs.hartid = get_cpu_id() as u16;
+            uirs.mode |= 0x2; // 64 bits
+            uirs.irq = irq as _;
+            uirs.sync(index);
+        } else {
+            log::warn!("cannot send user interrupt");
+        }
+    }
+
     /// Synchronize receiver status to UINTC and raise user interrupt if kernel returns to
     /// a receiver with pending interrupt requests.
     /// 
@@ -416,9 +431,9 @@ mod syscall {
             }
         } else {
             // supervisor configurations
-            suirs::write(0);
-            sideleg::clear_usoft();
             sip::clear_usoft();
+            sideleg::clear_usoft();
+            suirs::write(0);
         }
     }
 

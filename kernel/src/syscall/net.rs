@@ -1,10 +1,8 @@
 use super::{SyscallNET, SyscallImpl};
 use alloc::sync::Arc;
 use errno::Errno;
-use mm_rv::VirtAddr;
 use syscall_interface::SyscallResult;
-use crate::{net::*, task::{cpu, do_block}, read_user};
-use lose_net_stack::IPv4;
+use crate::{net::*, task::{cpu, do_block}};
 
 impl SyscallNET for SyscallImpl {
     
@@ -12,7 +10,7 @@ impl SyscallNET for SyscallImpl {
         if let Some(port_index) = listen(port) {
             let curr = cpu().curr.as_ref().unwrap();
             let port_fd = PortFd::new(port_index);
-            curr.files().push(Arc::new(port_fd));
+            let _ = curr.files().push(Arc::new(port_fd));
             Ok(port_index)
         } else {
             Err(Errno::EINVAL)
