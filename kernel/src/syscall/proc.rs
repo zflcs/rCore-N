@@ -80,6 +80,33 @@ impl SyscallProc for SyscallImpl {
         //     return Err(Errno::EACCES);
         // }
         // let elf_data = unsafe { file.read_all() };
+        #[cfg(feature = "board_axu15eg")]
+        if let Some(elf_data) = crate::loader::get_app_data_by_name(&rela_path) {
+            // get argument list
+            let mut args = Vec::new();
+            let mut argv = argv;
+            let mut argc: usize = 0;
+            let mut curr_mm = curr.mm();
+            loop {
+                read_user!(curr_mm, VirtAddr::from(argv), argc, usize)?;
+                if argc == 0 {
+                    break;
+                }
+                args.push(curr_mm.get_str(VirtAddr::from(argc))?);
+                argv += core::mem::size_of::<usize>();
+            }
+            drop(curr_mm);
+
+            path.pop().unwrap(); // unwrap a regular filename freely
+            do_exec(String::from(path.as_str()), elf_data, args)?;
+
+            unsafe { __move_to_next(curr_ctx()) };
+
+            unreachable!()
+        } else {
+            return Err(Errno::EACCES);
+        }
+        #[cfg(feature = "board_qemu")]
         let elf_data = crate::loader::get_app_data_by_name(&rela_path).unwrap();
         // get argument list
         let mut args = Vec::new();

@@ -41,28 +41,11 @@ static GLOBAL: Global = Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // loop {
-        //     let op_heap = HEAP.try_lock();
-        //     if op_heap.is_some() {
-        //         return op_heap.unwrap().alloc(layout).ok()
-        //         .map_or(0 as *mut u8, |allocation| allocation.as_ptr());
-        //     }
-        //     yield_();
-        // }
-        // return 0 as *mut u8;
         HEAP.alloc(layout)
     }
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        // loop {
-        //     let op_heap = HEAP.try_lock();
-        //     if op_heap.is_some() {
-        //         op_heap.unwrap().dealloc(NonNull::new_unchecked(ptr), layout);
-        //         return;
-        //     }
-        //     yield_();
-        // }
         HEAP.dealloc(ptr, layout)
     }
 }

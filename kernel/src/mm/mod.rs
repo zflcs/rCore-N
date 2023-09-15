@@ -13,7 +13,7 @@ use crate::{
     arch::{mm::*, trap::__trampoline},
     config::*,
     error::*,
-    task::Task,
+    task::Task, lkm::LKM_MANAGER,
 };
 
 pub use file::MmapFile;
@@ -130,7 +130,7 @@ impl MM {
                 log::warn!("{}", err);
                 KernelError::PageTableInvalid
             })?;
-        Ok(Self {
+        let mut mm = Self {
             page_table,
             vma_list: new_vma_list,
             vma_recycled: self.vma_recycled.clone(),
@@ -139,7 +139,15 @@ impl MM {
             entry: self.entry,
             start_brk: self.start_brk,
             brk: self.brk,
-        })
+        };
+        LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", &mut mm, None)?;
+
+        // set Global bitmap
+        extern "C" { fn sshared(); }
+        let _ = mm.page_table.map(Page::from(GLOBAL_BITMAP_BASE), Frame::from(sshared as usize), PTEFlags::READABLE | PTEFlags::USER_ACCESSIBLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY);
+        let (_, pte) = mm.page_table.walk(Page::from(GLOBAL_BITMAP_BASE)).unwrap();
+        log::trace!("map {:?}", pte);
+        Ok(mm)
     }
 
     /// A warpper for `translate` in `PageTable`.

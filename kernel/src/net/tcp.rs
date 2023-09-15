@@ -76,11 +76,11 @@ impl File for TCP {
             0, 
             executor::CoroutineKind::Norm
         );
-        log::debug!("cid {:?}", coroutine.cid);
+        log::trace!("cid {:?}", coroutine.cid);
         let socket = get_mutex_socket(self.socket_index).unwrap();
         socket.lock().block_task = Some(cur.clone());
         socket.lock().block_coroutine = Some(coroutine.clone());
-        log::debug!("aread from tcp");
+        log::trace!("aread from tcp");
         let _ = TASK_MANAGER.lock().add(KernTask::Corou(coroutine));
         Some(0)
     }
@@ -172,7 +172,7 @@ async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
     }
     // send user interrupt
     let task = socket.lock().block_task.take().unwrap();
-    log::debug!("send user interrupt {}", cid);
+    log::trace!("send user interrupt {}", cid);
     unsafe { uirs_send(task, cid) };
 }
 

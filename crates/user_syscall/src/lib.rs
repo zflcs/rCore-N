@@ -70,6 +70,67 @@ bitflags! {
     }
 }
 
+bitflags! {
+    /// A bit mask that allows the caller to specify what is shared between the calling process and the child process.
+    pub struct CloneFlags: u32 {
+        /// Signal mask to be sent at exit.
+        const CSIGNAL = 0x000000ff;
+        /// Set if vm shared between processes. In particular, memory writes performed by the calling process or
+        /// by the child process are also visible in the other process.
+        const CLONE_VM = 0x00000100;
+        /// Set if fs info shared between processes which includes the root of the filesystem,
+        /// the current working directory, and the umask.
+        const CLONE_FS = 0x00000200;
+        /// Set if file descriptor table shared between processes
+        const CLONE_FILES = 0x00000400;
+        /// Set if signal handlers and blocked signals shared
+        const CLONE_SIGHAND = 0x00000800;
+        /// Set if a pidfd should be placed in parent
+        const CLONE_PIDFD = 0x00001000;
+        /// Set if we want to let tracing continue on the child too
+        const CLONE_PTRACE = 0x00002000;
+        /// Set if the parent wants the child to wake it up on mm_release
+        const CLONE_VFORK = 0x00004000;
+        /// Set if we want to have the same parent as the cloner
+        const CLONE_PARENT = 0x00008000;
+        /// Set if in the same thread group
+        const CLONE_THREAD = 0x00010000;
+        /// If set, the cloned child is started in a new mount namespace, initialized with a copy of
+        /// the namespace of the parent.
+        const CLONE_NEWNS = 0x00020000;
+        /// If CLONE_SYSVSEM is set, then the child and the calling process share a single list of
+        /// System V semaphore adjustment (semadj) values (see semop(2)).
+        const CLONE_SYSVSEM = 0x00040000;
+        /// If set, create a new TLS for the child
+        const CLONE_SETTLS = 0x00080000;
+        /// Store the child thread ID at the location pointed to by `parent_tid`.
+        const CLONE_PARENT_SETTID = 0x00100000;
+        /// Clear the child thread ID at the location pointed to by `child_tid` in child's memory
+        /// when child exits, and do a wakeup on the futex at that address.
+        const CLONE_CHILD_CLEARTID = 0x00200000;
+        /// This flag is still defined, but it is usually ignored when calling clone().
+        const CLONE_DETACHED = 0x00400000;
+        /// A tracing process cannot force CLONE_PTRACE on this child process.
+        const CLONE_UNTRACED = 0x00800000;
+        /// Store the child thread ID at the location pointed to by `child_tid` in child's memory.
+        const CLONE_CHILD_SETTID = 0x01000000;
+        /// New cgroup namespace
+        const CLONE_NEWCGROUP = 0x02000000;
+        /// New utsname namespace
+        const CLONE_NEWUTS = 0x04000000;
+        /// New ipc namespace
+        const CLONE_NEWIPC = 0x08000000;
+        /// New user namespace
+        const CLONE_NEWUSER	= 0x10000000;
+        /// New pid namespace
+        const CLONE_NEWPID = 0x20000000;
+        /// New network namespace
+        const CLONE_NEWNET = 0x40000000;
+        /// Clone io context
+        const CLONE_IO = 0x80000000;
+    }
+}
+
 pub fn dup(fd: usize) -> isize {
     syscall(SYSCALL_DUP, [fd, 0, 0])
 }
@@ -104,7 +165,7 @@ pub fn getpid() -> isize {
 }
 
 pub fn fork() -> isize {
-    syscall(SYSCALL_FORK, [17, 0, 0])
+    syscall6(SYSCALL_FORK, [17, 0, 0, 0, 0, 0])
 }
 
 pub fn exec(path: &str, args: &[*const u8]) -> isize {
@@ -143,10 +204,30 @@ pub fn gettid() -> usize {
     syscall(SYSCALL_GETTID, [0, 0, 0]) as _
 }
 
-/// exist bug
-pub fn thread_create() -> usize {
-    syscall(SYSCALL_FORK, [256, 0, 0]) as _
+
+pub fn thread_create(fn_ptr: usize) -> usize {
+    let pid = syscall6(SYSCALL_FORK, 
+        [
+            (CloneFlags::CLONE_VM | CloneFlags::CLONE_FILES 
+                | CloneFlags::CLONE_SIGHAND | CloneFlags::CLONE_VFORK
+            ).bits() as usize | 17, 
+            0, 0, 0, 0, 0
+            ]
+        );
+    if pid == 0 {
+        unsafe {
+            let thread: fn() = core::mem::transmute(fn_ptr);
+            thread();
+        }
+    }
+    pid as _
 }
+
+pub fn thread_join(_tid: usize) {
+    let mut exit_code = 0;
+    wait(&mut exit_code);
+}
+
 
 pub fn uintr_register_receiver() -> usize {
     syscall(SYSCALL_UINTR_REGISTER_RECEIVER, [0, 0, 0]) as _
