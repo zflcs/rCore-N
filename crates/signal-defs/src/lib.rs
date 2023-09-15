@@ -27,7 +27,7 @@ pub const fn sigtest(sig: usize, mask: u64) -> bool {
 
 #[inline(always)]
 pub const fn sigvalid(sig: usize) -> bool {
-    sig >= 1 && sig <= NSIG
+    sig > 0 && sig <= NSIG
 }
 pub const SIG_KERNEL_ONLY_MASK: u64 = sigmask(SIGKILL) | sigmask(SIGSTOP);
 

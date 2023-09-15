@@ -253,23 +253,10 @@ pub unsafe fn idle() -> ! {
                     // Release the lock.
                     drop(task_manager);
                     __switch(idle_ctx(), next_ctx);
+                    // only after yield, the task need to add to TASK_MANAGER, exit or block do not need this operation
                     if cpu().curr.is_some() {
                         let cur = cpu().curr.take().unwrap();
-                        // if cur.pid > 1 {
-                        //     log::debug!("task {:?} need add to task", cur);
-                        // }
-                        match cur.get_state() {
-                            TaskState::RUNNABLE => {
-                                let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); 
-                            },
-                            TaskState::RUNNING | TaskState::INTERRUPTIBLE => {
-                                let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); 
-                            },
-                            TaskState::ZOMBIE => {log::debug!("zombie");},
-                            _ => {},
-                        };
-                    } else {
-                        log::debug!("task is take");
+                        let _ = TASK_MANAGER.lock().add(KernTask::Proc(cur)); 
                     }
                 },
                 KernTask::Corou(c) => {
@@ -306,7 +293,7 @@ pub unsafe fn do_yield() {
 /// block current task
 #[allow(unused)]
 pub unsafe fn do_block() {
-    let curr = cpu().curr.as_ref().unwrap();
+    let curr = cpu().curr.take().unwrap();
     log::trace!("{:#?} block", curr);
     let curr_ctx = {
         let mut locked_inner = curr.locked_inner();
