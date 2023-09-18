@@ -12,11 +12,8 @@ use crate::net::reply::build_eth_frame;
 use crate::net::reply::build_eth_repr;
 use crate::net::reply::build_ipv4_repr;
 use crate::net::reply::build_tcp_repr;
-use crate::task::Scheduler;
-use crate::task::TASK_MANAGER;
 use crate::task::cpu;
 use crate::task::do_block;
-use crate::task::KernTask;
 
 use super::socket::get_mutex_socket;
 use super::socket::{add_socket, get_s_a_by_index, remove_socket};
@@ -86,18 +83,25 @@ impl File for TCP {
             0, 
             executor::CoroutineKind::Norm
         );
-        log::debug!("cid {:?}", coroutine.cid);
-        let socket = get_mutex_socket(self.socket_index).unwrap();
-        socket.lock().block_task = Some(cur.clone());
-        socket.lock().block_coroutine = Some(coroutine.clone());
-        log::debug!("aread from tcp");
-        let _ = TASK_MANAGER.lock().add(KernTask::Corou(coroutine));
-        Some(0)
+        /* execute directly, if there is no need to wait, 
+        *  then it will return the result to tell user process don't await,
+        *  if need block, it will yiled, then tell user process need await
+        */
+        if coroutine.execute().is_pending() {   
+            log::trace!("cid {:?}", coroutine.cid);
+            let socket = get_mutex_socket(self.socket_index).unwrap();
+            socket.lock().block_task = Some(cur.clone());
+            socket.lock().block_coroutine.push_back(coroutine);
+            log::trace!("aread from tcp");
+            Some(1)
+        } else {
+            Some(0)
+        }
     }
 
     fn read(&self, buf: &mut [u8]) -> Option<usize> {
         let socket = get_mutex_socket(self.socket_index).unwrap();
-        log::debug!("read from tcp");
+        log::trace!("read from tcp");
         loop {
             let mut mutex_socket = socket.lock();
             if let Some(data) = mutex_socket.buffers.pop_front() {
@@ -138,10 +142,9 @@ impl File for TCP {
         let ipv4_repr = build_ipv4_repr(src_ip, dst_ip, IpProtocol::Tcp, tcp_repr.buffer_len());
         let eth_repr = build_eth_repr(NET_STACK.mac_addr, self.src_mac, EthernetProtocol::Ipv4);
         if let Some(eth_frame) = build_eth_frame(eth_repr, None, Some((ipv4_repr, tcp_repr))) {
-            log::debug!("write tcp socket ok1");
             NetDevice.transmit(&eth_frame.into_inner());
         }
-        log::debug!("write tcp socket ok2");
+        log::trace!("write tcp socket ok");
         Some(count)
     }
 }
@@ -154,6 +157,7 @@ impl Drop for TCP {
 
 async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
     let socket = get_mutex_socket(socket_index).unwrap();
+    let mut need_wait = false;
     loop {
         let mut mutex_socket = socket.lock();
         if let Some(data) = mutex_socket.buffers.pop_front() {
@@ -172,15 +176,19 @@ async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
             }
             break;
         } else {    // await the current coroutine
+            need_wait = true;
             drop(mutex_socket);
             // leaf future await
             ReadHelper::new().await;
         }
     }
     // send user interrupt
-    let task = socket.lock().block_task.take().unwrap();
-    log::debug!("send user interrupt {}", cid);
-    unsafe { uirs_send(task, cid) };
+    if need_wait {
+        log::trace!("need send user interrupt");
+        let task = socket.lock().block_task.take().unwrap();
+        unsafe { uirs_send(task, cid) };
+        log::debug!("send user interrupt {}", cid);
+    }
 }
 
 use core::{future::Future, pin::Pin, task::{Poll, Context}};

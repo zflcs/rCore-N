@@ -1,10 +1,10 @@
 use crate::task::{Task, TASK_MANAGER, Scheduler, TaskState};
 use alloc::{sync::Arc, vec::Vec};
-use spin::Mutex;
-use lazy_static::lazy_static;
+use spin::Lazy;
 use vfs::File;
 use super::tcp::TCP;
 use smoltcp::wire::*;
+use kernel_sync::SpinLock;
 
 pub struct Port {
     pub port: u16,
@@ -12,9 +12,7 @@ pub struct Port {
     pub schedule: Option<Arc<Task>>,
 }
 
-lazy_static! {
-    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> = Mutex::new(Vec::new());
-}
+pub static LISTEN_TABLE: Lazy<SpinLock<Vec<Option<Port>>>> = Lazy::new(|| SpinLock::new(Vec::new()));
 
 pub fn listen(port: u16) -> Option<usize> {
     let mut listen_table = LISTEN_TABLE.lock();
@@ -71,7 +69,7 @@ pub fn check_accept(src_mac: EthernetAddress, src_ip: Ipv4Address, dst_ip: Ipv4A
             })
             .collect();
     if listen_ports.len() == 0 {
-        log::debug!("no listen");
+        log::warn!("no listen");
         false
     } else {
         let listen_port = listen_ports[0].as_mut().unwrap();
@@ -98,12 +96,12 @@ pub fn accept_connection(src_mac: EthernetAddress, src_ip: Ipv4Address, dst_ip: 
         TcpSeqNumber::default(),
         Some(tcp_packet.seq_number() + tcp_packet.segment_len()),
     ) {
-        log::debug!("[accept_connection]: src_ip: {:?}, src_port: {}, dst_port: {}", tcp.src_ip, tcp.src_port, tcp.dst_port);
+        log::trace!("[accept_connection]: src_ip: {:?}, src_port: {}, dst_port: {}", tcp.src_ip, tcp.src_port, tcp.dst_port);
         let fd = task.files().push(Arc::new(tcp)).unwrap();
         task.trapframe().set_a0(fd);
         true
     } else {
-        log::debug!("invaild accept req");
+        log::warn!("invaild accept req");
         false
     }
 }

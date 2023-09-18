@@ -72,8 +72,7 @@ impl SyscallFile for SyscallImpl {
             }
             Ok(read_len)
         } else {            // async
-            file.aread(buf, cid);
-            Ok(0)
+            Ok(file.aread(buf, cid).unwrap())
         }
         
     }

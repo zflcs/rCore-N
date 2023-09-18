@@ -44,6 +44,7 @@ impl SyscallTimer for SyscallImpl {
         }
 
         let end = get_time_sec_f64() + req.time_in_sec();
+        log::debug!("sleep {}", req.time_in_sec());
         while get_time_sec_f64() < end {
             unsafe { do_yield() };
         }

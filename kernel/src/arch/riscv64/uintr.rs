@@ -412,7 +412,7 @@ mod syscall {
             uirs.mode |= 0x2; // 64 bits
             uirs.sync(index);
 
-            log::trace!("uirs_restore {:x} {:x?} uepc {:#x?}", index, uirs, uintr_inner.uepc);
+            log::trace!("{:?} uirs_restore {:x} {:x?} uepc {:#x?}", cpu().curr.as_ref().unwrap(), index, uirs, uintr_inner.uepc);
 
             // user configurations
             uepc::write(uintr_inner.uepc);

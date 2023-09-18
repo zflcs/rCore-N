@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use core::fmt;
 use core::future::Future;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -92,10 +93,16 @@ impl Coroutine {
         )
     }
     /// 执行
-    pub fn execute(self: Arc<Self>) -> Poll<()> {
+    pub fn execute(self: &Arc<Self>) -> Poll<()> {
         let mut inner = self.inner.lock();
         let waker = inner.waker.clone();
         let mut context = Context::from_waker(&*waker);
         inner.future.as_mut().poll(&mut context)
+    }
+}
+
+impl fmt::Debug for Coroutine {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?} ", self.cid )
     }
 }

@@ -2,8 +2,8 @@ use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use executor::Coroutine;
-use lazy_static::lazy_static;
-use spin::Mutex;
+use kernel_sync::SpinLock;
+use spin::Lazy;
 use crate::task::{Task, TASK_MANAGER, Scheduler, TaskState};
 use smoltcp::wire::*;
 
@@ -16,16 +16,15 @@ pub struct Socket {
     pub seq: TcpSeqNumber,
     pub ack: Option<TcpSeqNumber>,
     pub block_task: Option<Arc<Task>>,
-    pub block_coroutine: Option<Arc<Coroutine>>,
+    pub block_coroutine: VecDeque<Arc<Coroutine>>,
 }
 
 const MAX_SOCKETS_NUM: usize = 512;
 
-lazy_static! {
-    static ref SOCKET_TABLE: Mutex<Vec<Option<Arc<Mutex<Socket>>>>> = Mutex::new(Vec::with_capacity(MAX_SOCKETS_NUM));
-}
+pub static SOCKET_TABLE: Lazy<SpinLock<Vec<Option<Arc<SpinLock<Socket>>>>>> = Lazy::new(|| SpinLock::new(Vec::with_capacity(MAX_SOCKETS_NUM)));
 
-pub fn get_mutex_socket(index: usize) -> Option<Arc<Mutex<Socket>>> {
+
+pub fn get_mutex_socket(index: usize) -> Option<Arc<SpinLock<Socket>>> {
     let socket_table = SOCKET_TABLE.lock();
     socket_table.get(index).map_or(None, |x| (*x).clone())
 }
@@ -85,14 +84,14 @@ pub fn add_socket(raddr: Ipv4Address, lport: u16, rport: u16, seq: TcpSeqNumber,
         seq,
         ack,
         block_task: None,
-        block_coroutine: None,
+        block_coroutine: VecDeque::new(),
     };
 
     if index == usize::MAX {
-        socket_table.push(Some(Arc::new(Mutex::new(socket))));
+        socket_table.push(Some(Arc::new(SpinLock::new(socket))));
         Some(socket_table.len() - 1)
     } else {
-        socket_table[index] = Some(Arc::new(Mutex::new(socket)));
+        socket_table[index] = Some(Arc::new(SpinLock::new(socket)));
         Some(index)
     }
 }
@@ -116,15 +115,13 @@ pub fn push_data(index: usize, packet: &TcpPacket<&[u8]>) {
     socket.seq = packet.ack_number();
     socket.buffers.push_back(packet.payload().to_vec());
     log::trace!("[push_data] index: {}, socket.ack:{:?}, socket.seq:{}", index, socket.ack, socket.seq);
-    if let Some(coroutine) = socket.block_coroutine.take() {        // aread
+    if let Some(coroutine) = socket.block_coroutine.pop_front() {        // aread
         let cid = coroutine.cid;
-        log::trace!("wake up coroutine {:?}", cid);
         let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Corou(coroutine));
-    } else {
-        if let Some(task) = socket.block_task.take() {
-            log::trace!("wake read task");
-            task.locked_inner().state = TaskState::RUNNABLE;
-            let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
-        }
+        log::debug!("wake up coroutine {:?}", cid);
+    } else if let Some(task) = socket.block_task.take() {
+        log::trace!("wake read task");
+        task.locked_inner().state = TaskState::RUNNABLE;
+        let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
     }
 }

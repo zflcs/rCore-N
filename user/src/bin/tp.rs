@@ -25,7 +25,7 @@ const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 4 - 1;
 
-const SERVER_USE_PRIO: usize = 1;
+const SERVER_USE_PRIO: usize = 2;
 const CONNECTION_NUM: usize = SERVER_USE_PRIO * 1;
 
 // request
@@ -47,9 +47,9 @@ pub fn main() -> i32 {
     init_connection();
     for i in 0..CONNECTION_NUM {
         let client_fd = accept(tcp_fd as usize);
-        let send_rsp_cid = vdso::spawn(move || send_rsp_async(client_fd as usize), i % SERVER_USE_PRIO, executor::CoroutineKind::Norm);
-        let matrix_calc_cid = vdso::spawn(move || matrix_calc_async(client_fd as usize, send_rsp_cid), i % SERVER_USE_PRIO, executor::CoroutineKind::Norm);
-        vdso::spawn(move || handle_tcp_client_async(client_fd as usize, matrix_calc_cid), i % SERVER_USE_PRIO, executor::CoroutineKind::Norm);
+        let send_rsp_cid = vdso::spawn(move || send_rsp_async(client_fd as usize, i), i % SERVER_USE_PRIO, executor::CoroutineKind::Norm);
+        let matrix_calc_cid = vdso::spawn(move || matrix_calc_async(client_fd as usize, send_rsp_cid, i), i % SERVER_USE_PRIO, executor::CoroutineKind::Norm);
+        vdso::spawn(move || handle_tcp_client_async(client_fd as usize, matrix_calc_cid, i), i % SERVER_USE_PRIO, executor::CoroutineKind::Norm);
     }
     // vdso::add_vcpu(MAX_POLL_THREADS);
     0
@@ -84,21 +84,19 @@ fn init_connection() {
     }
 }
 
-async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
+async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize, i: usize) {
     // println!("start tcp_client");
     let str: &str = "connect ok";
     let current_cid = vdso::current_cid(false);
     let mut begin_buf = vec![0u8; BUF_LEN];
     // async read requset
     aread(client_fd, begin_buf.as_mut(), current_cid).await;
-    println!("aread from socket1");
     // sync write
-    println!("send");
     write(client_fd, str.as_bytes());
-    println!("send ok");
+    println!("[{}] send ok", i);
     loop {
         let mut buf = vec![0u8; BUF_LEN];
-        println!("aread from socket2");
+        println!("[{}] aread from socket2", i);
         aread(client_fd, buf.as_mut(), current_cid).await;
         let recv_str: String = buf.iter()
             .take_while(|&&b| b != 0)
@@ -107,7 +105,7 @@ async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
         // println!("{:?}", recv_str);
         // save the request to requset queue
         unsafe { let _ = REQ_MAP[client_fd].push(recv_str.clone()); }
-        println!("push req to requset queue");
+        println!("[{}] push req to requset queue", i);
         // wake up calculate coroutine
         if vdso::is_pending(matrix_calc_cid) {
             vdso::re_back(matrix_calc_cid);
@@ -116,11 +114,12 @@ async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize) {
             break;
         }
     }
+    println!("[{}] handle_tcp_client_async end", i);
 }
 
-async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
+async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize, i: usize) {
     loop {
-        println!("matrix cal run");
+        println!("[{}] matrix cal run", i);
         let req_queue = unsafe { &mut REQ_MAP[client_fd] };
         if let Some(req) = req_queue.pop() {
             #[allow(unused_assignments)]
@@ -129,7 +128,6 @@ async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
                 let matrix = string_to_matrix::<MATRIX_SIZE>(&req);
                 let ans = matrix_multiply(matrix.clone(), matrix.clone());
                 rsp = matrix_to_string(ans);
-                println!("rsp len {}", rsp.len());
             } else {
                 rsp = CLOSE_CONNECT_STR.to_string();
             }
@@ -147,10 +145,12 @@ async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize) {
             helper.as_mut().await;
         }
     }
+    println!("[{}] matrix_calc_async end", i);
 }
 
-async fn send_rsp_async(client_fd: usize) {
+async fn send_rsp_async(client_fd: usize, i: usize) {
     loop {
+        println!("[{}] send_rsp run", i);
         let rsp_queue = unsafe { &mut RSP_MAP[client_fd] };
         if let Some(rsp) = rsp_queue.pop() {
             if rsp == CLOSE_CONNECT_STR {
@@ -159,11 +159,12 @@ async fn send_rsp_async(client_fd: usize) {
                 close(client_fd);
                 break;
             }
-            println!("response len {}", rsp.len());
+            println!("[{}] response len {}", i, rsp.len());
             write(client_fd, rsp.as_bytes());
         } else {
             let mut helper = Box::new(AwaitHelper::new());
             helper.as_mut().await;
         }
     }
+    println!("[{}] send_rsp_async end", i);
 }

@@ -286,6 +286,8 @@ pub fn uintr_test(fd: usize) -> isize {
 }
 
 pub async fn aread(fd: usize, buf: &mut [u8], cid: usize) {
-    syscall6(SYSCALL_READ, [fd, buf.as_mut_ptr() as usize, buf.len(), cid, 0, 0]);
-    AsyncCall::new().await;
+    let res = syscall6(SYSCALL_READ, [fd, buf.as_mut_ptr() as usize, buf.len(), cid, 0, 0]);
+    if res != 0 {
+        AsyncCall::new().await;
+    }
 }

@@ -158,7 +158,7 @@ pub fn analysis_tcp(eth_frame: &mut EthernetFrame<Vec<u8>>) -> Option<Vec<Ethern
             None
         }
     } else if packet.psh() {    // need to push data to buf, need to send reply
-        log::debug!("get psh packet");
+        log::trace!("get psh packet");
         let tcp_repr = build_tcp_ack_repr(&packet);
         let ipv4_repr = build_ipv4_repr(src_ip, dst_ip, IpProtocol::Tcp, tcp_repr.buffer_len());
         let eth_repr = build_eth_repr(src_mac_addr, dst_mac_addr, EthernetProtocol::Ipv4);
@@ -170,10 +170,10 @@ pub fn analysis_tcp(eth_frame: &mut EthernetFrame<Vec<u8>>) -> Option<Vec<Ethern
         let lport = packet.src_port();
         let rport = packet.dst_port();
         if let Some(socket_index) = get_socket(dst_ip, lport, rport) {
-            log::debug!("get socket index {}", socket_index);
+            log::trace!("get socket index {}", socket_index);
             let packet_seq = packet.seq_number();
             if let Some((_, ack)) = get_s_a_by_index(socket_index) {
-                log::debug!("packet_seq: {}, ack: {:?}", packet_seq, ack);
+                log::trace!("packet_seq: {}, ack: {:?}", packet_seq, ack);
                 if ack.unwrap() == packet_seq && packet.payload().len() > 0 {
                     log::debug!("push data: {}, {}", socket_index, packet.payload().len());
                     push_data(socket_index, &packet);
