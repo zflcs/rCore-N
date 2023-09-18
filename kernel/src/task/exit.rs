@@ -24,7 +24,7 @@ pub static _WAIT_LOCK: Lazy<SpinLock<()>> = Lazy::new(|| SpinLock::new(()));
 pub unsafe fn do_exit(exit_code: i32) {
     let curr = cpu().curr.take().unwrap();
     curr.inner().exit_code = exit_code;
-    log::trace!("{:?} exited with code {}", curr, exit_code);
+    log::debug!("{:?} exited with code {}", curr, exit_code);
     handle_zombie(curr);
 
     __move_to_next(idle_ctx());

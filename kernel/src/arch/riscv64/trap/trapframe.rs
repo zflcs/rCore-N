@@ -54,6 +54,28 @@ impl TrapFrame {
         trapframe
     }
 
+    /// Copy the kernel_satp, trap_handler form the `orig`, let other regs `zero`
+    pub fn copy_new(&mut self, 
+        orig: &TrapFrame, 
+        flags: CloneFlags,
+        stack: usize,
+        tls: usize,
+        kstack: usize,
+        user_epc: usize,
+    ) {
+        self.kernel_satp = orig.kernel_satp;
+        self.kernel_sp = kstack;
+        self.trap_handler = orig.trap_handler;
+        self.user_epc = user_epc;
+        self.user_status = orig.user_status;
+        self.user_regs = [0; 31];
+        self.cpu_id = usize::MAX;
+        self.set_sp(stack);
+        if flags.contains(CloneFlags::CLONE_SETTLS) {
+            self.set_tp(tls);
+        }
+    }
+
     /// Copies from the old one when we clone a task and initialize its trap frame.
     pub fn copy_from(
         &mut self,
@@ -128,6 +150,11 @@ impl TrapFrame {
     /// Set stack pointer while cloning task
     pub fn set_sp(&mut self, sp: usize) {
         self.user_regs[1] = sp;
+    }
+
+    /// Set stack pointer while cloning task
+    pub fn get_sp(&mut self) -> usize {
+        self.user_regs[1]
     }
 
     /// Set tp while cloning task with tls

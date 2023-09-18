@@ -12,7 +12,6 @@ use crate::{
     config::TRAMPOLINE_VA,
     error::KernelError,
     mm::{do_handle_page_fault, VMFlags},
-    println,
     syscall::syscall,
     task::*,
     timer::set_next_trigger,
@@ -83,7 +82,7 @@ pub fn user_trap_handler() -> ! {
 
     // Handle user trap with detailed cause
     let show_trapframe = |tf: &TrapFrame| {
-        println!("{:#X?}", tf);
+        debug!("{:#X?}", tf);
     };
     let trap_info = || {
         trace!(
@@ -128,7 +127,7 @@ pub fn user_trap_handler() -> ! {
             }
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            trap_info();
+            // trap_info();
             set_next_trigger();
             unsafe { do_yield() };
         }

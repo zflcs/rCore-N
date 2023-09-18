@@ -6,9 +6,9 @@ extern crate user_lib;
 extern crate alloc;
 
 
-use alloc::vec;
+use alloc::{vec, string::String};
 use user_lib::{UintrFrame, uintr_register_receier};
-use user_syscall::{close, listen, accept, aread, exit, uintr_create_fd};
+use user_syscall::{close, listen, accept, aread, exit, uintr_create_fd, write};
 
 const BUF_LEN: usize = 2048;
 
@@ -16,16 +16,8 @@ const BUF_LEN: usize = 2048;
 pub fn main() -> i32 {
 
     println!("This is a very simple http server");
-    if uintr_register_receier(uintr_handler as usize) != 0 {
-        println!("Interrupt handler register error");
-        exit(-1);
-    }
-    let uint_fd = uintr_create_fd(1);
-    if uint_fd  < 0 {
-        println!("Interrupt vector allocation error");
-        exit(-2);
-    }
-    println!("Receiver enabled interrupts");
+    uintr_init();
+
     
     let tcp_fd = listen(80);
     if tcp_fd < 0 {
@@ -40,13 +32,17 @@ pub fn main() -> i32 {
     0
 }
 
+
 async fn server(socket_fd: isize) {
     let mut begin_buf = vec![0u8; BUF_LEN];
     aread(socket_fd as usize, begin_buf.as_mut(), vdso::current_cid(false)).await;
-    for i in begin_buf {
-        print!("{}", i as char);
-    }
-    println!("");
+    let recv_str: String = begin_buf.iter()
+            .take_while(|&&b| b != 0)
+            .map(|&b| b as char)
+            .collect();
+    println!("{:?}", recv_str);
+    let str: &str = "connect ok";
+    write(socket_fd as _, str.as_bytes());
     close(socket_fd as usize);
 }
 
@@ -63,6 +59,19 @@ pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, irqs: usize) -> u
     println!("need wake up coroutine {}", irqs);
     vdso::re_back(irqs);
     return 0;
+}
+
+pub fn uintr_init() {
+    if uintr_register_receier(uintr_handler as usize) != 0 {
+        println!("Interrupt handler register error");
+        exit(-1);
+    }
+    let uint_fd = uintr_create_fd(1);
+    if uint_fd  < 0 {
+        println!("Interrupt vector allocation error");
+        exit(-2);
+    }
+    println!("Receiver enabled interrupts");
 }
 
 

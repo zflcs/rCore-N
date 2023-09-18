@@ -3,19 +3,18 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use executor::Coroutine;
 use lazy_static::lazy_static;
-use lose_net_stack::{IPv4, packets::tcp::TCPPacket};
 use spin::Mutex;
-
 use crate::task::{Task, TASK_MANAGER, Scheduler, TaskState};
+use smoltcp::wire::*;
 
 // TODO: specify the protocol, TCP or UDP
 pub struct Socket {
-    pub raddr: IPv4,                // remote address
+    pub raddr: Ipv4Address,                // remote address
     pub lport: u16,                 // local port
     pub rport: u16,                 // rempote port
     pub buffers: VecDeque<Vec<u8>>, // datas
-    pub seq: u32,
-    pub ack: u32,
+    pub seq: TcpSeqNumber,
+    pub ack: Option<TcpSeqNumber>,
     pub block_task: Option<Arc<Task>>,
     pub block_coroutine: Option<Arc<Coroutine>>,
 }
@@ -31,7 +30,7 @@ pub fn get_mutex_socket(index: usize) -> Option<Arc<Mutex<Socket>>> {
     socket_table.get(index).map_or(None, |x| (*x).clone())
 }
 
-pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
+pub fn get_s_a_by_index(index: usize) -> Option<(TcpSeqNumber, Option<TcpSeqNumber>)> {
     let socket_table = SOCKET_TABLE.lock();
 
     assert!(index < socket_table.len());
@@ -46,7 +45,8 @@ pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
 }
 
 
-pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
+pub fn get_socket(raddr: Ipv4Address, lport: u16, rport: u16) -> Option<usize> {
+    log::trace!("search raddr {:?}, lport {}, rport {}", raddr, lport, rport);
     let socket_table = SOCKET_TABLE.lock();
     for i in 0..socket_table.len() {
         let sock = &socket_table[i];
@@ -55,6 +55,7 @@ pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
         }
 
         let sock = sock.as_ref().unwrap().lock();
+        log::trace!("socket raddr {:?}, lport {}, rport {}", sock.raddr, sock.lport, sock.rport);
         if sock.raddr == raddr && sock.lport == lport && sock.rport == rport {
             return Some(i);
         }
@@ -63,11 +64,10 @@ pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
 }
 
 
-pub fn add_socket(raddr: IPv4, lport: u16, rport: u16, seq: u32, ack: u32) -> Option<usize> {
+pub fn add_socket(raddr: Ipv4Address, lport: u16, rport: u16, seq: TcpSeqNumber, ack: Option<TcpSeqNumber>) -> Option<usize> {
     if get_socket(raddr, lport, rport).is_some() {
         return None;
     }
-
     let mut socket_table = SOCKET_TABLE.lock();
     let mut index = usize::MAX;
     for i in 0..socket_table.len() {
@@ -82,8 +82,8 @@ pub fn add_socket(raddr: IPv4, lport: u16, rport: u16, seq: u32, ack: u32) -> Op
         lport,
         rport,
         buffers: VecDeque::new(),
-        seq: seq,
-        ack: ack,
+        seq,
+        ack,
         block_task: None,
         block_coroutine: None,
     };
@@ -104,7 +104,7 @@ pub fn remove_socket(index: usize) {
     socket_table[index] = None;
 }
 
-pub fn push_data(index: usize, packet: &TCPPacket) {
+pub fn push_data(index: usize, packet: &TcpPacket<&[u8]>) {
     let mut socket_table = SOCKET_TABLE.lock();
     if socket_table.len() <= index || socket_table[index].is_none() {
         return;
@@ -112,10 +112,10 @@ pub fn push_data(index: usize, packet: &TCPPacket) {
     assert!(socket_table.len() > index);
     assert!(socket_table[index].is_some());
     let mut socket = socket_table[index].as_mut().unwrap().lock();
-    socket.buffers.push_back(packet.data.to_vec());
-    socket.ack = packet.seq + packet.data_len as u32;
-    socket.seq = packet.ack;
-    log::trace!("[push_data] index: {}, socket.ack:{}, socket.seq:{}", index, socket.ack, socket.seq);
+    socket.ack = Some(packet.seq_number() + packet.segment_len());
+    socket.seq = packet.ack_number();
+    socket.buffers.push_back(packet.payload().to_vec());
+    log::trace!("[push_data] index: {}, socket.ack:{:?}, socket.seq:{}", index, socket.ack, socket.seq);
     if let Some(coroutine) = socket.block_coroutine.take() {        // aread
         let cid = coroutine.cid;
         log::trace!("wake up coroutine {:?}", cid);

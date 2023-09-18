@@ -2,9 +2,10 @@ use crate::task::{Task, TASK_MANAGER, Scheduler, TaskState};
 use alloc::{sync::Arc, vec::Vec};
 use spin::Mutex;
 use lazy_static::lazy_static;
-use lose_net_stack::packets::tcp::TCPPacket;
 use vfs::File;
 use super::tcp::TCP;
+use smoltcp::wire::*;
+
 pub struct Port {
     pub port: u16,
     pub receivable: bool,
@@ -60,57 +61,51 @@ pub fn port_acceptable(listen_index: usize) -> bool {
 }
 
 // check whether it can accept request
-pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
+pub fn check_accept(src_mac: EthernetAddress, src_ip: Ipv4Address, dst_ip: Ipv4Address, tcp_packet: &TcpPacket<&[u8]>) -> bool {
     let mut listen_table = LISTEN_TABLE.lock();
     let mut listen_ports: Vec<&mut Option<Port>> = listen_table
             .iter_mut()
             .filter(|x| match x {
-                Some(t) => t.port == port && t.receivable == true,
+                Some(t) => t.port == tcp_packet.dst_port() && t.receivable == true,
                 None => false,
             })
             .collect();
     if listen_ports.len() == 0 {
-        log::trace!("no listen");
-        None
+        log::debug!("no listen");
+        false
     } else {
         let listen_port = listen_ports[0].as_mut().unwrap();
         let task = listen_port.schedule.clone().unwrap();
-        
-        if accept_connection(port, tcp_packet, task) {
+        if accept_connection(src_mac, src_ip, dst_ip, tcp_packet, task) {
             listen_port.receivable = false;
             let task = listen_port.schedule.take().unwrap();
             task.locked_inner().state = TaskState::RUNNABLE;
             let _ = TASK_MANAGER.lock().add(crate::task::KernTask::Proc(task));
-            Some(())
+            true
         } else {
-            None
+            false
         }
     }
 }
 
-pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<Task>) -> bool {
-    match TCP::new(
-        tcp_packet.source_ip,
-        tcp_packet.dest_port,
-        tcp_packet.source_port,
-        0,
-        tcp_packet.seq + 1,
+pub fn accept_connection(src_mac: EthernetAddress, src_ip: Ipv4Address, dst_ip: Ipv4Address, tcp_packet: &TcpPacket<&[u8]>, task: Arc<Task>) -> bool {
+    if let Some(tcp) = TCP::new(
+        src_mac,
+        src_ip, 
+        dst_ip, 
+        tcp_packet.src_port(), 
+        tcp_packet.dst_port(),
+        TcpSeqNumber::default(),
+        Some(tcp_packet.seq_number() + tcp_packet.segment_len()),
     ) {
-        Some(tcp_socket) => {
-            let fd = task.files().push(Arc::new(tcp_socket)).unwrap();
-            log::trace!("[accept_connection]: local fd: {}, sport: {}, dport: {}", fd, tcp_packet.dest_port, tcp_packet.source_port);
-            task.trapframe().set_a0(fd);
-            true
-        }
-        _ => {
-            log::trace!("invaild accept req");
-            false
-        }
+        log::debug!("[accept_connection]: src_ip: {:?}, src_port: {}, dst_port: {}", tcp.src_ip, tcp.src_port, tcp.dst_port);
+        let fd = task.files().push(Arc::new(tcp)).unwrap();
+        task.trapframe().set_a0(fd);
+        true
+    } else {
+        log::debug!("invaild accept req");
+        false
     }
-
-    
-
-   
 }
 
 

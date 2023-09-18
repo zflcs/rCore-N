@@ -1,7 +1,7 @@
 
 
 
-use alloc::{sync::Arc, boxed::Box, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 use axi_ethernet::*;
 use lazy_static::lazy_static;
 use kernel_sync::SpinLock;
@@ -13,13 +13,12 @@ pub const AXI_ETHERNET_BASE_ADDR: usize = 0x60140000;
 pub const MAC_ADDR: [u8; 6] = [0x00, 0x0A, 0x35, 0x01, 0x02, 0x03];
 
 pub struct NetDevice;
-use axidma::{AXI_DMA_CONFIG, TX_FRAMES};
-use core::sync::atomic::Ordering::Relaxed;
-const PAYLOAD_SIZE: usize = 1024;
+use axidma::AXI_DMA_CONFIG;
 
 impl NetDevice {
 
     // data 中需要包含源地址、目的地址、eth type/len 信息
+    #[allow(unused)]
     fn fill_frame(&self, tx_frame: &mut [u8], data: &[u8]) {
         log::trace!("fill tx frame");
         // fill payload
@@ -32,7 +31,7 @@ impl NetDevice {
         log::trace!("net transmit");
         // 初始化填充发送帧
         AXI_DMA.lock().tx_submit(data);
-        AXI_DMA.lock().tx_to_hw();        
+        AXI_DMA.lock().tx_to_hw();    
     }
 
     pub fn receive(&self) -> Option<Vec<u8>> {
@@ -49,10 +48,6 @@ impl NetDevice {
             None
         }
     }
-
-    pub fn recycle_rx_buffer(&self, buf: Vec<u8>) {
-        drop(buf)
-    }
     
 }
 
@@ -63,6 +58,7 @@ lazy_static! {
 }
 
 pub fn init() {
+    #[allow(unused_assignments)]
     let mut speed = 1000;
     ETHERNET.lock().reset();
     ETHERNET.lock().detect_phy();

@@ -2,6 +2,10 @@
 
 pub mod async_help;
 
+extern crate alloc;
+use alloc::vec::Vec;
+use async_help::AsyncCall;
+use bitflags::bitflags;
 use core::arch::asm;
 
 const SYSCALL_DUP: usize = 24;
@@ -55,10 +59,6 @@ fn syscall6(id: usize, args: [usize; 6]) -> isize {
     }
     ret
 }
-
-
-use async_help::AsyncCall;
-use bitflags::bitflags;
 
 bitflags! {
     pub struct OpenFlags: u32 {
@@ -128,6 +128,40 @@ bitflags! {
         const CLONE_NEWNET = 0x40000000;
         /// Clone io context
         const CLONE_IO = 0x80000000;
+    }
+}
+
+
+bitflags::bitflags! {
+    pub struct WaitOptions: u32 {
+        /// Return immediately if no child has exited.
+        const WNONHANG = 0x00000001;
+        /// Also return if a child has stopped (but not traced via ptrace(2)).
+        /// Status for traced children which have stopped is provided even if
+        /// this option is not specified.
+        const WUNTRACED = 0x00000002;
+        /// Wait for children that have been stopped by a delivery of a signal.
+        const WSTOPPED = 0x00000002;
+        /// Wait for children that have terminated.
+        const WEXITED = 0x00000004;
+        /// Also return if a stopped child has been resumed by delivery of SIGCONT.
+        const WCONTINUED = 0x00000008;
+        /// Leave the child in a waitable state; a later wait call can be used to
+        /// again retrieve the child status information.
+        const WNOWAIT = 0x01000000;
+
+        /* Linux specified */
+
+        /// Do not wait for children of other threads in the same thread group.
+        /// This was the default before Linux 2.4.
+        const __WNOTHREAD = 0x20000000;
+        /// Wait for all children, regardless of type ("clone" or "non-clone").
+        const __WALL = 0x40000000;
+        ///  Wait for "clone" children only.  If omitted, then wait for "non-clone"
+        /// children only. (A "clone" child is one which delivers no signal, or a
+        /// signal other than SIGCHLD to its parent upon termination.)  This option
+        /// is ignored if __WALL is also specified.
+        const __WCLONE = 0x80000000;
     }
 }
 
@@ -204,28 +238,26 @@ pub fn gettid() -> usize {
     syscall(SYSCALL_GETTID, [0, 0, 0]) as _
 }
 
-
+/// - return: The new thread id
+/// - args:
+///     - fn_ptr: The thread entry
+/// - Note: This function must be used in conjunction with `thread_join`
 pub fn thread_create(fn_ptr: usize) -> usize {
     let pid = syscall6(SYSCALL_FORK, 
         [
-            (CloneFlags::CLONE_VM | CloneFlags::CLONE_FILES 
-                | CloneFlags::CLONE_SIGHAND | CloneFlags::CLONE_VFORK
-            ).bits() as usize | 17, 
-            0, 0, 0, 0, 0
+            (CloneFlags::CLONE_VM | CloneFlags::CLONE_FS | CloneFlags::CLONE_FILES | CloneFlags::CLONE_SIGHAND).bits() as usize | 17, 
+            0, 0, 0, 0, fn_ptr
             ]
         );
-    if pid == 0 {
-        unsafe {
-            let thread: fn() = core::mem::transmute(fn_ptr);
-            thread();
-        }
-    }
     pid as _
 }
 
-pub fn thread_join(_tid: usize) {
+/// block the specific thread
+pub fn thread_join(tids: Vec<usize>) {
     let mut exit_code = 0;
-    wait(&mut exit_code);
+    for _ in 0..tids.len() {
+        syscall(SYSCALL_WAITPID, [usize::MAX, &mut exit_code as *mut _ as usize, 0]);
+    }
 }
 
 

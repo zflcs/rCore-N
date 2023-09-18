@@ -18,7 +18,6 @@ impl SyscallNET for SyscallImpl {
     }
 
     fn accept(port_index: usize) -> SyscallResult {
-        log::trace!("accepting port {}", port_index);
         let task = cpu().curr.as_ref().unwrap();
         accept(port_index, task.clone());
         drop(task);
@@ -30,7 +29,8 @@ impl SyscallNET for SyscallImpl {
             }
         }
         let task = cpu().curr.as_ref().unwrap();
-        log::trace!("recived!!!!");
-        Ok(task.trapframe().get_a0())
+        let fd = task.trapframe().get_a0();
+        log::debug!("accepting port {}", fd);
+        Ok(fd)
     }
 }

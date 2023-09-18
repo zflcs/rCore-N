@@ -14,7 +14,7 @@ use crate::{
 use super::SyscallImpl;
 
 impl SyscallProc for SyscallImpl {
-    fn clone(flags: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) -> SyscallResult {
+    fn clone(flags: usize, stack: usize, ptid: usize, tls: usize, ctid: usize, user_epc: usize) -> SyscallResult {
         let flags = CloneFlags::from_bits(flags as u32);
         if flags.is_none() {
             return Err(Errno::EINVAL);
@@ -25,6 +25,7 @@ impl SyscallProc for SyscallImpl {
             tls,
             VirtAddr::from(ptid),
             VirtAddr::from(ctid),
+            user_epc
         )
     }
 
@@ -107,28 +108,30 @@ impl SyscallProc for SyscallImpl {
             return Err(Errno::EACCES);
         }
         #[cfg(feature = "board_qemu")]
-        let elf_data = crate::loader::get_app_data_by_name(&rela_path).unwrap();
-        // get argument list
-        let mut args = Vec::new();
-        let mut argv = argv;
-        let mut argc: usize = 0;
-        let mut curr_mm = curr.mm();
-        loop {
-            read_user!(curr_mm, VirtAddr::from(argv), argc, usize)?;
-            if argc == 0 {
-                break;
+        {
+            let elf_data = crate::loader::get_app_data_by_name(&rela_path).unwrap();
+            // get argument list
+            let mut args = Vec::new();
+            let mut argv = argv;
+            let mut argc: usize = 0;
+            let mut curr_mm = curr.mm();
+            loop {
+                read_user!(curr_mm, VirtAddr::from(argv), argc, usize)?;
+                if argc == 0 {
+                    break;
+                }
+                args.push(curr_mm.get_str(VirtAddr::from(argc))?);
+                argv += core::mem::size_of::<usize>();
             }
-            args.push(curr_mm.get_str(VirtAddr::from(argc))?);
-            argv += core::mem::size_of::<usize>();
+            drop(curr_mm);
+
+            path.pop().unwrap(); // unwrap a regular filename freely
+            do_exec(String::from(path.as_str()), elf_data, args)?;
+
+            unsafe { __move_to_next(curr_ctx()) };
+
+            unreachable!()
         }
-        drop(curr_mm);
-
-        path.pop().unwrap(); // unwrap a regular filename freely
-        do_exec(String::from(path.as_str()), elf_data, args)?;
-
-        unsafe { __move_to_next(curr_ctx()) };
-
-        unreachable!()
     }
 
     fn getpid() -> SyscallResult {

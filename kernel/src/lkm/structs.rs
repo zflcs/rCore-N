@@ -3,6 +3,8 @@ use alloc::string::*;
 use alloc::sync::Arc;
 use alloc::vec::*;
 
+use crate::mm::vma::VMArea;
+
 pub struct ModuleSymbol {
     pub name: String,
     pub loc: usize,
@@ -90,7 +92,7 @@ pub struct LoadedModule {
     pub exported_symbols: Vec<ModuleSymbol>,
     pub used_counts: i32,
     pub using_counts: Arc<ModuleRef>,
-    pub vspace: (usize, usize),
+    pub vma_list: Vec<VMArea>,
     pub lock: Mutex<()>,
     pub state: ModuleState,
 }

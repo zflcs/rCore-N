@@ -20,7 +20,6 @@ mod heap;
 pub use user_syscall::*;
 pub use uintrtrap::*;
 
-
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
@@ -33,29 +32,6 @@ pub extern "C" fn _start() {
     vdso::spawn(move || async{ main(); }, executor::MAX_PRIO - 1, executor::CoroutineKind::Norm);
 }
 
-
-// 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
-pub fn current_cid() -> usize {
-    vdso::current_cid(false)
-}
-
-pub fn re_back(cid: usize) {
-    vdso::re_back(cid);
-}
-
-pub fn add_virtual_core() {
-    vdso::add_virtual_core();
-}
-
-pub fn spawn<F, T>(f: F, prio: usize) -> usize 
-    where F: FnOnce() -> T,
-    T: Future<Output = ()> + 'static + Send + Sync {
-        vdso::spawn(f, prio, executor::CoroutineKind::Norm)
-}
-
-pub fn get_pending_status(cid: usize) -> bool {
-    vdso::get_pending_status(cid)
-}
 
 pub struct AwaitHelper {
     flag: bool,

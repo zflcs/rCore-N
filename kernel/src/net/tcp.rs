@@ -2,14 +2,16 @@
 use alloc::boxed::Box;
 use alloc::vec;
 use executor::Coroutine;
-use lose_net_stack::packets::tcp::TCPPacket;
-use lose_net_stack::IPv4;
-use lose_net_stack::MacAddress;
-use lose_net_stack::TcpFlags;
 use ubuf::UserBuffer;
 use vfs::File;
 use crate::arch::uintr::uirs_send;
 use crate::driver::net::NetDevice;
+use crate::net::NET_STACK;
+
+use crate::net::reply::build_eth_frame;
+use crate::net::reply::build_eth_repr;
+use crate::net::reply::build_ipv4_repr;
+use crate::net::reply::build_tcp_repr;
 use crate::task::Scheduler;
 use crate::task::TASK_MANAGER;
 use crate::task::cpu;
@@ -18,36 +20,44 @@ use crate::task::KernTask;
 
 use super::socket::get_mutex_socket;
 use super::socket::{add_socket, get_s_a_by_index, remove_socket};
-use super::LOSE_NET_STACK;
+
+use smoltcp::wire::*;
 
 
 pub struct TCP {
-    pub target: IPv4,
-    pub sport: u16,
-    pub dport: u16,
-    pub seq: u32,
-    pub ack: u32,
+    pub src_mac: EthernetAddress,
+    pub src_ip: Ipv4Address,
+    pub dst_ip: Ipv4Address,
+    pub src_port: u16,
+    pub dst_port: u16,
+    pub seq_number: TcpSeqNumber,
+    pub ack_number: Option<TcpSeqNumber>,
     pub socket_index: usize,
 }
 
 impl TCP {
-    pub fn new(target: IPv4, sport: u16, dport: u16, seq: u32, ack: u32) -> Option<Self> {
-        match add_socket(target, sport, dport, seq, ack) {
-            Some(index) => {
-                Some(
-                    Self {
-                        target,
-                        sport,
-                        dport,
-                        seq,
-                        ack,
-                        socket_index: index,
-                    }
-                )
-            }
-            _ => {
-                None
-            }
+    pub fn new(
+        src_mac: EthernetAddress,
+        src_ip: Ipv4Address, 
+        dst_ip: Ipv4Address, 
+        src_port: u16, 
+        dst_port: u16, 
+        seq_number: TcpSeqNumber, 
+        ack_number: Option<TcpSeqNumber>
+    ) -> Option<Self> {
+        if let Some(socket_index) = add_socket(src_ip, src_port, dst_port, seq_number, ack_number) {
+            Some(Self {
+                src_mac,
+                src_ip,
+                dst_ip,
+                src_port,
+                dst_port,
+                seq_number,
+                ack_number,
+                socket_index,
+            })
+        } else {
+            None
         }
     }
 }
@@ -76,18 +86,18 @@ impl File for TCP {
             0, 
             executor::CoroutineKind::Norm
         );
-        log::trace!("cid {:?}", coroutine.cid);
+        log::debug!("cid {:?}", coroutine.cid);
         let socket = get_mutex_socket(self.socket_index).unwrap();
         socket.lock().block_task = Some(cur.clone());
         socket.lock().block_coroutine = Some(coroutine.clone());
-        log::trace!("aread from tcp");
+        log::debug!("aread from tcp");
         let _ = TASK_MANAGER.lock().add(KernTask::Corou(coroutine));
         Some(0)
     }
 
     fn read(&self, buf: &mut [u8]) -> Option<usize> {
         let socket = get_mutex_socket(self.socket_index).unwrap();
-        log::trace!("read from tcp");
+        log::debug!("read from tcp");
         loop {
             let mut mutex_socket = socket.lock();
             if let Some(data) = mutex_socket.buffers.pop_front() {
@@ -107,35 +117,31 @@ impl File for TCP {
     }
 
     fn write(&self, buf: &[u8]) -> Option<usize> {
-        let lose_net_stack = LOSE_NET_STACK.0.lock();
-
         let mut data = vec![0u8; buf.len()];
-
         let mut count = 0;
         data.copy_from_slice(buf);
         count += buf.len();
-
-        log::trace!("socket send len: {}", count);
-
+        log::debug!("socket send len: {}", count);
         // get sock and sequence
-        let (seq, ack) = get_s_a_by_index(self.socket_index).map_or((0, 0), |x| x);
-        log::trace!("[TCP write] seq: {}, ack: {}", seq, ack);
-        let tcp_packet = TCPPacket {
-            source_ip: lose_net_stack.ip,
-            source_mac: lose_net_stack.mac,
-            source_port: self.sport,
-            dest_ip: self.target,
-            dest_mac: MacAddress::new([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
-            dest_port: self.dport,
-            data_len: count,
-            seq,
-            ack,
-            flags: TcpFlags::A,
-            win: 65535,
-            urg: 0,
-            data: data.as_ref(),
-        };
-        NetDevice.transmit(&tcp_packet.build_data());
+        let (seq_number, ack_number) = get_s_a_by_index(self.socket_index)
+            .map_or((TcpSeqNumber::default(), None), |x| x);
+        let tcp_repr = build_tcp_repr(
+            self.dst_port, 
+            self.src_port, 
+            TcpControl::Psh, 
+            seq_number, 
+            ack_number, 
+            buf
+        );
+        let src_ip = self.dst_ip;
+        let dst_ip = self.src_ip;
+        let ipv4_repr = build_ipv4_repr(src_ip, dst_ip, IpProtocol::Tcp, tcp_repr.buffer_len());
+        let eth_repr = build_eth_repr(NET_STACK.mac_addr, self.src_mac, EthernetProtocol::Ipv4);
+        if let Some(eth_frame) = build_eth_frame(eth_repr, None, Some((ipv4_repr, tcp_repr))) {
+            log::debug!("write tcp socket ok1");
+            NetDevice.transmit(&eth_frame.into_inner());
+        }
+        log::debug!("write tcp socket ok2");
         Some(count)
     }
 }
@@ -153,6 +159,7 @@ async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
         if let Some(data) = mutex_socket.buffers.pop_front() {
             drop(mutex_socket);
             let data_len = data.len();
+            log::debug!("read len {:?}", data_len);
             let mut left = 0;
             for i in 0..buf.inner.len() {
                 let buffer_i_len = buf.inner[i].len().min(data_len - left);
@@ -172,7 +179,7 @@ async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
     }
     // send user interrupt
     let task = socket.lock().block_task.take().unwrap();
-    log::trace!("send user interrupt {}", cid);
+    log::debug!("send user interrupt {}", cid);
     unsafe { uirs_send(task, cid) };
 }
 

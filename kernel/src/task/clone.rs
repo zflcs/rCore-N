@@ -15,7 +15,7 @@ use crate::{
     },
     error::*,
     loader::from_elf,
-    mm::{KERNEL_MM, MM},
+    mm::{KERNEL_MM, MM, VMFlags},
 };
 
 use crate::arch::uintr::*;
@@ -90,6 +90,7 @@ pub fn do_clone(
     tls: usize,
     ptid: VirtAddr,
     ctid: VirtAddr,
+    user_epc: usize
 ) -> SyscallResult {
     let curr = cpu().curr.as_ref().unwrap();
     log::trace!("CLONE {:?} {:?}", &curr, flags);
@@ -133,7 +134,23 @@ pub fn do_clone(
         let mut mm = mm.lock();
         let trapframe_pa = init_trapframe(&mut mm, tid_num)?;
         let trapframe = TrapFrame::from(trapframe_pa);
-        trapframe.copy_from(curr.trapframe(), flags, stack, tls, kstack_base);
+        /* [`CLONE_VM`] means that the new process shared the mm with current process,
+         * So we must create a new stack
+        */
+        if flags.contains(CloneFlags::CLONE_VM) {
+            // Initialize user stack
+            let ustack_layout = ustack_layout(tid_num);
+            mm.alloc_write_vma(
+                None,
+                ustack_layout.0.into(),
+                ustack_layout.1.into(),
+                VMFlags::READ | VMFlags::WRITE | VMFlags::USER,
+            )?;
+            trapframe.copy_new(curr.trapframe(), flags, ustack_layout.1, tls, kstack_base, user_epc);
+            log::trace!("new trapframe sp {:#x?}", trapframe.get_sp());
+        } else {
+            trapframe.copy_from(curr.trapframe(), flags, stack, tls, kstack_base);
+        }
         trapframe_pa
     };
 
@@ -228,16 +245,16 @@ pub fn do_clone(
         };
     }
     /* New task will not be dropped from now on. */
-    let _ = TASK_MANAGER.lock().add(KernTask::Proc(new_task.clone()));
-
     // we don't need to lock the new task
+    // log::debug!("{:?}", new_task.mm());
     let locked = unsafe { &mut *new_task.locked_inner.as_mut_ptr() };
     if let Some(parent) = &locked.parent {
         if let Some(parent) = parent.upgrade() {
             let mut parent = parent.locked_inner();
-            parent.children.push_back(new_task);
+            parent.children.push_back(new_task.clone());
         }
     }
+    let _ = TASK_MANAGER.lock().add(KernTask::Proc(new_task));
 
     Ok(tid_num)
 }

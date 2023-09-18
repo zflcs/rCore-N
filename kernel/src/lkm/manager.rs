@@ -4,10 +4,9 @@ use super::const_reloc as loader;
 use crate::lkm::structs::ModuleState::{Ready, Unloading};
 use crate::mm::MM;
 use crate::mm::VMFlags;
-use crate::mm::page_range;
 // use mm_rv::Frame;
 use mm_rv::PTEFlags;
-use mm_rv::{PAGE_SIZE, VirtAddr, Page};
+use mm_rv::{PAGE_SIZE, VirtAddr};
 use log::*;
 use spin::Mutex;
 use alloc::boxed::Box;
@@ -47,9 +46,10 @@ macro_rules! export_stub {
     };
 }
 
-fn neg(u: usize) -> usize {
-    (-(u as i64)) as usize
-}
+// fn neg(u: usize) -> usize {
+//     (-(u as i64)) as usize
+// }
+
 unsafe fn write_to_addr(base: usize, offset: usize, val: usize) {
     let addr = base + offset;
     *(addr as *mut usize) = val;
@@ -245,34 +245,7 @@ impl ModuleManager {
             for module in used_dependents {
                 self.loaded_modules[module].used_counts += 1;
             }
-            let mut max_addr: usize;
-            let mut min_addr: usize;
-            let mut off_start: usize;
-            max_addr = 0;
-            min_addr = ::core::usize::MAX;
-            off_start = 0;
-            for ph in elf.program_iter() {
-                if ph.get_type().unwrap() == Load {
-                    if (ph.virtual_addr() as usize) < min_addr {
-                        min_addr = ph.virtual_addr() as usize;
-                        off_start = ph.offset() as usize;
-                    }
-                    if (ph.virtual_addr() + ph.mem_size()) as usize > max_addr {
-                        max_addr = (ph.virtual_addr() + ph.mem_size()) as usize;
-                    }
-                }
-            }
-            max_addr += PAGE_SIZE - 1;
-            max_addr &= neg(PAGE_SIZE);
-            min_addr &= neg(PAGE_SIZE);
-            off_start &= neg(PAGE_SIZE);
-            let map_len = max_addr - min_addr + off_start;
-
-            // We first map a huge piece. This requires the kernel model to be dense and not abusing vaddr.
-            let vspace_start = KERNEL_MM.lock()
-                .alloc_vma(min_addr.into(), (min_addr + map_len).into(), VMFlags::empty(), true, None)?;
-            let vspace = (vspace_start.value(), map_len + vspace_start.value());
-            let base = vspace_start.value();
+            let mut vma_list = Vec::new();
             {
                 for ph in elf.program_iter() {
                     if ph.get_type().map_err(|_| {
@@ -280,8 +253,9 @@ impl ModuleManager {
                         Errno(ENOEXEC)
                     })? == Load
                     {
-                        let prog_start_addr = base + (ph.virtual_addr() as usize);
-                        let prog_end_addr = prog_start_addr + (ph.mem_size() as usize);
+                        let prog_start_addr = (ph.virtual_addr() as usize).into();
+                        let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize + PAGE_SIZE - 1).into();
+                        let prog_end_addr = end_va.page_align();
                         let offset = ph.offset() as usize;
                         let flags = ph.flags();
                         let mut attr = VMFlags::empty();
@@ -296,20 +270,23 @@ impl ModuleManager {
                         }
                         KERNEL_MM.lock().alloc_write_vma(
                             Some(&elf.input[offset..offset + ph.file_size() as usize]),
-                            prog_start_addr.into(),
-                            prog_end_addr.into(),
+                            prog_start_addr,
+                            prog_end_addr,
                             attr
-                        )?
+                        )?;
+                        let vma = KERNEL_MM.lock().find_vma(prog_start_addr);
+                        vma_list.push(vma.unwrap());
                     }
                 }
             }
+            let base = vma_list.get(0).unwrap().start_va.value();
 
             let mut loaded_minfo = Box::new(LoadedModule {
                 info: minfo,
                 exported_symbols: Vec::new(),
                 used_counts: 0,
                 using_counts: Arc::new(ModuleRef {}),
-                vspace,
+                vma_list,
                 lock: Mutex::new(()),
                 state: Ready,
             });
@@ -673,7 +650,7 @@ impl ModuleManager {
                 "[LKM] loading binary module {} version {} api_version {}, so we must map to the specified virtual address!",
                 minfo.name, minfo.version, minfo.api_version
             );
-            let mut vspace = (usize::MAX, 0);
+            let mut vma_list = Vec::new();
             {
                 for ph in elf.program_iter() {
                     if ph.get_type().map_err(|_| {
@@ -682,15 +659,9 @@ impl ModuleManager {
                     })? == Load
                     {
                         let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
-                        let start = start_va.page_align().value();
-                        if start < vspace.0 {
-                            vspace.0 = start;
-                        }
-                        let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
-                        let end = (end_va + PAGE_SIZE - 1).page_align().value();
-                        if end > vspace.1 {
-                            vspace.1 = end;
-                        }
+                        let start_aligned_va = start_va.page_align();
+                        let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize + PAGE_SIZE - 1).into();
+                        let end_aligned_va = end_va.page_align();
                         let mut flags = VMFlags::empty();
                         let ph_flags = ph.flags();
                         if ph_flags.is_read() {
@@ -704,25 +675,26 @@ impl ModuleManager {
                         }
                         KERNEL_MM.lock().alloc_write_vma(
                             Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
-                            start_va, 
-                            end_va, 
+                            start_aligned_va, 
+                            end_aligned_va, 
                             flags
-                        )?
-                        
+                        )?;
+                        let vma = KERNEL_MM.lock().find_vma(start_aligned_va);
+                        log::trace!("{:?}", vma);
+                        vma_list.push(vma.unwrap());
                     }
                 }
             }
-
+            let base = vma_list.get(0).unwrap().start_va.value();
             let mut loaded_minfo = Box::new(LoadedModule {
                 info: minfo,
                 exported_symbols: Vec::new(),
                 used_counts: 0,
                 using_counts: Arc::new(ModuleRef {}),
-                vspace,
+                vma_list,
                 lock: Mutex::new(()),
                 state: Ready,
             });
-            let base = vspace.0;
             info!(
                 "[LKM] binary module load done at {:#x?}.",
                 base
@@ -791,28 +763,18 @@ impl ModuleManager {
     /// 将进程与共享的模块进行链接
     pub fn link_module(&self, module_name: &str, memory_set: &mut MM, so_table: Option<Vec<(&str, usize)>>) -> KernelResult {
         // 查找对应的模块
-        let mut module: Option<(usize, usize)> = None;
-        for i in 0..self.loaded_modules.len() {
-            if self.loaded_modules[i].info.name == module_name {
-                module = Some(self.loaded_modules[i].vspace);
-                break;
+        let module = self.loaded_modules.iter()
+            .find(|m| m.info.name == module_name);
+
+        if let Some(loaded_module) = module {
+            let module_vma_list = &loaded_module.vma_list;
+            for vma in module_vma_list {
+                log::trace!("{:?}", vma);
+                memory_set.add_map_vma(vma.clone(), PTEFlags::USER_ACCESSIBLE | PTEFlags::ACCESSED | PTEFlags::DIRTY)?;
             }
-        }
-        match module {
-            None => {
-                error!("[LKM] {} module is not existed!", module_name);
-                return Err(Errno(ENOEXEC));
-            }
-            Some((start, end)) => {
-                for p in page_range(start.into(), end.into()) {
-                    let (_, pte) = KERNEL_MM.lock().page_table.walk(Page::from(p)).unwrap();
-                    log::trace!("map {:?}", pte);
-                    memory_set.page_table.map(p, pte.frame(), pte.flags() | PTEFlags::USER_ACCESSIBLE | PTEFlags::ACCESSED | PTEFlags::DIRTY).map_err(|_| {
-                        error!("[LKM] link module, set pte error!!!");
-                        Errno(ENOEXEC)
-                    })?
-                }
-            }
+        } else {
+            error!("[LKM] {} module is not existed!", module_name);
+            return Err(Errno(ENOEXEC));
         }
         if let Some(so_table) = so_table {
             for so_item in so_table {

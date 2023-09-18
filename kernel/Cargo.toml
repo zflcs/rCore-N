@@ -44,7 +44,7 @@ lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 
 rv-plic = { git = "https://github.com/duskmoon314/rv-plic" }
 embedded-hal = "=1.0.0-alpha.4"
-lose-net-stack = { git = "https://github.com/yfblock/lose-net-stack", rev = "db42380" }
+# lose-net-stack = { git = "https://github.com/yfblock/lose-net-stack", rev = "db42380" }
 nb = "1.0.0"
 array-init = "2.0.0"
 heapless = "0.7.5"
@@ -54,7 +54,7 @@ crossbeam = {version = "0.8", features = ["alloc"], default-features = false }
 
 
 [dependencies.smoltcp]
-version = "0.9.1"
+version = "0.10.0"
 default-features = false
 features = [
   "alloc", "log",   # no std
@@ -68,7 +68,7 @@ features = [
 board_qemu = ["virtio-drivers", "uintr"]
 board_axu15eg = ["axi-ethernet", "axidma", "uintr"]
 
-default = ["board_qemu"]
+default = ["board_axu15eg"]
 
 [build-dependencies]
 serde_derive = "1.0"

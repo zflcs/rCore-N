@@ -47,7 +47,11 @@ get_libfn!(
 );
 
 get_libfn!(
-    pub fn add_virtual_core() {}
+  pub fn poll_user_future() {}
+);
+
+get_libfn!(
+  pub fn add_vcpu(vcpu_num: usize) {}
 );
 
 get_libfn!(
@@ -67,5 +71,5 @@ get_libfn!(
 );
 
 get_libfn!(
-  pub fn get_pending_status(cid: usize) -> bool {}
+  pub fn is_pending(cid: usize) -> bool {}
 );

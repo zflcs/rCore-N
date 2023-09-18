@@ -29,15 +29,27 @@ extern crate user_lib;
 // }
 
 extern crate alloc;
-use user_syscall::{exit, sleep, thread_create, thread_join};
+use alloc::vec::Vec;
+use user_syscall::{exit, thread_create, thread_join};
 
-static NUM: usize = 1;
+static mut NUM: usize = 1;
 
 #[no_mangle]
 pub fn main() -> i32 {
     println!("forktest2=========");
-    let tid = thread_create(thread as usize);
-    thread_join(tid);
+    let mut tids = Vec::new();
+    for _ in 0..5 {
+        tids.push(thread_create(thread as usize));
+        // println!("create thread success");
+    }
+    thread_join(tids);
+    println!("parent Num {}", unsafe {NUM});
+    // let pid = fork();
+    // if pid == 0 {
+    //     println!("child");
+    // } else {
+    //     println!("parent");
+    // }
     // println!("tid {} OK!", gettid());
     0
 }
@@ -45,6 +57,14 @@ pub fn main() -> i32 {
 
 
 pub fn thread() {
-    println!("thread {:#x?}, Num {}", thread as usize, NUM);
+    unsafe { NUM += 1; }
+    unsafe { NUM += 1; }
+    unsafe { NUM += 1; }
+    unsafe { NUM += 1; }
+    unsafe { NUM += 1; }
+    unsafe { NUM += 1; }
+    unsafe { NUM += 1; }
+
+    println!("thread , Num {}", unsafe { NUM });
     exit(0);
 }

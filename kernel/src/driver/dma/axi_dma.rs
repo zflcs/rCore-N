@@ -1,12 +1,11 @@
-use axi_ethernet::XAE_MAX_FRAME_SIZE;
 use lazy_static::lazy_static;
-use alloc::{sync::Arc, boxed::Box};
+use alloc::sync::Arc;
 use axidma::{AxiDma, AxiDmaIntr, AXI_DMA_CONFIG, RX_FRAMES, TX_FRAMES};
 use core::{sync::atomic::Ordering::Relaxed, pin::Pin};
 use kernel_sync::SpinLock;
 
-static mut TX_BUF: [u8; XAE_MAX_FRAME_SIZE] = [0u8; XAE_MAX_FRAME_SIZE];
-static mut RX_BUF: [u8; XAE_MAX_FRAME_SIZE] = [0u8; XAE_MAX_FRAME_SIZE];
+static mut TX_BUF: [u8; 1514] = [0u8; 1514];
+static mut RX_BUF: [u8; 1514] = [0u8; 1514];
 
 lazy_static! {
     pub static ref AXI_DMA: Arc<SpinLock<AxiDma>> = Arc::new(SpinLock::new(AxiDma::new(AXI_DMA_CONFIG, Pin::new(unsafe {&mut TX_BUF}), Pin::new(unsafe {&mut RX_BUF}))));

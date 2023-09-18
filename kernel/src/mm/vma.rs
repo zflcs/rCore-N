@@ -12,6 +12,7 @@ use crate::{
 use super::{flags::*, page_count, page_index, page_range, MmapFile};
 
 /// Represents an area in virtual address space with the range of [start_va, end_va).
+#[derive(Clone)]
 pub struct VMArea {
     /// Access flags of this area.
     pub flags: VMFlags,
@@ -71,6 +72,18 @@ impl VMArea {
             end_va,
             frames,
             file,
+        })
+    }
+
+    // Creates a new [`VMArea`] from exist vma
+    // #[allow(unused)]
+    pub fn new_from(vma: &mut VMArea) -> KernelResult<Self> {
+        Ok(Self {
+            flags: vma.flags,
+            start_va: vma.start_va,
+            end_va: vma.end_va,
+            frames: vma.frames.clone(),
+            file: vma.file.clone(),
         })
     }
 

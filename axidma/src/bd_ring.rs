@@ -165,8 +165,8 @@ impl AxiDmaBdRing {
         self.free_cnt -= bd_cnt;
         self.pending_cnt += bd_cnt;
         trace!(
-            "bd_ring::submit: done, restart: {}, tail: {}, free: {}, pending: {}",
-            self.bd_restart, self.bd_tail, self.free_cnt, self.pending_cnt
+            "bd_ring::submit: done, restart: {}, head: {}, tail: {}, free: {}, pending: {}",
+            self.bd_restart, self.bd_head, self.bd_tail, self.free_cnt, self.pending_cnt
         );
     }
 

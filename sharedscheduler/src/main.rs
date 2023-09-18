@@ -95,6 +95,7 @@ fn init_module() -> usize{
         INTERFACE[2] = re_back as usize;
         INTERFACE[3] = current_cid as usize;
         INTERFACE[4] = is_pending as usize;
+        INTERFACE[5] = add_vcpu as usize;
         &INTERFACE as *const [usize; 10] as usize
     }
 }
@@ -115,15 +116,31 @@ fn user_entry() {
         let user_fn: fn() = core::mem::transmute(ENTRY);
         user_fn();
     }
-    // // 将主协程添加到 Executor 中
-    // let start = get_time();
-
-    poll_user_future();
-    // wait_other_cores();
-
-    // let end = get_time();
-    // println!("total time: {} ms", end - start);
-    
+    let heapptr = unsafe { *(HEAP_POINTER as *const usize) };
+    let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
+    let executor = unsafe { &mut *exe };
+    let tid = gettid() as usize;
+    loop {
+        if let Some(task) = executor.fetch(tid) {
+            let task_clone = task.clone();
+            match task.execute() {
+                Poll::Pending => {
+                    executor.pending(task_clone);
+                }
+                Poll::Ready(()) => {
+                    executor.remove(task_clone);
+                }
+            };
+            executor.update_state(tid);
+        } else {
+            if executor.is_empty() {
+                break;
+            } else {
+                sleep(0.5);
+            }
+        }
+    }
+    wait_vcpu();
     exit(0);
 }
 
@@ -146,37 +163,33 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
 #[no_mangle]
 #[inline(never)]
 pub fn poll_user_future() {
-    unsafe {
-        let heapptr = *(HEAP_POINTER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
-        let tid = gettid() as usize;
-        loop {
-            if let Some(task) = (*exe).fetch(tid) {
-                // println!("user task kind {:?}", task.kind);
-                let task_clone = task.clone();
-                match task.execute() {
-                    Poll::Pending => {
-                        (*exe).pending(task_clone);
-                    }
-                    Poll::Ready(()) => {
-                        (*exe).remove(task_clone);
-                    }
-                };
-                (*exe).update_state(tid);
-                // if check_yield((*exe).get_prio()) {
-                //     sleep(0.5);
-                // }
-            } else {
-                if (*exe).is_empty() {
-                    break;
-                } else {
-                    sleep(0.5);
+    let heapptr = unsafe { *(HEAP_POINTER as *const usize) };
+    let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
+    let executor = unsafe { &mut *exe };
+    let tid = gettid() as usize;
+    loop {
+        if let Some(task) = executor.fetch(tid) {
+            let task_clone = task.clone();
+            match task.execute() {
+                Poll::Pending => {
+                    executor.pending(task_clone);
                 }
+                Poll::Ready(()) => {
+                    executor.remove(task_clone);
+                }
+            };
+            executor.update_state(tid);
+        } else {
+            if executor.is_empty() {
+                break;
+            } else {
+                sleep(0.5);
             }
         }
-        exit(0);
     }
+    exit(0);
 }
+
 /// hart_id
 #[allow(unused)]
 pub fn hart_id() -> usize {
@@ -224,28 +237,31 @@ pub fn is_pending(cid: usize) -> bool {
 }
 
 
-// /// 申请虚拟CPU
-// #[no_mangle]
-// #[inline(never)]
-// pub fn add_virtual_core() {
-//     unsafe {
-//         let heapptr = *(HEAP_POINTER as *const usize);
-//         let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
-//         let tid = thread_create(poll_user_future as usize, 0) as usize;
-//         (*exe).add_wait_tid(tid);
-//     }
-// }
+/// 申请虚拟CPU
+#[no_mangle]
+#[inline(never)]
+pub fn add_vcpu(vcpu_num: usize) {
+    unsafe {
+        let heapptr = *(HEAP_POINTER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
+        for _ in 0..vcpu_num {
+            let tid = thread_create(poll_user_future as usize) as usize;
+            (*exe).add_wait_tid(tid);
+        }
+    }
+}
 
 
-// pub fn wait_other_cores() {
-//     unsafe {
-//         let heapptr = *(HEAP_POINTER as *const usize);
-//         let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
-//         for tid in (*exe).waits.iter() {
-//             waittid(*tid);
-//         }
-//     }
-// }
+pub fn wait_vcpu() {
+    unsafe {
+        let heapptr = *(HEAP_POINTER as *const usize);
+        let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
+        for _ in 0..(*exe).waits.len() {
+            let mut exit_code = 0;
+            wait(&mut exit_code);
+        }
+    }
+}
 
 pub fn check_yield(prio: usize) -> bool {
     let global_bitmap = unsafe { (GLOBAL_BITMAP_BASE as *const usize).read() };

@@ -3,4 +3,5 @@ target = "riscv64gc-unknown-none-elf"
 incremental = false
 
 [target.riscv64gc-unknown-none-elf]
-rustflags = ["-Clink-args=-Tsrc/linker.ld"]
+rustflags = ["-Clink-arg=-Tsrc/linker.ld", "-Cforce-frame-pointers=yes"]
+

@@ -46,7 +46,7 @@ pub trait SyscallProc {
 
     /// Create a child process. This provides more precise control over what pieces of execution context
     /// are shared between the calling process and the child process.
-    fn clone(flags: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) -> SyscallResult {
+    fn clone(flags: usize, stack: usize, ptid: usize, tls: usize, ctid: usize, user_epc: usize) -> SyscallResult {
         Ok(0)
     }
 

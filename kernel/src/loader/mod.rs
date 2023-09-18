@@ -6,7 +6,6 @@ use core::{arch::global_asm, sync::atomic::{AtomicUsize, Ordering}};
 use alloc::{collections::BTreeMap, string::String, vec::Vec};
 use executor::MAX_PRIO;
 use log::info;
-use mm_rv::{Frame, PTEFlags};
 use vdso::so_table;
 use xmas_elf::{
     header,
@@ -16,7 +15,7 @@ use xmas_elf::{
 
 use crate::{
     arch::mm::{Page, VirtAddr, PAGE_SIZE},
-    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, HEAP_POINTER, GLOBAL_BITMAP_BASE, PRIO_POINTER},
+    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, HEAP_POINTER, PRIO_POINTER},
     error::{KernelError, KernelResult},
     mm::{VMFlags, MM},
     lkm::LKM_MANAGER,
@@ -85,8 +84,10 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
         match phdr.get_type().unwrap() {
             program::Type::Load => {
                 let start_va: VirtAddr = (phdr.virtual_addr() as usize).into();
-                let end_va: VirtAddr = ((phdr.virtual_addr() + phdr.mem_size()) as usize).into();
-                max_page = Page::floor(end_va - 1) + 1;
+                let start_aligned_va = start_va.page_align();
+                let end_va: VirtAddr = ((phdr.virtual_addr() + phdr.mem_size()) as usize + PAGE_SIZE - 1).into();
+                let end_aligned_va = end_va.page_align();
+                max_page = Page::floor(end_aligned_va - 1) + 1;
 
                 // Map flags
                 let mut map_flags = VMFlags::USER;
@@ -110,8 +111,8 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
                 // Address may not be aligned.
                 mm.alloc_write_vma(
                     Some(data),
-                    start_va + dyn_base,
-                    end_va + dyn_base,
+                    start_aligned_va + dyn_base,
+                    end_aligned_va + dyn_base,
                     map_flags,
                 )?;
             }
@@ -143,11 +144,11 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
     let prio_ptr = mm.translate(PRIO_POINTER.into())?.value() as *mut AtomicUsize;
     (unsafe { &*prio_ptr }).store(MAX_PRIO - 1, Ordering::Relaxed);
 
-    // set Global bitmap
-    extern "C" { fn sshared(); }
-    let _ = mm.page_table.map(Page::from(GLOBAL_BITMAP_BASE), Frame::from(sshared as usize), PTEFlags::READABLE | PTEFlags::USER_ACCESSIBLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY);
-    let (_, pte) = mm.page_table.walk(Page::from(GLOBAL_BITMAP_BASE)).unwrap();
-    log::trace!("map {:?}", pte);
+    // // set Global bitmap
+    // extern "C" { fn sshared(); }
+    // let _ = mm.page_table.map(Page::from(GLOBAL_BITMAP_BASE), Frame::from(sshared as usize), PTEFlags::READABLE | PTEFlags::USER_ACCESSIBLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY);
+    // let (_, pte) = mm.page_table.walk(Page::from(GLOBAL_BITMAP_BASE)).unwrap();
+    // log::trace!("map {:?}", pte);
     // Set user entry
     // mm.entry = VirtAddr::from(elf_hdr.pt2.entry_point() as usize) + dyn_base;
     mm.entry = LKM_MANAGER.lock().as_mut().unwrap().resolve_symbol("user_entry").unwrap().into();

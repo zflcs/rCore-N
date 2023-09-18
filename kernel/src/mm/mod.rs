@@ -13,7 +13,7 @@ use crate::{
     arch::{mm::*, trap::__trampoline},
     config::*,
     error::*,
-    task::Task, lkm::LKM_MANAGER,
+    task::Task,
 };
 
 pub use file::MmapFile;
@@ -130,7 +130,7 @@ impl MM {
                 log::warn!("{}", err);
                 KernelError::PageTableInvalid
             })?;
-        let mut mm = Self {
+        let mm = Self {
             page_table,
             vma_list: new_vma_list,
             vma_recycled: self.vma_recycled.clone(),
@@ -140,13 +140,6 @@ impl MM {
             start_brk: self.start_brk,
             brk: self.brk,
         };
-        LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", &mut mm, None)?;
-
-        // set Global bitmap
-        extern "C" { fn sshared(); }
-        let _ = mm.page_table.map(Page::from(GLOBAL_BITMAP_BASE), Frame::from(sshared as usize), PTEFlags::READABLE | PTEFlags::USER_ACCESSIBLE | PTEFlags::VALID | PTEFlags::ACCESSED | PTEFlags::DIRTY);
-        let (_, pte) = mm.page_table.walk(Page::from(GLOBAL_BITMAP_BASE)).unwrap();
-        log::trace!("map {:?}", pte);
         Ok(mm)
     }
 
@@ -230,6 +223,29 @@ impl MM {
             self.vma_list[index] = Some(vma);
         } else {
             self.vma_map.insert(vma.start_va, index);
+            self.vma_list.push(Some(vma));
+        }
+        self.vma_cache = Some(index);
+        Ok(())
+    }
+
+    /// Adds a new [`VMArea`] into the address space and map it.
+    ///
+    /// This function does not create any memory map for the new area.
+    pub fn add_map_vma(&mut self, mut vma: VMArea, flags: PTEFlags) -> KernelResult {
+        vma.flags |= flags.into();
+        if self.map_count() >= MAX_MAP_COUNT {
+            return Err(KernelError::VMAAllocFailed);
+        }
+        let mut index = self.vma_list.len();
+        if !self.vma_recycled.is_empty() {
+            index = self.vma_recycled.pop().unwrap();
+            self.vma_map.insert(vma.start_va, index);
+            vma.map_all(&mut self.page_table, flags | vma.flags.into(), false)?;
+            self.vma_list[index] = Some(vma);
+        } else {
+            self.vma_map.insert(vma.start_va, index);
+            vma.map_all(&mut self.page_table, flags | vma.flags.into(), false)?;
             self.vma_list.push(Some(vma));
         }
         self.vma_cache = Some(index);
@@ -335,6 +351,29 @@ impl MM {
                 if area.contains(va) {
                     self.vma_cache = Some(*index);
                     return op(area, &mut self.page_table, *index);
+                }
+            }
+        }
+
+        Err(KernelError::PageUnmapped)
+    }
+
+    /// Find the virtual memory area that contains the virutal address.
+    /// return: the copy of the target [`VMArea`]
+    pub fn find_vma( &mut self, va: VirtAddr) -> KernelResult<VMArea> {
+        if let Some(index) = self.vma_cache {
+            if let Some(area) = &mut self.vma_list[index] {
+                if area.contains(va) {
+                    return VMArea::new_from(area);
+                }
+            }
+        }
+
+        if let Some((_, index)) = self.vma_map.range(..=va).last() {
+            if let Some(area) = &mut self.vma_list[*index] {
+                if area.contains(va) {
+                    self.vma_cache = Some(*index);
+                    return VMArea::new_from(area);
                 }
             }
         }
