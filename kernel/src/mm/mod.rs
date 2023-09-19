@@ -4,7 +4,8 @@ mod kernel;
 pub mod vma;
 
 use alloc::{collections::BTreeMap, string::String, sync::Arc, vec::Vec};
-use core::{fmt, mem::size_of, slice};
+use executor::MAX_PRIO;
+use core::{fmt, mem::size_of, slice, sync::atomic::{AtomicUsize, Ordering}};
 use errno::Errno;
 use syscall_interface::SyscallResult;
 use ubuf::UserBuffer;
@@ -73,6 +74,11 @@ impl MM {
                     start_brk: VirtAddr::zero(),
                     brk: VirtAddr::zero(),
                 };
+                // set task prority
+                mm.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE | VMFlags::USER)?;
+                let prio_ptr = mm.translate(PRIO_POINTER.into())?.value() as *mut AtomicUsize;
+                (unsafe { &*prio_ptr }).store(MAX_PRIO - 1, Ordering::Relaxed);
+                
                 mm.page_table
                     .map(
                         VirtAddr::from(TRAMPOLINE_VA).into(),

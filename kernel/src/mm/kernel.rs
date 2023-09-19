@@ -1,6 +1,5 @@
 use kernel_sync::SpinLock;
 use log::info;
-use mm_rv::PAGE_SIZE;
 use spin::Lazy;
 
 use crate::{
@@ -123,7 +122,6 @@ fn new_kernel() -> KernelResult<MM> {
         info!("{:>10} [{:#x}, {:#x})", "arch mmio", base, base + len);
     }
     // Heap pointer
-    mm.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE)?;
     let paddr = mm.translate(HEAP_POINTER.into())?;
     unsafe { *(paddr.value() as *mut usize) = sdata as usize; }
 

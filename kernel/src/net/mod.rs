@@ -21,7 +21,7 @@ impl Default for NetStack {
     fn default() -> Self {
         Self { 
             mac_addr: EthernetAddress::from_bytes(&[0x00, 0x0A, 0x35, 0x01, 0x02, 0x03]),
-            ipv4_addr: Ipv4Address::new(192, 168, 1, 2),
+            ipv4_addr: Ipv4Address::new(172, 16, 1, 2),
         }
     }
 }
