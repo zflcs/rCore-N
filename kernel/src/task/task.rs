@@ -401,6 +401,14 @@ impl Task {
         read_user!(mm, VirtAddr::from(PRIO_POINTER), atomic_prio, AtomicUsize).map_err(|e| KernelError::Errno(e))?;
         Ok(atomic_prio.load(core::sync::atomic::Ordering::Relaxed))
     }
+
+    pub fn push_message(&self, message: usize) -> KernelResult {
+        use executor::{MessageQueue, MESSAGE_QUEUE_ADDR};
+        let mut mm = self.mm();
+        let pa = mm.translate(MESSAGE_QUEUE_ADDR.into()).unwrap();
+        let queue = pa.get_mut::<MessageQueue>();
+        queue.enqueue(message).map_err(|_| KernelError::Unimplemented)
+    }
 }
 
 impl Drop for Task {

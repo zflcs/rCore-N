@@ -48,6 +48,9 @@ pub const HEAP_POINTER: usize = PHYSICAL_MEMORY_END + PAGE_SIZE;
 /// priority pointer
 pub const PRIO_POINTER: usize = HEAP_POINTER + 0x20;
 
+/// cid queue base addr
+pub const CID_QUEUE_ADDR: usize = PRIO_POINTER + 0x20;
+
 /// global bitmap virtual address
 pub const GLOBAL_BITMAP_BASE: usize = HEAP_POINTER + PAGE_SIZE;
 

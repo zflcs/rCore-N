@@ -369,7 +369,13 @@ mod syscall {
 
         // kernel send user interrupt
         pub fn uintr_test(fd: usize) -> SyscallResult {
-            let uintr_inner = cpu().curr.as_ref().unwrap().uintr_inner();
+            let curr = cpu().curr.as_ref().unwrap();
+            curr.push_message(2);
+            curr.push_message(3);
+            curr.push_message(4);
+            curr.push_message(5);
+            curr.push_message(6);
+            let uintr_inner = curr.uintr_inner();
             if let Some(uirs) = &uintr_inner.uirs {
                 let index = uirs.0;
                 let mut uirs = UIntrReceiver::from(index);

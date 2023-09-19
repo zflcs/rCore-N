@@ -95,6 +95,11 @@ impl MM {
         }
     }
 
+    pub fn set_heap_ptr(&mut self, heap_addr: usize) {
+        let paddr = self.translate(HEAP_POINTER.into()).unwrap();
+        unsafe { *(paddr.value() as *mut usize) = heap_addr; }
+    }
+
     /// Create a new [`MM`] from cloner.
     ///
     /// Uses the copy-on-write technique (COW) to prevent all data of the parent process from being copied

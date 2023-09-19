@@ -3,7 +3,7 @@ use log::info;
 use spin::Lazy;
 
 use crate::{
-    config::{MMIO, PHYSICAL_MEMORY_END, HEAP_POINTER},
+    config::{MMIO, PHYSICAL_MEMORY_END},
     error::KernelResult,
     mm::VMFlags,
 };
@@ -122,8 +122,6 @@ fn new_kernel() -> KernelResult<MM> {
         info!("{:>10} [{:#x}, {:#x})", "arch mmio", base, base + len);
     }
     // Heap pointer
-    let paddr = mm.translate(HEAP_POINTER.into())?;
-    unsafe { *(paddr.value() as *mut usize) = sdata as usize; }
-
+    mm.set_heap_ptr(sdata as usize);
     Ok(mm)
 }

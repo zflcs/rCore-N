@@ -14,7 +14,7 @@ use xmas_elf::{
 
 use crate::{
     arch::mm::{Page, VirtAddr, PAGE_SIZE},
-    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE, HEAP_POINTER},
+    config::{ADDR_ALIGN, ELF_BASE_RELOCATE, USER_STACK_BASE, USER_STACK_SIZE},
     error::{KernelError, KernelResult},
     mm::{VMFlags, MM},
     lkm::LKM_MANAGER,
@@ -137,8 +137,7 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
     LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", mm, Some(so_table(&elf)))?;
     // record lockheap into HEAP_POINTER
     let heap_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
-    let paddr = mm.translate(HEAP_POINTER.into())?;
-    unsafe { *(paddr.value() as *mut usize) = heap_addr; }
+    mm.set_heap_ptr(heap_addr);
 
 
     // // set Global bitmap
