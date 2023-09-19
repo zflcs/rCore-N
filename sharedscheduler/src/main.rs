@@ -92,7 +92,7 @@ fn init_module() -> usize{
     unsafe {
         INTERFACE[0] = user_entry as usize;
         INTERFACE[1] = spawn as usize;
-        INTERFACE[2] = re_back as usize;
+        INTERFACE[2] = wake as usize;
         INTERFACE[3] = current_cid as usize;
         INTERFACE[4] = is_pending as usize;
         INTERFACE[5] = add_vcpu as usize;
@@ -218,11 +218,11 @@ pub fn current_cid(is_kernel: bool) -> usize {
 /// 协程重新入队，手动执行唤醒的过程，内核和用户都会调用这个函数
 #[no_mangle]
 #[inline(never)]
-pub fn re_back(cid: usize) {
+pub fn wake(cid: usize) {
     unsafe {
         let heapptr = *(HEAP_POINTER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
-        (*exe).re_back(CoroutineId(cid));
+        (*exe).wake(CoroutineId(cid));
     }
 }
 

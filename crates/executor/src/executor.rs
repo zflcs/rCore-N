@@ -129,7 +129,7 @@ impl Executor {
     }
 
     /// The pending coroutine 
-    pub fn re_back(&mut self, cid: CoroutineId) {
+    pub fn wake(&mut self, cid: CoroutineId) {
         let mut target_task = None;
         for _ in 0..self.pending_queue.len() {
             let task = self.pending_queue.pop().unwrap();

@@ -23,7 +23,7 @@ const MATRIX_SIZE: usize = 10;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
-static MAX_POLL_THREADS: usize = 4 - 1;
+// static MAX_POLL_THREADS: usize = 4 - 1;
 
 const SERVER_USE_PRIO: usize = 2;
 const CONNECTION_NUM: usize = SERVER_USE_PRIO * 1;
@@ -58,7 +58,7 @@ pub fn main() -> i32 {
 #[no_mangle]
 pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, irqs: usize) -> usize {
     println!("need wake up coroutine {}", irqs);
-    vdso::re_back(irqs);
+    vdso::wake(irqs);
     return 0;
 }
 
@@ -108,7 +108,7 @@ async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize, i: us
         println!("[{}] push req to requset queue", i);
         // wake up calculate coroutine
         if vdso::is_pending(matrix_calc_cid) {
-            vdso::re_back(matrix_calc_cid);
+            vdso::wake(matrix_calc_cid);
         }
         if recv_str == CLOSE_CONNECT_STR {
             break;
@@ -135,7 +135,7 @@ async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize, i: usize) {
             unsafe { let _ = RSP_MAP[client_fd].push(rsp); }
             // wake up send response coroutine
             if vdso::is_pending(send_rsp_cid) {
-                vdso::re_back(send_rsp_cid);
+                vdso::wake(send_rsp_cid);
             }
             if req == CLOSE_CONNECT_STR {
                 break;

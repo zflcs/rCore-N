@@ -57,7 +57,7 @@ pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, irqs: usize) -> u
     // read pending bits
     println!("\tPending User Interrupts: {:b}", irqs);
     println!("need wake up coroutine {}", irqs);
-    vdso::re_back(irqs);
+    vdso::wake(irqs);
     return 0;
 }
 
