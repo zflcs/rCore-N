@@ -16,6 +16,7 @@ const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_NANOSLEEP: usize = 101;
+const SYSCALL_SLEEP: usize = 102;
 const SYSCALL_GET_TIME: usize = 113;
 const SYSCALL_GETPID: usize = 172;
 const SYSCALL_GETTID: usize = 178;
@@ -222,6 +223,10 @@ pub fn waitpid_nb(pid: usize, exit_code: &mut i32) -> isize {
 }
 
 use time_subsys::TimeSpec;
+pub fn sleep_ms(ms: usize) {
+    syscall(SYSCALL_SLEEP, [ms, 0, 0]);
+}
+
 pub fn sleep(sec: f64) {
     let mut req = TimeSpec::new(sec);
     let mut rem = TimeSpec::default();

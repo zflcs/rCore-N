@@ -4,7 +4,6 @@ use alloc::vec;
 use executor::Coroutine;
 use ubuf::UserBuffer;
 use vfs::File;
-use crate::arch::uintr::uirs_send;
 use crate::driver::net::NetDevice;
 use crate::net::NET_STACK;
 
@@ -184,10 +183,8 @@ async fn aread_coroutine(socket_index: usize, mut buf: UserBuffer, cid: usize) {
     }
     // send user interrupt
     if need_wait {
-        log::trace!("need send user interrupt");
         let task = socket.lock().block_task.take().unwrap();
-        unsafe { uirs_send(task, cid) };
-        log::debug!("send user interrupt {}", cid);
+        let _ = task.push_message(cid);
     }
 }
 

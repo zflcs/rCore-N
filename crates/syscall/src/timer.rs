@@ -67,4 +67,9 @@ pub trait SyscallTimer {
     fn nanosleep(req: usize, rem: usize) -> SyscallResult {
         Ok(0)
     }
+
+    /// sleep ms millsecond
+    fn sleep(ms: usize) -> SyscallResult {
+        Ok(0)
+    }
 }

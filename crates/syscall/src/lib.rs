@@ -58,6 +58,7 @@ numeric_enum! {
         EXIT_GROUP = 94,
         SET_TID_ADDRESS = 96,
         NANOSLEEP = 101,
+        SLEEP = 102,
         CLOCK_GET_TIME = 113,
         SIGACTION = 134,
         SIGPROCMASK = 135,

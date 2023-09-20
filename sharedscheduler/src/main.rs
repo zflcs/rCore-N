@@ -121,6 +121,9 @@ fn user_entry() {
     let executor = unsafe { &mut *exe };
     let tid = gettid() as usize;
     loop {
+        while let Some(cid) = executor.pop_wake_cid() {
+            executor.wake(CoroutineId(cid));
+        }
         if let Some(task) = executor.fetch(tid) {
             let task_clone = task.clone();
             match task.execute() {
@@ -136,7 +139,7 @@ fn user_entry() {
             if executor.is_empty() {
                 break;
             } else {
-                sleep(0.5);
+                sleep_ms(10);
             }
         }
     }
@@ -183,7 +186,7 @@ pub fn poll_user_future() {
             if executor.is_empty() {
                 break;
             } else {
-                sleep(0.5);
+                sleep_ms(10);
             }
         }
     }
@@ -218,11 +221,17 @@ pub fn current_cid(is_kernel: bool) -> usize {
 /// 协程重新入队，手动执行唤醒的过程，内核和用户都会调用这个函数
 #[no_mangle]
 #[inline(never)]
-pub fn wake(cid: usize) {
+pub fn wake(cid: Option<usize>) {
     unsafe {
         let heapptr = *(HEAP_POINTER as *const usize);
         let exe = (heapptr + core::mem::size_of::<Heap>()) as *mut usize as *mut Executor;
-        (*exe).wake(CoroutineId(cid));
+        if cid.is_some() {
+            (*exe).wake(CoroutineId(cid.unwrap()));
+        } else {
+            while let Some(cid) = (*exe).pop_wake_cid() {
+                (*exe).wake(CoroutineId(cid));
+            }
+        }
     }
 }
 

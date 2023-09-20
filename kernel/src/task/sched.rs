@@ -235,27 +235,19 @@ pub fn init_reclaim() {
 /// 3. Handle the final state after a task finishes `do_yield` or `do_exit`.
 /// 4. Reclaim resources handled by [`INIT_TASK`].
 pub unsafe fn idle() -> ! {
-    let mut flag = false;
     loop {
         init_reclaim();
 
         let mut task_manager = TASK_MANAGER.lock();
         if let Some(task) = task_manager.fetch() {
-            if flag {
-                log::debug!("prev coroutine execute ready, now {:?}", task);
-                flag = false;
-            }
             match task {
                 KernTask::Proc(t) => {
-                    // if t.pid > 1 {
-                    //     log::debug!("now {:?}", t);
-                    // }
                     let next_ctx = {
                         let mut locked_inner = t.locked_inner();
                         locked_inner.state = TaskState::RUNNING;
                         &t.inner().ctx as *const TaskContext
                     };
-                    // log::debug!("Run {}", t.get_prio().unwrap());
+                    
                     // Ownership moved to `current`.
                     cpu().curr = Some(t);
         
@@ -272,8 +264,6 @@ pub unsafe fn idle() -> ! {
                     drop(task_manager);
                     if c.execute().is_pending() {
                         // TASK_MANAGER.lock().pending(c);
-                    } else {
-                        flag = true;
                     }
                 }
             }

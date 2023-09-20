@@ -1,5 +1,5 @@
 use core::alloc::{GlobalAlloc, Layout};
-use executor::{Executor, EMPTY_QUEUE, MAX_PRIO};
+use executor::Executor;
 use buddy_system_allocator::LockedHeap;
 const HEAP_ORDER: usize = 32;
 type Heap = LockedHeap<HEAP_ORDER>;
@@ -26,7 +26,7 @@ pub fn init() {
             MEMORY.as_ptr() as usize,
             MEMORY_SIZE,
         );
-        EXECUTOR.ready_queue = [EMPTY_QUEUE; MAX_PRIO];
+        EXECUTOR.init();
         // EXECUTOR.ready_queue = vec![VecDeque::new(); executor::PRIO_NUM];
         // println!("heap {:#x}", &mut HEAP as *mut Heap as usize);
     }

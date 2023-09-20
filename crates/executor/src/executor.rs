@@ -7,11 +7,31 @@ use core::future::Future;
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use crate::config::{MAX_THREAD, MAX_PRIO, PRIO_POINTER};
+use crate::config::{MAX_THREAD, MAX_PRIO, PRIO_POINTER, MESSAGE_QUEUE_ADDR, MESSAGE_QUEUE_LEN};
 use crate::coroutine::{Coroutine, CoroutineId, CoroutineKind};
 use crossbeam::queue::SegQueue;
+use heapless::mpmc::MpMcQueue;
 
 pub const EMPTY_QUEUE: SegQueue<Arc<Coroutine>> = SegQueue::new();
+
+pub type MessageQueue = MpMcQueue<usize, MESSAGE_QUEUE_LEN>;
+
+/// Record the cid, that the relative coroutine is need to be waked.
+struct WakeQueue(usize);
+
+impl WakeQueue {
+    pub const DEFAULT: Self = Self(MESSAGE_QUEUE_ADDR);
+
+    pub fn init(&self) {
+        let queue = unsafe { &mut *(self.0 as *mut MessageQueue) };
+        *queue = MessageQueue::new();
+    }
+
+    pub fn pop(&self) -> Option<usize> {
+        let queue = unsafe { &*(self.0 as *mut MessageQueue) };
+        queue.dequeue()
+    }
+}
 
 /// The highest priority field
 #[derive(Clone, Copy)]
@@ -47,6 +67,8 @@ pub struct Executor {
     pub pending_queue: SegQueue<Arc<Coroutine>>,
     /// The highest priority
     priority: Priority,
+    /// The queue of cids, that the relative coroutine need to wake
+    wake_queue: WakeQueue,
     /// all theads' id, when it's time to exit, it must wait all threads
     pub waits: Vec<usize>,
 }
@@ -62,12 +84,22 @@ impl Executor {
             ready_queue: [EMPTY_QUEUE; MAX_PRIO],
             pending_queue: SegQueue::new(),
             priority: Priority::DEFAULT,
+            wake_queue: WakeQueue::DEFAULT,
             waits: Vec::new(),
         }
     }
 }
 
 impl Executor {
+
+    pub fn init(&mut self) {
+        self.wake_queue.init();
+        self.ready_queue = [EMPTY_QUEUE; MAX_PRIO];
+    }
+
+    pub fn pop_wake_cid(&self) -> Option<usize> {
+        self.wake_queue.pop()
+    }
 
     /// add a new coroutine into ready_queue
     pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> CoroutineId {
@@ -131,7 +163,8 @@ impl Executor {
     /// The pending coroutine 
     pub fn wake(&mut self, cid: CoroutineId) {
         let mut target_task = None;
-        for _ in 0..self.pending_queue.len() {
+        let len = self.pending_queue.len();
+        for _ in 0..len {
             let task = self.pending_queue.pop().unwrap();
             if task.cid == cid {
                 target_task = Some(task);

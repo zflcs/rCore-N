@@ -137,7 +137,7 @@ pub fn from_elf(elf_data: &[u8], args: Vec<String>, mm: &mut MM) -> KernelResult
     LKM_MANAGER.lock().as_mut().unwrap().link_module("sharedscheduler", mm, Some(so_table(&elf)))?;
     // record lockheap into HEAP_POINTER
     let heap_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
-    mm.set_heap_ptr(heap_addr);
+    mm.set_heap_ptr(heap_addr, false)?;
 
 
     // // set Global bitmap

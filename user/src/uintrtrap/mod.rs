@@ -36,6 +36,7 @@ pub struct UintrFrame {
     pub t4: usize,
     pub t5: usize,
     pub t6: usize,
+    pub epc: usize,
 }
 
 #[no_mangle]
@@ -57,7 +58,6 @@ pub fn uintr_register_receier(handler_ptr: usize) -> usize {
         utvec::write(uintrvec as usize, utvec::TrapMode::Direct);
         uscratch::write(handler_ptr);
         ustatus::set_uie();
-        uie::set_usoft();
     }
     user_syscall::uintr_register_receiver()
 }

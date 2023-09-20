@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 spin = "0.9"
 crossbeam = {version = "0.8", features = ["alloc"], default-features = false }
+heapless = "0.7.5"

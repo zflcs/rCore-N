@@ -11,8 +11,8 @@ pub unsafe extern "C" fn __uintrtrap() {
     uintrvec:
         ",
         // allocate stack space 
-        "addi sp, sp, -248",
-        // Save user registers in trapframe.
+        "addi sp, sp, -256",
+        // Save the general registers in trapframe.
         "
         sd ra, 0(sp)
         sd gp, 16(sp)
@@ -45,6 +45,11 @@ pub unsafe extern "C" fn __uintrtrap() {
         sd t5, 232(sp)
         sd t6, 240(sp)
         ",
+        // save epc
+        "
+        csrr t0, uepc
+        sd t0, 248(sp)
+        ",
         // jump to user handler
         "
         mv a0, sp
@@ -56,7 +61,12 @@ pub unsafe extern "C" fn __uintrtrap() {
         .globl uintrret
     uintrret:
         ",
-        // restore the user registers in trapframe
+        // restore epc
+        "
+        ld t0, 248(sp)
+        csrw uepc, t0
+        ",
+        // restore the general registers in trapframe
         "
         ld ra, 0(sp)
         ld gp, 16(sp)
@@ -90,7 +100,7 @@ pub unsafe extern "C" fn __uintrtrap() {
         ld t6, 240(sp)
         ",
         // restore stack pointer
-        "addi sp, sp, 248",
+        "addi sp, sp, 256",
         // return to normal pc
         "uret",
         options(noreturn),

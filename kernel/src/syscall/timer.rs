@@ -3,7 +3,7 @@ use syscall_interface::*;
 use time_subsys::{TimeSpec, TimeVal, NSEC_PER_SEC};
 
 use crate::{
-    arch::{mm::VirtAddr, timer::get_time_sec_f64},
+    arch::{mm::VirtAddr, timer::{get_time_sec_f64, get_time_ms}},
     read_user,
     task::{cpu, do_yield},
     write_user,
@@ -44,7 +44,6 @@ impl SyscallTimer for SyscallImpl {
         }
 
         let end = get_time_sec_f64() + req.time_in_sec();
-        log::debug!("sleep {}", req.time_in_sec());
         while get_time_sec_f64() < end {
             unsafe { do_yield() };
         }
@@ -55,6 +54,16 @@ impl SyscallTimer for SyscallImpl {
             write_user!(cpu().curr.as_ref().unwrap().mm(), rem_addr, rem, TimeSpec)?;
         }
 
+        Ok(0)
+    }
+
+    fn sleep(ms: usize) -> SyscallResult {
+        let mut now = get_time_ms();
+        let end = now + ms;
+        while now < end {
+            unsafe { do_yield() };
+            now = get_time_ms();
+        }
         Ok(0)
     }
 }

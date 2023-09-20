@@ -23,6 +23,12 @@ use self::trapframe::KernelTrapContext;
 
 use crate::arch::uintr::*;
 
+pub fn init() {
+    enable_timer_intr();
+    enable_ext_intr();
+    unsafe { sideleg::set_usoft() };
+}
+
 /// Set kernel trap entry.
 pub fn set_kernel_trap() {
     extern "C" {
@@ -35,7 +41,6 @@ pub fn set_kernel_trap() {
         );
         sscratch::write(kernel_trap_handler as usize);
     }
-    enable_supervisor_intr();
 }
 
 /// Set user trap entry.
@@ -103,6 +108,7 @@ pub fn user_trap_handler() -> ! {
             let curr = cpu().curr.as_ref().unwrap();
             let trapframe = curr.trapframe();
             trapframe.next_epc();
+            enable_supervisor_intr();
 
             match syscall(trapframe.syscall_args().unwrap()) {
                 Ok(ret) => trapframe.set_a0(ret),

@@ -74,11 +74,7 @@ impl MM {
                     start_brk: VirtAddr::zero(),
                     brk: VirtAddr::zero(),
                 };
-                // set task prority
-                mm.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE | VMFlags::USER)?;
-                let prio_ptr = mm.translate(PRIO_POINTER.into())?.value() as *mut AtomicUsize;
-                (unsafe { &*prio_ptr }).store(MAX_PRIO - 1, Ordering::Relaxed);
-                
+
                 mm.page_table
                     .map(
                         VirtAddr::from(TRAMPOLINE_VA).into(),
@@ -95,9 +91,18 @@ impl MM {
         }
     }
 
-    pub fn set_heap_ptr(&mut self, heap_addr: usize) {
+    pub fn set_heap_ptr(&mut self, heap_addr: usize, is_kernel: bool) -> KernelResult {
+        // set task prority
+        if is_kernel {
+            self.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE)?;
+        } else {
+            self.alloc_write_vma(None, HEAP_POINTER.into(), (HEAP_POINTER + PAGE_SIZE).into(), VMFlags::READ | VMFlags::WRITE | VMFlags::USER)?;
+        }
+        let prio_ptr = self.translate(PRIO_POINTER.into())?.value() as *mut AtomicUsize;
+        (unsafe { &*prio_ptr }).store(MAX_PRIO - 1, Ordering::Relaxed);
         let paddr = self.translate(HEAP_POINTER.into()).unwrap();
         unsafe { *(paddr.value() as *mut usize) = heap_addr; }
+        Ok(())
     }
 
     /// Create a new [`MM`] from cloner.

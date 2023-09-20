@@ -72,9 +72,8 @@ pub extern "C" fn rust_main(hartid: usize) -> ! {
         }
     }
     lkm::init();
-    // Enable timer interrupt
-    arch::trap::enable_timer_intr();
-    arch::trap::enable_ext_intr();
+    // trap init
+    arch::trap::init();
     timer::set_next_trigger();
     #[cfg(feature = "board_axu15eg")]
     driver::init();
@@ -95,9 +94,8 @@ pub extern "C" fn rust_main_others(hartid: usize) -> ! {
     // Other initializations.
     arch::init(hartid, false);
     info!("(Secondary) Start executing tasks.");
-    // Enable timer interrupt
-    arch::trap::enable_timer_intr();
-    arch::trap::enable_ext_intr();
+    // trap init
+    arch::trap::init();
     timer::set_next_trigger();
     #[cfg(feature = "board_axu15eg")]
     plic::init_hart(hartid);

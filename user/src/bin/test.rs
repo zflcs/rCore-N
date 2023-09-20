@@ -40,6 +40,12 @@ pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, irqs: usize) -> u
     println!("\tPending User Interrupts: {:b}", irqs);
     unsafe { UINTR_RECEIVED = true };
     println!("UINTR_RECEIVED {}", unsafe { UINTR_RECEIVED } );
+    use executor::{MessageQueue, MESSAGE_QUEUE_ADDR};
+    let queue = unsafe { &mut *(MESSAGE_QUEUE_ADDR as *mut MessageQueue) };
+    while let Some(message) = queue.dequeue() {
+        println!("message {:?}", message);
+    }
+
     return 0;
 }
 

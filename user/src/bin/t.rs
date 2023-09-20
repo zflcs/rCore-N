@@ -25,7 +25,7 @@ const CLOSE_CONNECT_STR: &str = "close connection";
 
 // static MAX_POLL_THREADS: usize = 4 - 1;
 
-const SERVER_USE_PRIO: usize = 2;
+const SERVER_USE_PRIO: usize = 8;
 const CONNECTION_NUM: usize = SERVER_USE_PRIO * 1;
 
 // request
@@ -37,7 +37,7 @@ static mut RSP_MAP: Vec<MessageQueue> = Vec::new();
 pub fn main() -> i32 {
 
     println!("This is a very simple http server");
-    uintr_init();
+    // uintr_init();
     
     let tcp_fd = listen(80);
     if tcp_fd < 0 {
@@ -56,9 +56,14 @@ pub fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, irqs: usize) -> usize {
-    println!("need wake up coroutine {}", irqs);
-    vdso::wake(irqs);
+pub extern "C" fn uintr_handler(_uintr_frame: &mut UintrFrame, _irqs: usize) -> usize {
+    use executor::{MessageQueue, MESSAGE_QUEUE_ADDR};
+    let queue = unsafe { &mut *(MESSAGE_QUEUE_ADDR as *mut MessageQueue) };
+    while let Some(message) = queue.dequeue() {
+        println!("message {:?}", message);
+        vdso::wake(Some(message));
+    }
+    // vdso::wake(None);
     return 0;
 }
 
@@ -108,7 +113,7 @@ async fn handle_tcp_client_async(client_fd: usize, matrix_calc_cid: usize, i: us
         println!("[{}] push req to requset queue", i);
         // wake up calculate coroutine
         if vdso::is_pending(matrix_calc_cid) {
-            vdso::wake(matrix_calc_cid);
+            vdso::wake(Some(matrix_calc_cid));
         }
         if recv_str == CLOSE_CONNECT_STR {
             break;
@@ -135,7 +140,7 @@ async fn matrix_calc_async(client_fd: usize, send_rsp_cid: usize, i: usize) {
             unsafe { let _ = RSP_MAP[client_fd].push(rsp); }
             // wake up send response coroutine
             if vdso::is_pending(send_rsp_cid) {
-                vdso::wake(send_rsp_cid);
+                vdso::wake(Some(send_rsp_cid));
             }
             if req == CLOSE_CONNECT_STR {
                 break;
@@ -155,7 +160,7 @@ async fn send_rsp_async(client_fd: usize, i: usize) {
         if let Some(rsp) = rsp_queue.pop() {
             if rsp == CLOSE_CONNECT_STR {
                 // println!("[send_rsp] break");
-                // println!("close socket fd: {}", client_fd);
+                println!("close socket fd: {}", client_fd);
                 close(client_fd);
                 break;
             }

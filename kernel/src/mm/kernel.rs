@@ -122,6 +122,6 @@ fn new_kernel() -> KernelResult<MM> {
         info!("{:>10} [{:#x}, {:#x})", "arch mmio", base, base + len);
     }
     // Heap pointer
-    mm.set_heap_ptr(sdata as usize);
+    mm.set_heap_ptr(sdata as usize, true)?;
     Ok(mm)
 }

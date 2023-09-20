@@ -2,7 +2,9 @@
 cases = [
     "shell",
     "sharedscheduler",
-    "tp",
+    "t",
     "p",
-    "tcp"
+    "tcp",
+    "test",
+    "hello"
 ]

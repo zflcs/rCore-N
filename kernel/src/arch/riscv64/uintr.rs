@@ -7,6 +7,7 @@ use kernel_sync::SpinLock;
 use spin::Lazy;
 pub use syscall::*;
 pub use uintr::*;
+use uintr::ustatus::Ustatus;
 
 use crate::{
     arch::mm::{AllocatedFrame, PAGE_SIZE},
@@ -185,6 +186,9 @@ pub struct TaskUIntrInner {
 
     /// User error pc
     pub uepc: usize,
+
+    /// User ustatus
+    pub ustatus: Option<usize>
 }
 
 impl TaskUIntrInner {
@@ -196,6 +200,7 @@ impl TaskUIntrInner {
             utvec: 0,
             uscratch: 0,
             uepc: 0,
+            ustatus: None,
         }
     }
 
@@ -286,7 +291,7 @@ mod syscall {
     use errno::Errno;
     use riscv::register::sstatus;
     use syscall_interface::SyscallResult;
-    use uintr::utvec::Utvec;
+    use uintr::{utvec::Utvec, uip::Uip};
     use vfs::File;
 
     use crate::{
@@ -371,10 +376,6 @@ mod syscall {
         pub fn uintr_test(fd: usize) -> SyscallResult {
             let curr = cpu().curr.as_ref().unwrap();
             curr.push_message(2);
-            curr.push_message(3);
-            curr.push_message(4);
-            curr.push_message(5);
-            curr.push_message(6);
             let uintr_inner = curr.uintr_inner();
             if let Some(uirs) = &uintr_inner.uirs {
                 let index = uirs.0;
@@ -390,13 +391,15 @@ mod syscall {
 
     /// send a user interrupt to the specific user process
     pub unsafe fn uirs_send(task: Arc<Task>, irq: usize) {
+        task.push_message(irq);
         let uintr_inner = task.uintr_inner();
         if let Some(uirs) = &uintr_inner.uirs {
             let index = uirs.0;
             let mut uirs = UIntrReceiver::from(index);
             uirs.hartid = get_cpu_id() as u16;
             uirs.mode |= 0x2; // 64 bits
-            uirs.irq = irq as _;
+            // 2 is used to tell user process to wake up coroutine
+            uirs.irq = 2;
             uirs.sync(index);
         } else {
             log::warn!("cannot send user interrupt");
@@ -425,20 +428,25 @@ mod syscall {
             // log::trace!("uepc {:#x?}", uintr_inner.uepc);
             utvec::write(uintr_inner.utvec, utvec::TrapMode::Direct);
             uscratch::write(uintr_inner.uscratch);
-            uie::set_usoft();
+            let ustatus = uintr_inner.ustatus.unwrap();
+            unsafe { core::arch::asm!("csrw ustatus, {0}", in(reg)ustatus); }
 
             // supervisor configurations
             suirs::write((1 << 63) | (index & 0xffff));
-            sideleg::set_usoft();
             if uirs.irq != 0 {
                 sip::set_usoft();
+                ustatus::set_uie();
+                uie::set_usoft();
             } else {
                 sip::clear_usoft();
+                ustatus::clear_uie();
+                uie::clear_usoft();
             }
         } else {
             // supervisor configurations
+            uie::clear_usoft();
+            ustatus::clear_uie();
             sip::clear_usoft();
-            sideleg::clear_usoft();
             suirs::write(0);
         }
     }
@@ -467,6 +475,10 @@ mod syscall {
         let curr = cpu().curr.as_ref().unwrap();
         
         curr.uintr_inner().uepc = uepc::read();
+        let mut ustatus = 0usize;
+        unsafe { core::arch::asm!("csrr {0}, ustatus", out(reg)ustatus); }
+        curr.uintr_inner().ustatus = Some(ustatus);
+        log::trace!("task {:?} ustatus {:?}", curr, curr.uintr_inner().ustatus);
     }
 
     pub struct UIntrFile {

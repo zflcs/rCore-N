@@ -13,6 +13,6 @@ mod executor;
 mod config;
 
 
-pub use executor::{Executor, EMPTY_QUEUE};
+pub use executor::{Executor, EMPTY_QUEUE, MessageQueue};
 pub use coroutine::{CoroutineId, Coroutine, CoroutineKind};
-pub use config::MAX_PRIO;
+pub use config::{MAX_PRIO, MESSAGE_QUEUE_ADDR, MESSAGE_QUEUE_LEN};
