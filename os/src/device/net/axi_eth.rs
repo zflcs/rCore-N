@@ -60,23 +60,21 @@ lazy_static! {
 }
 
 pub fn init() {
-    #[allow(unused_assignments)]
-    let mut speed = 1000;
-    ETHERNET.lock().reset();
-    ETHERNET.lock().detect_phy();
-    speed = ETHERNET.lock().get_phy_speed_ksz9031();
+    let mut eth = ETHERNET.lock();
+    eth.reset();
+    eth.detect_phy();
+    let speed = eth.get_phy_speed_ksz9031();
     trace!("speed is: {}", speed);
-    ETHERNET.lock().set_operating_speed(speed as u16);
+    eth.set_operating_speed(speed as u16);
     if speed == 0 {
-        ETHERNET.lock().link_status = LinkStatus::EthLinkDown;
+        eth.link_status = LinkStatus::EthLinkDown;
     } else {
-        ETHERNET.lock().link_status = LinkStatus::EthLinkUp;
+        eth.link_status = LinkStatus::EthLinkUp;
     }
-    ETHERNET.lock().set_mac_address(&MAC_ADDR);
+    eth.set_mac_address(&MAC_ADDR);
     trace!("link_status: {:?}", ETHERNET.lock().link_status);
-    for _ in 0..100000 {}
-    ETHERNET.lock().enable_intr(XAE_INT_RECV_ERROR_MASK);
-    ETHERNET.lock().start();
+    eth.enable_intr(XAE_INT_RECV_ERROR_MASK);
+    eth.start();
 }
 
 

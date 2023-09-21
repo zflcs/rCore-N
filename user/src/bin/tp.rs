@@ -18,7 +18,7 @@ const CLOSE_CONNECT_STR: &str = "close connection";
 static MAX_POLL_THREADS: usize = 4 - 1;
 
 const SERVER_USE_PRIO: usize = 8;
-const CONNECTION_NUM: usize = SERVER_USE_PRIO * 8;
+const CONNECTION_NUM: usize = SERVER_USE_PRIO * 16;
 
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();

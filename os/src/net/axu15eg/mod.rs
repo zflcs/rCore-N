@@ -34,7 +34,7 @@ pub static ASYNC_RDMP: Lazy<Arc<Mutex<BTreeMap<usize, usize>>>> = Lazy::new(|| A
 
 #[cfg(feature = "board_axu15eg")]
 pub fn net_interrupt_handler(irq: u16) {
-    use crate::{net::axu15eg::reply::{build_arp_repr, build_eth_repr, analysis_tcp, build_eth_frame}, device::net::ETHERNET};
+    use crate::{net::axu15eg::reply::{build_arp_repr, build_eth_repr, analysis_tcp, build_eth_frame}, device::{net::{ETHERNET, self}, AXI_DMA, dma}};
     if irq == 2 {
         log::debug!("new mac_irq");
     } else if irq == 3 {            // maybe need to wait a moment
@@ -47,7 +47,10 @@ pub fn net_interrupt_handler(irq: u16) {
         // AXI_DMA.lock().tx_from_hw(); 
     } else if irq == 5 {
         log::trace!("new s2mm intr");
-        AXI_DMA_INTR.lock().rx_intr_handler();
+        if !AXI_DMA_INTR.lock().rx_intr_handler() {
+            dma::init();
+            net::init();
+        }
         if let Some(buf) = NetDevice.receive() {
             if let Ok(mut eth_packet) = EthernetFrame::new_checked(buf) {
                 match eth_packet.ethertype() {

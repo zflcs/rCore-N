@@ -113,6 +113,8 @@ impl AxiDmaBdRing {
         let len = buf.len();
         buffer[0..len].copy_from_slice(buf);
         self.buf_len = len;
+        // set buf align
+        
     }
 
     pub fn submit(&mut self) {
