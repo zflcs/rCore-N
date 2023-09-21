@@ -20,7 +20,7 @@ pub fn get_context(hart_id: usize, mode: char) -> usize {
 
 
 pub fn init() {
-    for i in 4..=6 {
+    for i in 2..=6 {
         Plic::set_priority(i, Priority::lowest());
     }
 }
@@ -31,6 +31,8 @@ pub fn init_hart(hart_id: usize) {
     let context = get_context(hart_id, 'S');
     Plic::clear_enable(context, 0);
     Plic::clear_enable(get_context(hart_id, 'U'), 0);
+    Plic::enable(context, 2);
+    Plic::enable(context, 3);
     Plic::enable(context, 4);
     Plic::enable(context, 5);
     Plic::enable(context, 6);
@@ -43,7 +45,7 @@ pub fn handle_external_interrupt(hart_id: usize) {
     let context = get_context(hart_id, 'S');
     while let Some(irq) = Plic::claim(context) {
         match irq {
-            4 | 5 => {
+            2 | 3 | 4 | 5 => {
                 log::trace!("[PLIC] irq {:?} handled by kenel", irq);
                 net_interrupt_handler(irq);
             }

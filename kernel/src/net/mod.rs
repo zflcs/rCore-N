@@ -32,8 +32,14 @@ pub static NET_STACK: Lazy<NetStack> = Lazy::new(|| NetStack::default());
 
 #[cfg(feature = "board_axu15eg")]
 pub fn net_interrupt_handler(irq: u16) {
-    use crate::net::reply::{build_arp_repr, build_eth_repr, analysis_tcp, build_eth_frame};
-    if irq == 4 {
+    use crate::{net::reply::{build_arp_repr, build_eth_repr, analysis_tcp, build_eth_frame}, driver::net::ETHERNET};
+    if irq == 2 {
+        log::debug!("new mac_irq");
+    } else if irq == 3 {            // maybe need to wait a moment
+        // log::debug!("new interrupt {:b}", ETHERNET.lock().get_intr_status());
+        
+        // ETHERNET.lock().clear_intr(mask);
+    } else if irq == 4 {
         log::trace!("new mm2s intr");
         AXI_DMA_INTR.lock().tx_intr_handler();
         // AXI_DMA.lock().tx_from_hw(); 

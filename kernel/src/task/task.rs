@@ -407,7 +407,9 @@ impl Task {
         let mut mm = self.mm();
         let pa = mm.translate(MESSAGE_QUEUE_ADDR.into()).unwrap();
         let queue = pa.get_mut::<MessageQueue>();
-        queue.enqueue(message).map_err(|_| KernelError::Unimplemented)
+        let e = queue.enqueue(message).map_err(|_| KernelError::Unimplemented);
+        log::debug!("push message {} {:?}", message, e);
+        e
     }
 }
 

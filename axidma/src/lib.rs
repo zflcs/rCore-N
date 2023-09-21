@@ -484,7 +484,7 @@ impl AxiDmaIntr {
         }
     }
 
-    pub fn rx_intr_handler(&self) {
+    pub fn rx_intr_handler(&self) -> bool {
         let sr = &self.hardware().s2mm_dmasr;
         if sr.read().err_irq().is_detected() {
             // dump regs
@@ -492,6 +492,7 @@ impl AxiDmaIntr {
             error!("axidma: rx err intr detected");
             self.rx_dump_regs();
             sr.modify(|_, w| w.err_irq().set_bit());
+            return false;
         }
         if sr.read().ioc_irq().is_detected() {
             trace!("axidma_intr: rx cplt intr detected");
@@ -503,6 +504,7 @@ impl AxiDmaIntr {
             sr.modify(|_, w| w.dly_irq().set_bit());
             RX_FRAMES.fetch_add(1, Relaxed);
         }
+        true
     }
 
     pub fn tx_dump_regs(&self) {

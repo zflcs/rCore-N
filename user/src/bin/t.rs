@@ -13,20 +13,20 @@ use user_syscall::{close, listen, accept, aread, exit, uintr_create_fd, write};
 
 use crossbeam::queue::ArrayQueue;
 
-const MESSAGE_QUEUE_LEN: usize = 1 << 8;
+const MESSAGE_QUEUE_LEN: usize = 2 << 8;
 type MessageQueue = ArrayQueue<String>;
 
 
 
-const BUF_LEN: usize = 2048;
+const BUF_LEN: usize = 1024;
 const MATRIX_SIZE: usize = 10;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
-// static MAX_POLL_THREADS: usize = 4 - 1;
+// static MAX_POLL_THREADS: usize = 2 - 1;
 
-const SERVER_USE_PRIO: usize = 8;
-const CONNECTION_NUM: usize = SERVER_USE_PRIO * 1;
+const SERVER_USE_PRIO: usize = 3;
+const CONNECTION_NUM: usize = SERVER_USE_PRIO * 6;
 
 // request
 static mut REQ_MAP: Vec<MessageQueue> = Vec::new();

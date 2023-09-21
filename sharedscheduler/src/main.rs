@@ -122,6 +122,7 @@ fn user_entry() {
     let tid = gettid() as usize;
     loop {
         while let Some(cid) = executor.pop_wake_cid() {
+            println!("wake {}", cid);
             executor.wake(CoroutineId(cid));
         }
         if let Some(task) = executor.fetch(tid) {

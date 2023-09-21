@@ -39,6 +39,7 @@ pub(super) struct AxiDmaBdRing {
     #[allow(unused)]
     cyclic: usize,
 
+    buf_len: usize,
     pin_buf: Pin<&'static mut [u8]>
 
 }
@@ -58,6 +59,7 @@ impl AxiDmaBdRing {
             done_cnt: 0,
             all_cnt: 0,
             cyclic: 0,
+            buf_len: pin_buf.len(),
             pin_buf
         }
     }
@@ -110,12 +112,13 @@ impl AxiDmaBdRing {
         let buffer = &mut self.pin_buf;
         let len = buf.len();
         buffer[0..len].copy_from_slice(buf);
+        self.buf_len = len;
     }
 
     pub fn submit(&mut self) {
         let buf = &self.pin_buf;
         let start = self.bd_restart;
-        let mut buf_len = buf.len();
+        let mut buf_len = self.buf_len;
         let mut buf_head = 0;
         let mut bd_len = self.config.max_transfer_len;
         let bd_cnt = (buf_len + bd_len - 1) / bd_len;
@@ -131,7 +134,7 @@ impl AxiDmaBdRing {
             let bd = &self.ring[self.bd_restart];
             bd.clear();
             if buf_len < bd_len {
-                bd_len = buf.len();
+                bd_len = buf_len;
             }
             bd.set_buf(&buf[buf_head..buf_head + bd_len]);
             let peek_len = 16.min(bd_len);
@@ -148,6 +151,7 @@ impl AxiDmaBdRing {
                 self.bd_restart = 0;
             }
         }
+        self.buf_len = buf.len();
         self.bd_tail = if self.bd_restart == 0 {
             self.ring.len() - 1
         } else {

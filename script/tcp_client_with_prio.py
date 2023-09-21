@@ -12,9 +12,9 @@ import os
 RUN_TIME_LIMIT = 5000
 
 matrix_size = 10
-req_freq = 0.05
-server_use_prio = 8
-threads_num = server_use_prio * 1
+req_freq = 1
+server_use_prio = 3
+threads_num = server_use_prio * 6
 
 global_num = 0
 lock = Lock()

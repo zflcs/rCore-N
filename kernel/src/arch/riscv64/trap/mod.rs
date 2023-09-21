@@ -77,6 +77,7 @@ pub fn user_trap_handler() -> ! {
     uintr_save();
 
     set_kernel_trap();
+    enable_supervisor_intr();
 
     let scause = scause::read();
     let sstatus = sstatus::read();
@@ -108,7 +109,6 @@ pub fn user_trap_handler() -> ! {
             let curr = cpu().curr.as_ref().unwrap();
             let trapframe = curr.trapframe();
             trapframe.next_epc();
-            enable_supervisor_intr();
 
             match syscall(trapframe.syscall_args().unwrap()) {
                 Ok(ret) => trapframe.set_a0(ret),

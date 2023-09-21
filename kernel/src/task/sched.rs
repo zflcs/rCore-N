@@ -247,6 +247,9 @@ pub unsafe fn idle() -> ! {
                         locked_inner.state = TaskState::RUNNING;
                         &t.inner().ctx as *const TaskContext
                     };
+                    if t.pid > 1 {
+                        log::debug!("run {:?}", t);
+                    }
                     
                     // Ownership moved to `current`.
                     cpu().curr = Some(t);

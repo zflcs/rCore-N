@@ -30,7 +30,7 @@ impl NetDevice {
     pub fn transmit(&self, data: &[u8]) {
         log::trace!("net transmit");
         // reclaim tx descriptor block
-        AXI_DMA.lock().tx_from_hw();
+        // AXI_DMA.lock().tx_from_hw();
         // 初始化填充发送帧
         AXI_DMA.lock().tx_submit(data);
         AXI_DMA.lock().tx_to_hw();    

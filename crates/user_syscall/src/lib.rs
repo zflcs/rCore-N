@@ -3,7 +3,7 @@
 pub mod async_help;
 
 extern crate alloc;
-use alloc::vec::Vec;
+use alloc::{vec::Vec, boxed::Box};
 use async_help::AsyncCall;
 use bitflags::bitflags;
 use core::arch::asm;
