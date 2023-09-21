@@ -11,10 +11,10 @@ import os
 
 RUN_TIME_LIMIT = 5000
 
-matrix_size = 20
+matrix_size = 10
 req_freq = 0.05
 server_use_prio = 8
-threads_num = server_use_prio * 16
+threads_num = server_use_prio * 8
 
 global_num = 0
 lock = Lock()
@@ -74,7 +74,7 @@ def connect(index):
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     time.sleep(0.2 * index)
-    server_addr = ("127.0.0.1", 6201)
+    server_addr = ("172.16.1.2", 80)
     tcp_socket.connect(server_addr)
 
     send_data = "connect ok?"

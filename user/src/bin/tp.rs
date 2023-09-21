@@ -11,14 +11,14 @@ use spin::Mutex;
 use lazy_static::*;
 
 const BUF_LEN: usize = 2048;
-const MATRIX_SIZE: usize = 20;
+const MATRIX_SIZE: usize = 10;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 4 - 1;
 
 const SERVER_USE_PRIO: usize = 8;
-const CONNECTION_NUM: usize = SERVER_USE_PRIO * 16;
+const CONNECTION_NUM: usize = SERVER_USE_PRIO * 8;
 
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();
@@ -136,14 +136,14 @@ pub fn main() -> i32 {
 
     println!("This is a very simple http server");
     let pid = getpid();
-    let init_res = init_user_trap();
+    // let init_res = init_msg_buf();
     for _ in 0..MAX_POLL_THREADS {
         add_virtual_core();
     }
-    println!(
-        "[hello tcp test] trap init result: {:#x}, pid: {}",
-        init_res, pid
-    );
+    // println!(
+    //     "[hello tcp test] trap init result: {:#x}, pid: {}",
+    //     init_res, pid
+    // );
     
     let tcp_fd = listen(80);
     if tcp_fd < 0 {

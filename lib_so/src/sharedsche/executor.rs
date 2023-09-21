@@ -10,7 +10,19 @@ use super::{
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
+use crate::USER_TRAP_BUFFER;
 use crate::config::{MAX_THREAD_NUM, PRIO_NUM};
+use heapless::spsc::Queue;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct UserTrapRecord {
+    pub cause: usize,
+    pub message: usize,
+}
+const MAX_USER_TRAP_NUM: usize = 128;
+pub type UserTrapQueue = Queue<UserTrapRecord, MAX_USER_TRAP_NUM>;
+
 
 pub struct ExMutex {
     mutex: Mutex<()>,
@@ -75,6 +87,17 @@ impl Executor {
 }
 
 impl Executor {
+
+    pub fn get_msg(&mut self) -> Option<usize> {
+        let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
+        if let Some(trap_record) = trap_queue.dequeue() {
+            let msg = trap_record.message;
+            Some(msg)
+        } else {
+            None
+        }
+    }
+
     /// 更新协程优先级
     pub fn reprio(&mut self, cid: CoroutineId, prio: usize) {
         let _lock: spin::MutexGuard<'_, ()> = self.wr_lock.lock();

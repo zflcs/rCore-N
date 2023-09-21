@@ -31,14 +31,11 @@ build: user unifi-sche
     LOG=DEBUG cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
 
-build_axu15eg: user_axu15eg
+build_axu15eg: user_axu15eg unifi-sche
     LOG=DEBUG cargo build --features "board_axu15eg" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
     cp {{KERNEL_BIN}} {{KERNEL_BIN_axu15eg}}
 
-upload: build_axu15eg
-	cd /home/zfl/u-intr/opensbi && make CROSS_COMPILE=riscv64-unknown-elf- PLATFORM=axu15eg && \
-	scp build/platform/axu15eg/firmware/fw_payload.bin root@192.168.1.2:~
 
 disasm: build
     {{OBJDUMP}} -S -t {{KERNEL_ELF}} > {{KERNEL_ASM}}
@@ -50,6 +47,11 @@ run: build
     {{QEMU}} -machine virt -smp 4  -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000 \
     -device virtio-net-device,netdev=net0 \
     -netdev user,id=net0,hostfwd=tcp::6201-:80
+
+upload: build_axu15eg
+	cd /home/zfl/u-intr/opensbi && make CROSS_COMPILE=riscv64-unknown-elf- PLATFORM=axu15eg && \
+	scp build/platform/axu15eg/firmware/fw_payload.bin axu15eg:~
+	ssh axu15eg "./start_rocket.sh"
 
 # debug_qemu: build
 #     {{QEMU}} -machine virt -smp 4 {{SERIAL_FLAGS}} -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000 -d int -D debug.log

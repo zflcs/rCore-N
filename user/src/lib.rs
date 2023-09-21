@@ -42,6 +42,7 @@ pub extern "C" fn _start() {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
     }
     heap::init();
+    let _ = init_msg_buf();
     lib_so::spawn(move || async{ main(); }, lib_so::PRIO_NUM - 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
 }
 
@@ -128,6 +129,11 @@ impl Future for TimerHelper {
 #[no_mangle]
 fn main() -> i32 {
     panic!("Cannot find main!");
+}
+
+pub fn init_msg_buf() -> isize {
+    let ans = sys_init_user_trap(0);
+    ans
 }
 
 pub fn init_user_trap() -> isize {

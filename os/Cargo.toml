@@ -30,6 +30,7 @@ lib_so = { path = "../lib_so", features = ["kernel"] }
 axi-ethernet = { git = "https://github.com/zflcs/axiethernet.git", optional = true }
 axidma = { path = "../axidma", optional = true }
 sbi-rt = { version = "0.0.2", features = ["legacy"] }
+kernel-sync = {  git = "https://github.com/tkf2019/kernel-sync" }
 
 [dependencies.smoltcp]
 version = "0.9.1"

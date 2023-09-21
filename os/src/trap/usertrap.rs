@@ -161,3 +161,16 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
         Err(UserTrapError::TaskNotFound)
     }
 }
+
+
+pub fn push_message(pid: usize, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
+    if let Some(pcb) = pid2process(pid) {
+        let mut pcb_inner = pcb.acquire_inner_lock();
+        pcb_inner.push_message(trap_record)
+    } else {
+        warn!("[push trap record] Task Not Found!");
+        // push_trace(PUSH_TRAP_RECORD_EXIT);
+        Err(UserTrapError::TaskNotFound)
+    }
+    
+}

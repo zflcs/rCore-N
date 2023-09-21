@@ -1,8 +1,8 @@
 pub mod plic;
 pub mod uart;
 mod bus;
-mod net;
-mod dma;
+pub mod net;
+pub mod dma;
 
 pub use net::NetDevice;
 pub use dma::*;

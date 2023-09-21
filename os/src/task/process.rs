@@ -142,6 +142,15 @@ impl ProcessControlBlockInner {
         }
         res
     }
+
+    pub fn push_message(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
+        let mut res = Err(UserTrapError::TaskNotFound);
+        if let Some(trap_info) = &mut self.user_trap_info {
+            res = trap_info.push_trap_record(trap_record);
+        }
+        res
+    }
+
 }
 
 impl ProcessControlBlock {

@@ -18,7 +18,7 @@ use core::{
         Ordering::{Relaxed, SeqCst},
     },
 };
-use core::{ops::Deref, pin::Pin};
+use core::pin::Pin;
 
 pub use crate::hw::AXI_DMA_CONFIG;
 
@@ -33,11 +33,13 @@ pub static RX_FRAMES: AtomicUsize = AtomicUsize::new(0);
 pub struct AxiDma {
     base_address: usize,
     has_sg: bool,
+    #[allow(unused)]
     is_micro_dma: bool,
     is_initialized: bool,
 
     tx_bd_ring: Option<AxiDmaBdRing>,
     rx_bd_ring: Option<AxiDmaBdRing>,
+    #[allow(unused)]
     addr_width: isize,
 }
 
@@ -67,17 +69,17 @@ pub struct AxiDmaIntr {
     base_address: usize,
 }
 
-impl Default for AxiDma {
-    fn default() -> Self {
-        AxiDma::new(AXI_DMA_CONFIG)
-    }
-}
+// impl Default for AxiDma {
+//     fn default() -> Self {
+//         AxiDma::new(AXI_DMA_CONFIG)
+//     }
+// }
 
 
 
 impl AxiDma {
     const RESET_TIMEOUT: isize = 500;
-    pub fn new(config: AxiDmaConfig) -> Self {
+    pub fn new(config: AxiDmaConfig, tx_buf: Pin<&'static mut [u8]>, rx_buf: Pin<&'static mut [u8]>) -> Self {
         let max_transfer_len = (1usize << config.sg_length_width) - 1;
         let tx_bd_ring = if config.has_mm2s {
             Some(AxiDmaBdRing::new(AxiDmaBdRingConfig {
@@ -92,7 +94,7 @@ impl AxiDma {
                 } else {
                     max_transfer_len
                 },
-            }))
+            }, tx_buf))
         } else {
             None
         };
@@ -110,7 +112,7 @@ impl AxiDma {
                 } else {
                     max_transfer_len
                 },
-            }))
+            }, rx_buf))
         } else {
             None
         };
@@ -250,7 +252,7 @@ impl AxiDma {
     }
 
     pub fn tx_intr_disable(&self) {
-        debug!("axidma::tx_intr_disable");
+        trace!("axidma::tx_intr_disable");
         self.hardware().mm2s_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .disable()
@@ -262,7 +264,7 @@ impl AxiDma {
     }
 
     pub fn rx_intr_disable(&self) {
-        debug!("axidma::rx_intr_disable");
+        trace!("axidma::rx_intr_disable");
         self.hardware().s2mm_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .disable()
@@ -274,7 +276,7 @@ impl AxiDma {
     }
 
     pub fn tx_intr_enable(&self) {
-        debug!("axidma::tx_intr_enable");
+        trace!("axidma::tx_intr_enable");
         self.hardware().mm2s_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .enable()
@@ -286,7 +288,7 @@ impl AxiDma {
     }
 
     pub fn rx_intr_enable(&self) {
-        debug!("axidma::rx_intr_enable");
+        trace!("axidma::rx_intr_enable");
         self.hardware().s2mm_dmacr.modify(|_, w| {
             w.dly_irq_en()
                 .enable()
@@ -311,27 +313,21 @@ impl AxiDma {
         }
     }
 
-    pub fn tx_submit<B>(&mut self, bufs: &[&Pin<B>])
-    where
-        B: Deref,
-        B::Target: AsRef<[u8]>,
-    {
+    pub fn tx_submit(&mut self, buf: &[u8]) {
         if let Some(ring) = self.tx_bd_ring.as_mut() {
-            ring.submit(bufs);
+            ring.fill_buf(buf);
+            ring.submit();
         } else {
-            warn!("axidma::tx_submit: no tx ring!");
+            trace!("axidma::tx_submit: no tx ring!");
         }
     }
 
-    pub fn rx_submit<B>(&mut self, bufs: &[&Pin<B>])
-    where
-        B: Deref,
-        B::Target: AsRef<[u8]>,
+    pub fn rx_submit(&mut self)
     {
         if let Some(ring) = self.rx_bd_ring.as_mut() {
-            ring.submit(bufs);
+            ring.submit();
         } else {
-            warn!("axidma::rx_submit: no rx ring!");
+            trace!("axidma::rx_submit: no rx ring!");
         }
     }
 
@@ -344,7 +340,7 @@ impl AxiDma {
                 let addr = ring.head_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::tx_to_hw: cur desc addr: 0x{:x}", addr);
+                trace!("axidma::tx_to_hw: cur desc addr: 0x{:x}", addr);
                 unsafe {
                     hardware
                         .mm2s_curdesc
@@ -354,7 +350,7 @@ impl AxiDma {
                         .write(|w| w.curdesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::tx_to_hw: ring running, cur desc not updated");
+                trace!("axidma::tx_to_hw: ring running, cur desc not updated");
             }
             compiler_fence(SeqCst);
             fence(SeqCst);
@@ -369,7 +365,7 @@ impl AxiDma {
                 let addr = ring.tail_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::tx_to_hw: tail desc addr: 0x{:x}", addr);
+                trace!("axidma::tx_to_hw: tail desc addr: 0x{:x}", addr);
                 unsafe {
                     hardware
                         .mm2s_taildesc
@@ -379,10 +375,10 @@ impl AxiDma {
                         .write(|w| w.taildesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::tx_to_hw: no pending BD, tail desc not updated");
+                trace!("axidma::tx_to_hw: no pending BD, tail desc not updated");
             }
         } else {
-            warn!("axidma::tx_to_hw: no tx ring!");
+            trace!("axidma::tx_to_hw: no tx ring!");
         }
     }
 
@@ -395,7 +391,7 @@ impl AxiDma {
                 let addr = ring.head_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::rx_to_hw: cur desc addr: 0x{:x}", addr);
+                trace!("axidma::rx_to_hw: cur desc addr: 0x{:x}", addr);
 
                 unsafe {
                     hardware
@@ -406,7 +402,7 @@ impl AxiDma {
                         .write(|w| w.curdesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::rx_to_hw: ring running, cur desc not updated");
+                trace!("axidma::rx_to_hw: ring running, cur desc not updated");
             }
 
             compiler_fence(SeqCst);
@@ -421,7 +417,7 @@ impl AxiDma {
                 let addr = ring.tail_desc_addr();
                 let addr_lsb = ((addr & 0xFFFF_FFFF) >> 6) as _;
                 let addr_msb = (addr >> 32) as _;
-                debug!("axidma::rx_to_hw: tail desc addr: 0x{:x}", addr);
+                trace!("axidma::rx_to_hw: tail desc addr: 0x{:x}", addr);
                 unsafe {
                     hardware
                         .s2mm_taildesc
@@ -431,10 +427,10 @@ impl AxiDma {
                         .write(|w| w.taildesc_ptr().bits(addr_msb));
                 }
             } else {
-                warn!("axidma::rx_to_hw: no pending BD, tail desc not updated");
+                trace!("axidma::rx_to_hw: no pending BD, tail desc not updated");
             }
         } else {
-            warn!("axidma::rx_to_hw: no rx ring!");
+            trace!("axidma::rx_to_hw: no rx ring!");
         }
     }
 
@@ -442,7 +438,7 @@ impl AxiDma {
         if let Some(ring) = self.tx_bd_ring.as_mut() {
             ring.from_hw()
         } else {
-            warn!("axidma::tx_from_hw: no tx ring!");
+            trace!("axidma::tx_from_hw: no tx ring!");
             None
         }
     }
@@ -451,7 +447,7 @@ impl AxiDma {
         if let Some(ring) = self.rx_bd_ring.as_mut() {
             ring.from_hw()
         } else {
-            warn!("axidma::rx_from_hw: no rx ring!");
+            trace!("axidma::rx_from_hw: no rx ring!");
             None
         }
     }
@@ -477,18 +473,18 @@ impl AxiDmaIntr {
             sr.modify(|_, w| w.err_irq().set_bit());
         }
         if sr.read().ioc_irq().is_detected() {
-            debug!("axidma_intr: tx cplt intr detected");
+            trace!("axidma_intr: tx cplt intr detected");
             sr.modify(|_, w| w.ioc_irq().set_bit());
             TX_FRAMES.fetch_add(1, Relaxed);
         }
         if sr.read().dly_irq().is_detected() {
-            debug!("axidma_intr: tx dly intr detected");
+            trace!("axidma_intr: tx dly intr detected");
             sr.modify(|_, w| w.dly_irq().set_bit());
             TX_FRAMES.fetch_add(1, Relaxed);
         }
     }
 
-    pub fn rx_intr_handler(&self) {
+    pub fn rx_intr_handler(&self) -> bool {
         let sr = &self.hardware().s2mm_dmasr;
         if sr.read().err_irq().is_detected() {
             // dump regs
@@ -496,17 +492,19 @@ impl AxiDmaIntr {
             error!("axidma: rx err intr detected");
             self.rx_dump_regs();
             sr.modify(|_, w| w.err_irq().set_bit());
+            return false;
         }
         if sr.read().ioc_irq().is_detected() {
-            debug!("axidma_intr: rx cplt intr detected");
+            trace!("axidma_intr: rx cplt intr detected");
             sr.modify(|_, w| w.ioc_irq().set_bit());
             RX_FRAMES.fetch_add(1, Relaxed);
         }
         if sr.read().dly_irq().is_detected() {
-            debug!("axidma_intr: rx dly intr detected");
+            trace!("axidma_intr: rx dly intr detected");
             sr.modify(|_, w| w.dly_irq().set_bit());
             RX_FRAMES.fetch_add(1, Relaxed);
         }
+        true
     }
 
     pub fn tx_dump_regs(&self) {
@@ -554,3 +552,17 @@ pub fn io_fence() {
         asm!("fence iorw,iorw");
     }
 }
+
+// #[test]
+// fn pin_test() {
+//     extern crate std;
+//     use alloc::boxed::Box;
+//     let frame = Box::pin([0u8; 64]);
+//     let t = move |f: Pin<Box<[u8; 64]>>| {
+//         std::println!("{:#x?}", f.as_ptr() as *const _ as usize);
+//         f
+//     };
+//     let f = t(frame);
+//     // core::mem::forget(frame);
+//     std::println!("{:#x?}", f.as_ptr() as *const _ as usize);
+// }

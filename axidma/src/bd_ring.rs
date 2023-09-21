@@ -3,17 +3,19 @@ use crate::io_fence;
 use crate::bd::AxiDmaBlockDesc;
 use alloc::{boxed::Box, collections::VecDeque, vec::Vec};
 use core::{
-    ops::Deref,
     pin::Pin,
     sync::atomic::{compiler_fence, fence, Ordering::SeqCst},
 };
 
 pub(super) struct AxiDmaBdRingConfig {
+    #[allow(unused)]
     pub chan_base_addr: usize,
+    #[allow(unused)]
     pub is_rx_chan: bool,
     pub has_sts_cntrl_strm: bool,
     pub has_dre: bool,
     pub data_width: usize,
+    #[allow(unused)]
     pub addr_ext: bool,
     pub max_transfer_len: usize,
 }
@@ -34,11 +36,16 @@ pub(super) struct AxiDmaBdRing {
     pub(super) submit_cnt: usize,
     done_cnt: usize,
     all_cnt: usize,
+    #[allow(unused)]
     cyclic: usize,
+
+    buf_len: usize,
+    pin_buf: Pin<&'static mut [u8]>
+
 }
 
 impl AxiDmaBdRing {
-    pub fn new(config: AxiDmaBdRingConfig) -> Self {
+    pub fn new(config: AxiDmaBdRingConfig, pin_buf: Pin<&'static mut [u8]>) -> Self {
         Self {
             config,
             is_halted: true,
@@ -52,20 +59,24 @@ impl AxiDmaBdRing {
             done_cnt: 0,
             all_cnt: 0,
             cyclic: 0,
+            buf_len: pin_buf.len(),
+            pin_buf
         }
     }
 
+    #[allow(unused)]
     pub fn snaphot_curr_bd(&self) {
         todo!();
     }
 
+    #[allow(unused)]
     pub fn start(&mut self) -> Result<(), ()> {
         todo!()
     }
 
     // pub fn create(&mut self, phys_addr: usize, virt_addr: usize, align: usize, bd_count: usize) {
     pub fn create(&mut self, bd_count: usize) {
-        debug!("bd_ring::create: creating ring with {} BD", bd_count);
+        trace!("bd_ring::create: creating ring with {} BD", bd_count);
         self.all_cnt = 0;
         self.free_cnt = 0;
         self.pending_cnt = 0;
@@ -86,7 +97,7 @@ impl AxiDmaBdRing {
         for i in 0..bd_count {
             let next_addr = &self.ring[(i + 1) % bd_count].desc as *const _ as usize;
             self.ring[i].set_next_desc_addr(next_addr);
-            // debug!("bd_ring::create: bd: {}, next_addr: 0x{:x}", i, next_addr);
+            // trace!("bd_ring::create: bd: {}, next_addr: 0x{:x}", i, next_addr);
         }
 
         self.is_halted = true;
@@ -97,59 +108,50 @@ impl AxiDmaBdRing {
         self.bd_restart = 0;
     }
 
-    pub fn submit<B>(&mut self, bufs: &[&Pin<B>])
-    where
-        B: Deref,
-        B::Target: AsRef<[u8]>,
-    {
-        let bd_len = self.config.max_transfer_len;
-        let mut total_buf_len = 0;
-        for buf in bufs {
-            total_buf_len += (***buf).as_ref().len();
-        }
-        let total_bd_cnt = (total_buf_len + bd_len - 1) / bd_len;
-        debug!(
-            "bd_ring::submit: total_buf_len: {}, total_bd_cnt: {}",
-            total_buf_len, total_bd_cnt
-        );
-        if total_bd_cnt > self.free_cnt {
+    pub fn fill_buf(&mut self, buf: &[u8]) {
+        let buffer = &mut self.pin_buf;
+        let len = buf.len();
+        buffer[0..len].copy_from_slice(buf);
+        self.buf_len = len;
+    }
+
+    pub fn submit(&mut self) {
+        let buf = &self.pin_buf;
+        let start = self.bd_restart;
+        let mut buf_len = self.buf_len;
+        let mut buf_head = 0;
+        let mut bd_len = self.config.max_transfer_len;
+        let bd_cnt = (buf_len + bd_len - 1) / bd_len;
+        if bd_cnt > self.free_cnt {
             error!("bd_ring::submit: too many BD required!");
             todo!()
         }
-        let start = self.bd_restart;
-
-        for buf in bufs {
-            let buf = (***buf).as_ref();
-            let mut buf_len = buf.len();
-            let mut buf_head = 0;
-            let mut bd_len = self.config.max_transfer_len;
-            let bd_cnt = (buf_len + bd_len - 1) / bd_len;
-            debug!(
-                "bd_ring::submit: buf_len: {}, bd_cnt: {}, restart: {}",
-                buf_len, bd_cnt, self.bd_restart
+        trace!(
+            "bd_ring::submit: buf_len: {}, bd_cnt: {}, restart: {}",
+            buf_len, bd_cnt, self.bd_restart
+        );
+        for _ in 0..bd_cnt {
+            let bd = &self.ring[self.bd_restart];
+            bd.clear();
+            if buf_len < bd_len {
+                bd_len = buf_len;
+            }
+            bd.set_buf(&buf[buf_head..buf_head + bd_len]);
+            let peek_len = 16.min(bd_len);
+            trace!(
+                "bd_ring::submit: peek buf[{}..{}]: {:x?}",
+                buf_head,
+                buf_head + peek_len,
+                &buf[buf_head..buf_head + peek_len]
             );
-            for _ in 0..bd_cnt {
-                let bd = &self.ring[self.bd_restart];
-                bd.clear();
-                if buf_len < bd_len {
-                    bd_len = buf.len();
-                }
-                bd.set_buf(&buf[buf_head..buf_head + bd_len]);
-                let peek_len = 16.min(bd_len);
-                trace!(
-                    "bd_ring::submit: peek buf[{}..{}]: {:x?}",
-                    buf_head,
-                    buf_head + peek_len,
-                    &buf[buf_head..buf_head + peek_len]
-                );
-                buf_head += bd_len;
-                buf_len -= bd_len;
-                self.bd_restart += 1;
-                if self.bd_restart == self.all_cnt {
-                    self.bd_restart = 0;
-                }
+            buf_head += bd_len;
+            buf_len -= bd_len;
+            self.bd_restart += 1;
+            if self.bd_restart == self.all_cnt {
+                self.bd_restart = 0;
             }
         }
+        self.buf_len = buf.len();
         self.bd_tail = if self.bd_restart == 0 {
             self.ring.len() - 1
         } else {
@@ -164,13 +166,15 @@ impl AxiDmaBdRing {
             .control
             .modify(|_, w| w.eof().set_bit());
 
-        self.free_cnt -= total_bd_cnt;
-        self.pending_cnt += total_bd_cnt;
-        debug!(
-            "bd_ring::submit: done, restart: {}, tail: {}, free: {}, pending: {}",
-            self.bd_restart, self.bd_tail, self.free_cnt, self.pending_cnt
+        self.free_cnt -= bd_cnt;
+        self.pending_cnt += bd_cnt;
+        trace!(
+            "bd_ring::submit: done, restart: {}, head: {}, tail: {}, free: {}, pending: {}",
+            self.bd_restart, self.bd_head, self.bd_tail, self.free_cnt, self.pending_cnt
         );
     }
+
+    
 
     pub fn head_desc_addr(&self) -> usize {
         &self.ring[self.bd_head].desc as *const _ as usize
@@ -184,7 +188,7 @@ impl AxiDmaBdRing {
         let mut bd_cnt = 0;
         let mut partial_cnt = 0;
         let mut cur_bd = self.bd_head;
-        info!(
+        trace!(
             "bd_ring::from_hw: head: {}, tail: {}",
             self.bd_head, self.bd_tail
         );
@@ -198,14 +202,14 @@ impl AxiDmaBdRing {
             let status = bd.desc.status.read();
             if status.cmplt().is_false() {
                 // unsafe { ebreak() };
-                debug!("bd_ring::from_hw: Uncompleted BD found at {}", cur_bd);
+                trace!("bd_ring::from_hw: Uncompleted BD found at {}", cur_bd);
                 bd.dump();
                 break;
             }
             bd_cnt += 1;
             let ctrl = bd.desc.control.read();
             if ctrl.eof().is_true() || status.rxeof().is_true() {
-                debug!("bd_ring::from_hw: EOF found at {}", cur_bd);
+                trace!("bd_ring::from_hw: EOF found at {}", cur_bd);
                 partial_cnt = 0;
             } else {
                 partial_cnt += 1;
@@ -218,7 +222,7 @@ impl AxiDmaBdRing {
                 cur_bd = 0;
             }
         }
-        debug!(
+        trace!(
             "bd_ring::from_hw: bd_cnt: {}, partial: {}",
             bd_cnt, partial_cnt
         );

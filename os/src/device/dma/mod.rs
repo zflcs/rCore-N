@@ -1,7 +1,7 @@
 
 
 #[cfg(feature = "board_axu15eg")]
-mod axi_dma;
+pub mod axi_dma;
 
 #[cfg(feature = "board_axu15eg")]
 pub use axi_dma::*;
