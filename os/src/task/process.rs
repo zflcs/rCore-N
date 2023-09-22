@@ -1,4 +1,5 @@
 use lib_so::get_symbol_addr;
+use riscv::register::{utvec, uepc, ustatus::{self, Ustatus}, uie, uscratch, uip, sstatus, sip};
 use spin::{Mutex, MutexGuard};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
@@ -21,6 +22,15 @@ pub struct ProcessControlBlock {
     inner: Mutex<ProcessControlBlockInner>,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Ucsr {
+    pub ustatus: usize,
+    pub uepc: usize,
+    pub utvec: usize,
+    pub uie: usize,
+    pub uscratch: usize,
+}
+
 pub struct ProcessControlBlockInner {
     pub is_zombie: bool,
     pub is_sstatus_uie: bool,
@@ -33,6 +43,7 @@ pub struct ProcessControlBlockInner {
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
     pub user_trap_handler_tid: usize,
+    pub ucsr: Option<Ucsr>,
     pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
     pub user_trap_info_cache: Vec<UserTrapRecord>,
     pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
@@ -84,6 +95,41 @@ impl ProcessControlBlockInner {
 
     pub fn is_user_trap_enabled(&self) -> bool {
         self.is_sstatus_uie
+    }
+
+    pub fn init_uintr(&mut self) -> Result<isize, isize> {
+        use riscv::register::sstatus;
+        if self.user_trap_info.is_none() {
+            // R | W
+            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
+                let phys_addr =
+                    translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
+                self.user_trap_info = Some(UserTrapInfo {
+                    user_trap_buffer_ppn: PhysPageNum::from(PhysAddr::from(phys_addr)),
+                    devices: Vec::new(),
+                });
+                let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
+                *trap_queue = UserTrapQueue::new();
+                self.is_sstatus_uie = true;
+                let mut ustatus = 0usize;
+                unsafe { core::arch::asm!("csrr {0}, ustatus", out(reg)ustatus); }
+                let ucsr = Ucsr {
+                    ustatus,
+                    uepc: uepc::read(),
+                    utvec: utvec::read().bits(),
+                    uie: uie::read().bits(),
+                    uscratch: uscratch::read(),
+                };
+                debug!("init ucsr {:#x?}", ucsr);
+                self.ucsr = Some(ucsr);
+                return Ok(USER_TRAP_BUFFER as isize);
+            } else {
+                warn!("[init uintr] mmap failed!");
+            }
+        } else {
+            warn!("[init uintr] self user trap info is not None!");
+        }
+        Err(-1)
     }
 
     pub fn init_user_trap(&mut self) -> Result<isize, isize> {
@@ -162,6 +208,53 @@ impl ProcessControlBlock {
         self.acquire_inner_lock().user_trap_handler_tid = user_trap_handler_tid;
     }
 
+    pub fn ucsr_restore(self: &Arc<Self>) {
+        let mut inner = self.acquire_inner_lock();
+        if inner.is_user_trap_enabled() && sys_gettid() as usize == inner.user_trap_handler_tid 
+            && inner.ucsr.is_some() {
+            let inner_ucsr = inner.ucsr.as_mut();
+            let ucsr = inner_ucsr.unwrap();
+            unsafe { 
+                core::arch::asm!("csrw ustatus, {0}", in(reg)ucsr.ustatus); 
+                utvec::write(ucsr.utvec, utvec::TrapMode::Direct);
+                uepc::write(ucsr.uepc);
+                uscratch::write(ucsr.uscratch);
+                core::arch::asm!("csrw uie, {0}", in(reg)ucsr.uie); 
+            }
+            if let Some(trap_info) = &mut inner.user_trap_info {
+                if !trap_info.get_trap_queue().is_empty() {
+                    debug!("restore {} user trap", trap_info.user_trap_record_num());
+                    unsafe { 
+                        sip::set_usoft();
+                        uip::set_usoft();
+                    }
+                } else {
+                    unsafe {
+                        sip::clear_usoft();
+                        uip::clear_usoft();
+                    }
+                }
+                
+            }
+        }
+    }
+
+    pub fn ucsr_save(self: &Arc<Self>) {
+        let mut inner = self.acquire_inner_lock();
+        if inner.is_user_trap_enabled() && inner.ucsr.is_some() {
+            let inner_ucsr = inner.ucsr.as_mut();        
+            let ucsr = inner_ucsr.unwrap();
+            ucsr.utvec = utvec::read().bits();
+            ucsr.uepc = uepc::read();
+            let mut ustatus = 0usize;
+            unsafe { core::arch::asm!("csrr {0}, ustatus", out(reg)ustatus); }
+            ucsr.ustatus = ustatus;
+            ucsr.uie = uie::read().bits();
+            ucsr.uscratch = uscratch::read();
+            // debug!("save ucsr {:#x?}", ucsr);
+        }
+    }
+
     pub fn get_user_trap_handler_tid(self: &Arc<Self>) -> usize {
         self.acquire_inner_lock().user_trap_handler_tid
     }
@@ -193,6 +286,7 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
+                    ucsr: None,
                     user_trap_handler_task: None,
                     user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
@@ -307,6 +401,7 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
+                    ucsr: None,
                     user_trap_handler_task: None,
                     user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),

@@ -78,4 +78,7 @@ pub enum SyscallId{
     Listen = 1200,
     #[arguments(args = "fd")]
     Accept = 1201,
+    #[arguments(args = "tid")]
+    UintrInit = 1202,
+    UintrTest = 1203,
 }

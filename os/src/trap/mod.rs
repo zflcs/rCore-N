@@ -60,6 +60,7 @@ pub fn trap_handler() -> ! {
     let mut inner = task.acquire_inner_lock();
     inner.user_time_us += get_time_us() - inner.last_user_time_us;
     drop(inner);
+    current_process().unwrap().ucsr_save();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             // jump to next instruction anyway
@@ -176,14 +177,19 @@ pub fn trap_return() -> ! {
     task_inner.last_user_time_us = get_time_us();
     drop(task_inner);
     drop(task);
+    
     unsafe {
         sstatus::clear_sie();
     }
-    current_process()
-        .unwrap()
-        .acquire_inner_lock()
-        .restore_user_trap_info();
+    // current_process()
+    //     .unwrap()
+    //     .acquire_inner_lock()
+    //     .restore_user_trap_info();
+    current_process().unwrap().ucsr_restore();
     let mut trap_cx = current_trap_cx();
+    // if trap_cx.x[17] == 1203 {
+    //     debug!("{:#x?}", trap_cx);
+    // }
     set_user_trap_entry();
     let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();

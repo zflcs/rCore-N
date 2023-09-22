@@ -6,7 +6,7 @@ use crate::{mm, println};
 use crate::plic::{get_context, Plic};
 use crate::task::{add_task, current_task, current_process, current_user_token, exit_current_and_run_next, hart_id, mmap, munmap, set_current_priority, suspend_current_and_run_next, WAIT_LOCK, current_trap_cx};
 use crate::timer::get_time;
-use crate::trap::{push_trap_record, UserTrapRecord};
+use crate::trap::{push_trap_record, UserTrapRecord, push_message};
 use alloc::vec::Vec;
 use core::mem::size_of;
 use core::ptr::null;
@@ -152,6 +152,35 @@ pub fn sys_flush_trace() -> isize {
     // (start..(start + FLUSH_SIZE)).for_each(|a| unsafe {
     //     let _ = (a as *mut u8).read_volatile();
     // });
+    0
+}
+
+pub fn sys_uintr_init(user_trap_handler_tid: usize) -> isize {
+    // set user interrupt handler task
+    current_process().unwrap().set_user_trap_handler_tid(user_trap_handler_tid);
+    debug!("set handler {}", user_trap_handler_tid);
+    match current_process()
+        .unwrap()
+        .acquire_inner_lock()
+        .init_uintr()
+    {
+        Ok(addr) => {
+            debug!("uintr init ok");
+            return addr;
+        }
+        Err(errno) => {
+            return errno;
+        }
+    }
+}
+
+pub fn sys_uintr_test() -> isize {
+    let pid = current_process().unwrap().pid.0;
+    debug!("uintr test");
+    push_message(pid, UserTrapRecord {
+        cause: 1,
+        message: 2,
+    });
     0
 }
 

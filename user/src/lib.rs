@@ -2,6 +2,7 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![feature(naked_functions)]
 
 #[macro_use]
 pub mod console;
@@ -12,6 +13,7 @@ pub mod trace;
 pub mod trap;
 pub mod user_uart;
 pub mod matrix;
+pub mod uintrtrap;
 
 extern crate alloc;
 use core::future::Future;
@@ -22,6 +24,8 @@ pub use syscall::*;
 mod heap;
 use riscv::register::mtvec::TrapMode;
 use riscv::register::{uie, utvec};
+
+pub use uintrtrap::*;
 
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
@@ -42,7 +46,7 @@ pub extern "C" fn _start() {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
     }
     heap::init();
-    let _ = init_msg_buf();
+    // let _ = init_msg_buf();
     lib_so::spawn(move || async{ main(); }, lib_so::PRIO_NUM - 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
 }
 

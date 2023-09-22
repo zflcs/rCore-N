@@ -4,7 +4,7 @@ cases = [
     "sharedscheduler",
     "async_demo",
     "async_pipe",
-    "threads",
+    "u",
     "threads_arg",
     "tcp_test",
     "tp",

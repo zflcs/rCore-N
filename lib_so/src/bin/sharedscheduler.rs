@@ -59,15 +59,15 @@ fn user_entry() {
         let pid = getpid() as usize;
         let tid = gettid();
         loop {
-            while let Some(cid) = (*exe).get_msg() {
-                // println!("wake cid {}", cid);
-                let prio = (*exe).re_back(CoroutineId(cid));
-                // 重新入队之后，需要检查优先级
-                let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
-                if prio < process_prio {
-                    PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
-                }
-            }
+            // while let Some(cid) = (*exe).get_msg() {
+            //     // println!("wake cid {}", cid);
+            //     let prio = (*exe).re_back(CoroutineId(cid));
+            //     // 重新入队之后，需要检查优先级
+            //     let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
+            //     if prio < process_prio {
+            //         PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
+            //     }
+            // }
             if (*exe).is_empty() {
                 // println!("ex is empty");
                 break;
