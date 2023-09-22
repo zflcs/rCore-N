@@ -11,7 +11,6 @@ const MAX_USER_TRAP_NUM: usize = 128;
 
 use rv_plic::PLIC;
 
-use crate::trace::{push_trace, U_TRAP_HANDLER};
 pub const PLIC_BASE: usize = 0xc00_0000;
 pub const PLIC_PRIORITY_BIT: usize = 3;
 pub type Plic = PLIC<PLIC_BASE, PLIC_PRIORITY_BIT>;
@@ -57,7 +56,6 @@ global_asm!(include_str!("trap.asm"));
 #[linkage = "weak"]
 #[no_mangle]
 pub fn user_trap_handler(cx: &mut UserTrapContext) -> &mut UserTrapContext {
-    println!("enter trap handler");
     let ucause = ucause::read();
     let utval = utval::read();
     // push_trace(U_TRAP_HANDLER + ucause.bits());

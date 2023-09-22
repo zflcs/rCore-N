@@ -110,6 +110,7 @@ impl ProcessControlBlockInner {
                 });
                 let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
                 *trap_queue = UserTrapQueue::new();
+                unsafe { sstatus::set_uie(); }
                 self.is_sstatus_uie = true;
                 let mut ustatus = 0usize;
                 unsafe { core::arch::asm!("csrr {0}, ustatus", out(reg)ustatus); }
@@ -223,12 +224,13 @@ impl ProcessControlBlock {
             }
             if let Some(trap_info) = &mut inner.user_trap_info {
                 if !trap_info.get_trap_queue().is_empty() {
-                    debug!("restore {} user trap", trap_info.user_trap_record_num());
+                    trace!("restore {} user trap", trap_info.user_trap_record_num());
                     unsafe { 
                         sip::set_usoft();
                         uip::set_usoft();
                     }
                 } else {
+                    // debug!("trap enbale, no trap message");
                     unsafe {
                         sip::clear_usoft();
                         uip::clear_usoft();
@@ -241,7 +243,7 @@ impl ProcessControlBlock {
 
     pub fn ucsr_save(self: &Arc<Self>) {
         let mut inner = self.acquire_inner_lock();
-        if inner.is_user_trap_enabled() && inner.ucsr.is_some() {
+        if inner.is_user_trap_enabled() && inner.ucsr.is_some() && sys_gettid() as usize == inner.user_trap_handler_tid {
             let inner_ucsr = inner.ucsr.as_mut();        
             let ucsr = inner_ucsr.unwrap();
             ucsr.utvec = utvec::read().bits();

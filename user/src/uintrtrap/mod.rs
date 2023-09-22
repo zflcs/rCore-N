@@ -1,6 +1,6 @@
 mod trap;
 
-use riscv::register::{uip, utvec, uscratch, ustatus, uie};
+use riscv::register::{uip, utvec, uscratch, ustatus, uie, ucause, utval};
 use syscall::sys_uintr_init;
 
 #[repr(C)]
@@ -44,18 +44,21 @@ pub struct UintrFrame {
 pub extern "C" fn handler_entry(uintr_frame: &mut UintrFrame, handler_ptr: usize) {
     unsafe {
         uip::clear_usoft();
+        let ucause = ucause::read();
+        let utval = utval::read();
+        println!("{:?} {:#x?}", ucause.cause(), utval);
         let handler: fn(&mut UintrFrame) -> usize = core::mem::transmute(handler_ptr);
         let res = handler(uintr_frame);
     }
 }
 
 // init uintr_trap and alloc trap_info record
-pub fn init_uintr_trap(handler_ptr: usize) -> isize {
-    extern "C" { fn uintrvec(); }
-    // write U mode CSR
-    unsafe { 
-        utvec::write(uintrvec as usize, utvec::TrapMode::Direct);
-        uscratch::write(handler_ptr);
+pub fn init_uintr_trap() -> isize {
+    extern "C" {
+        fn __alltraps_u();
+    }
+    unsafe {
+        utvec::write(__alltraps_u as usize, utvec::TrapMode::Direct);
         ustatus::set_uie();
         uie::set_usoft();
     }

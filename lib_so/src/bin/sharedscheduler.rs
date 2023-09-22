@@ -52,57 +52,7 @@ fn user_entry() {
         secondary_init(&INTERFACE as *const [usize; 10] as usize);
     }
     let start = get_time();
-
-    unsafe {
-        let heapptr = *(HEAP_BUFFER as *const usize);
-        let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        let pid = getpid() as usize;
-        let tid = gettid();
-        loop {
-            // while let Some(cid) = (*exe).get_msg() {
-            //     // println!("wake cid {}", cid);
-            //     let prio = (*exe).re_back(CoroutineId(cid));
-            //     // 重新入队之后，需要检查优先级
-            //     let process_prio = PRIO_ARRAY[pid].load(Ordering::Relaxed);
-            //     if prio < process_prio {
-            //         PRIO_ARRAY[pid].store(prio, Ordering::Relaxed);
-            //     }
-            // }
-            if (*exe).is_empty() {
-                // println!("ex is empty");
-                break;
-            }
-            let task = (*exe).fetch(tid as usize);
-            match task {
-                Some(task) => {
-                    let cid = task.cid;
-                    // println!("user task kind {:?}", task.kind);
-                    match task.execute() {
-                        Poll::Pending => {
-                            (*exe).pending(cid.0);
-                        }
-                        Poll::Ready(()) => {
-                            (*exe).del_coroutine(cid);
-                        }
-                    };
-                    {
-                        let _lock = (*exe).wr_lock.lock();
-                        let prio: usize = (*exe).priority;
-                        update_prio(getpid() as usize + 1, prio);
-                    }
-                }
-                _ => {
-                    // 任务队列不为空，但就绪队列为空，等待任务唤醒
-                    yield_();
-                }
-            }
-            // 执行完优先级最高的协程，检查优先级，判断是否让权
-            let max_prio_pid = max_prio_pid();
-            if pid + 1 != max_prio_pid {
-                yield_();
-            }
-        }
-    }
+    poll_user_future();
     wait_other_cores();
 
     let end = get_time();

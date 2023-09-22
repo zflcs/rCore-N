@@ -39,7 +39,7 @@ impl ExMutex {
             self.mutex.lock()
         } else {
             loop {
-                let mut op_lock = self.mutex.try_lock();
+                let op_lock = self.mutex.try_lock();
                 if op_lock.is_some() {
                     return op_lock.unwrap();
                 }
