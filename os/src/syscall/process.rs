@@ -174,13 +174,16 @@ pub fn sys_uintr_init(user_trap_handler_tid: usize) -> isize {
     }
 }
 
-pub fn sys_uintr_test() -> isize {
+pub fn sys_uintr_test(count: usize) -> isize {
     let pid = current_process().unwrap().pid.0;
     debug!("uintr test");
-    push_message(pid, UserTrapRecord {
-        cause: 1,
-        message: 2,
-    });
+    for _ in 0..count {
+        push_message(pid, UserTrapRecord {
+            cause: 1,
+            message: 2,
+        });
+    }
+
     0
 }
 

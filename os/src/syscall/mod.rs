@@ -95,7 +95,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_LISTEN => sys_listen(args[0] as u16),
         SYSCALL_ACCEPT => sys_accept(args[0]),
         SYSCALL_UINTR_INIT => sys_uintr_init(args[0]),
-        SYSCALL_UINTR_TEST => sys_uintr_test(),
+        SYSCALL_UINTR_TEST => sys_uintr_test(args[0]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };
     // push_trace(TRACE_SYSCALL_EXIT + syscall_id);
