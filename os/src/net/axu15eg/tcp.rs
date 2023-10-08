@@ -7,7 +7,7 @@ use smoltcp::wire::IpProtocol;
 use smoltcp::wire::Ipv4Address;
 use smoltcp::wire::TcpControl;
 use smoltcp::wire::TcpSeqNumber;
-use crate::device::net::NetDevice;
+use crate::device::net::NET_DEVICE;
 use crate::fs::File;
 use crate::mm::UserBuffer;
 use crate::net::NET_STACK;
@@ -139,7 +139,7 @@ impl File for TCP {
         let ipv4_repr = build_ipv4_repr(src_ip, dst_ip, IpProtocol::Tcp, tcp_repr.buffer_len());
         let eth_repr = build_eth_repr(NET_STACK.mac_addr, self.src_mac, EthernetProtocol::Ipv4);
         if let Some(eth_frame) = build_eth_frame(eth_repr, None, Some((ipv4_repr, tcp_repr))) {
-            NetDevice.transmit(&eth_frame.into_inner());
+            NET_DEVICE.transmit(&eth_frame.into_inner());
         }
         log::trace!("write tcp socket ok");
         Ok(count)

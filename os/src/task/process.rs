@@ -224,7 +224,7 @@ impl ProcessControlBlock {
             }
             if let Some(trap_info) = &mut inner.user_trap_info {
                 if !trap_info.get_trap_queue().is_empty() {
-                    debug!("restore {} user trap", trap_info.user_trap_record_num());
+                    trace!("restore {} user trap", trap_info.user_trap_record_num());
                     unsafe { 
                         sip::set_usoft();
                         uip::set_usoft();

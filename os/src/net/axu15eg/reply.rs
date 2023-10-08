@@ -124,7 +124,7 @@ pub fn build_eth_frame(eth_repr: EthernetRepr, arp_repr: Option<ArpRepr>, ipv4_r
 }
 
 
-pub fn analysis_tcp(eth_frame: &mut EthernetFrame<Vec<u8>>) -> Option<Vec<EthernetFrame<Vec<u8>>>> {
+pub fn analysis_tcp(eth_frame: &mut EthernetFrame<&mut [u8]>) -> Option<Vec<EthernetFrame<Vec<u8>>>> {
     assert!(eth_frame.ethertype() == EthernetProtocol::Ipv4);
     let src_mac_addr = NET_STACK.mac_addr;
     let dst_mac_addr = eth_frame.src_addr().clone();

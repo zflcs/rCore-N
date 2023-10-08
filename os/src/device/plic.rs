@@ -61,8 +61,8 @@ pub fn init_hart(hart_id: usize) {
     Plic::enable(context, 1);
     Plic::enable(context, 2);
     Plic::enable(context, 3);
-    Plic::enable(context, 4);
-    Plic::enable(context, 5);
+    // Plic::enable(context, 4);
+    // Plic::enable(context, 5);
     Plic::set_threshold(context, Priority::any());
     Plic::set_threshold(get_context(hart_id, 'U'), Priority::any());
     Plic::set_threshold(get_context(hart_id, 'M'), Priority::never());

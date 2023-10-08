@@ -115,7 +115,7 @@ pub fn push_data(index: usize, packet: &TcpPacket<&[u8]>) {
     socket.buffers.push_back(packet.payload().to_vec());
     log::trace!("[push_data] index: {}, socket.ack:{:?}, socket.seq:{}", index, socket.ack, socket.seq);
     if let Some(task) = socket.block_task.take() {
-        debug!("wake read task");
+        trace!("wake read task");
         add_task(task);
     }
     if let Some(cid) = ASYNC_RDMP.lock().remove(&index) {

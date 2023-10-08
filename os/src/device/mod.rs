@@ -2,12 +2,9 @@ pub mod plic;
 pub mod uart;
 mod bus;
 pub mod net;
-pub mod dma;
 
-pub use net::NetDevice;
-pub use dma::*;
+pub use net::NET_DEVICE;
 
 pub fn init() {
     net::init();
-    dma::init();
 }
