@@ -451,6 +451,23 @@ impl AxiDma {
             None
         }
     }
+
+    pub fn tx_cyclic_enable(&self) {
+        self.hardware().mm2s_dmacr.write(|w| w.cyclic_buffer_descriptor().set_bit())
+    }
+
+    pub fn tx_cyclic_disable(&self) {
+        self.hardware().mm2s_dmacr.write(|w| w.cyclic_buffer_descriptor().clear_bit())
+    }
+
+    pub fn rx_cyclic_enable(&self) {
+        self.hardware().s2mm_dmacr.write(|w| w.cyclic_buffer_descriptor().set_bit())
+    }
+
+    pub fn rx_cyclic_disable(&self) {
+        self.hardware().s2mm_dmacr.write(|w| w.cyclic_buffer_descriptor().clear_bit())
+    }
+
 }
 
 impl AxiDmaIntr {
