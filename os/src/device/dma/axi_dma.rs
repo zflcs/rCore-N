@@ -23,6 +23,8 @@ const TX_BD_CNT: usize = 2048;
 pub fn init() {
     let mut axi_dma = AXI_DMA.lock();
     axi_dma.reset();
+    axi_dma.tx_cyclic_enable();
+    axi_dma.rx_cyclic_enable();
     // 初始化 BD
     axi_dma.tx_bd_create(TX_BD_CNT);
     axi_dma.rx_bd_create(RX_BD_CNT);
