@@ -35,13 +35,14 @@ sbi-rt = { version = "0.0.2", features = ["legacy"] }
 kernel-sync = {  git = "https://github.com/tkf2019/kernel-sync" }
 
 [dependencies.smoltcp]
-version = "0.9.1"
+version = "0.10.0"
 default-features = false
 features = [
   "alloc", "log",   # no std
   "medium-ethernet",
   "proto-ipv4",
-  "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns"
+  "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns",
+  "async"
 ]
 
 

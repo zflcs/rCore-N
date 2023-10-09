@@ -8,4 +8,5 @@ cases = [
     "threads_arg",
     "tcp_test",
     "tp",
+    "test"
 ]

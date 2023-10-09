@@ -8,6 +8,7 @@
 #![feature(new_uninit)]
 #![feature(naked_functions)]
 #![feature(asm_const)]
+#![feature(exact_size_is_empty)]
 
 extern crate alloc;
 extern crate rv_plic;
@@ -131,6 +132,7 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     BOOT_HART.fetch_add(1, Relaxed);
     mm::remap_test();
     trap::init();
+    net::init();
     device::init();
     plic::init();
     plic::init_hart(hart_id);

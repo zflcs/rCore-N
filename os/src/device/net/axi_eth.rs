@@ -32,34 +32,95 @@ impl Default for NetDevice {
     }
 }
 
-impl NetDevice {
-    pub fn transmit(&self, data: &[u8]) {
-        log::trace!("net transmit");
-        let buf = self.dma.tx_submit(Box::pin(data)).unwrap().wait();
+// impl NetDevice {
+//     pub fn transmit(&self, data: &[u8]) {
+//         log::trace!("net transmit");
+//         let buf = self.dma.tx_submit(Box::pin(data)).unwrap().wait();
+//         if !self.dma_intr.tx_intr_handler() {
+//             dma_init();
+//         }
+//         self.dma.tx_from_hw();
+//     }
+
+//     pub fn receive(&self) -> Option<Pin<Box<[u8]>>> {
+//         let mut eth = self.eth.lock();
+//         if eth.is_rx_cmplt() {
+//             eth.clear_rx_cmplt();
+//         }
+//         if eth.can_receive() {
+//             let rx_frame = Box::pin([0u8; AXI_NET_CONFIG.mtu]);
+//             let mut buf = self.dma.rx_submit(rx_frame).unwrap().wait();
+//             if !self.dma_intr.rx_intr_handler() {
+//                 dma_init();
+//             }
+//             self.dma.rx_from_hw();
+//             Some(buf)
+//         } else {
+//             None
+//         }
+//     }
+// }
+
+
+impl RxToken for NetDevice {
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R {
+        let rx_frame = Box::pin([0u8; AXI_NET_CONFIG.mtu]);
+        let mut buf = self.dma.rx_submit(rx_frame).unwrap().wait();
+        if !self.dma_intr.rx_intr_handler() {
+            dma_init();
+        }
+        self.dma.rx_from_hw();
+        log::trace!("receive buf {:x?}", &buf[0..14]);
+        f((*buf).as_mut())
+    }
+}
+
+impl TxToken for NetDevice {
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R {
+        let mut tx_frame = Box::pin(vec![0u8; len]);
+        let res = f((*tx_frame).as_mut());
+        self.dma.tx_submit(tx_frame).unwrap().wait();
         if !self.dma_intr.tx_intr_handler() {
             dma_init();
         }
         self.dma.tx_from_hw();
+        log::trace!("transmit buf");
+        res
     }
+}
 
-    pub fn receive(&self) -> Option<Pin<Box<[u8]>>> {
-        let mut eth = self.eth.lock();
-        if eth.is_rx_cmplt() {
-            eth.clear_rx_cmplt();
+impl Device for NetDevice {
+    type RxToken<'a> = Self;
+    type TxToken<'a> = Self;
+
+    fn receive(&mut self, _timestamp: smoltcp::time::Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        if self.eth.lock().is_rx_cmplt() {
+            self.eth.lock().clear_rx_cmplt();
         }
-        if eth.can_receive() {
-            let rx_frame = Box::pin([0u8; AXI_NET_CONFIG.mtu]);
-            let mut buf = self.dma.rx_submit(rx_frame).unwrap().wait();
-            if !self.dma_intr.rx_intr_handler() {
-                dma_init();
-            }
-            self.dma.rx_from_hw();
-            Some(buf)
+        if self.eth.lock().can_receive() {
+            Some((self.clone(), self.clone()))
         } else {
             None
         }
     }
+
+    fn transmit(&mut self, _timestamp: smoltcp::time::Instant) -> Option<Self::TxToken<'_>> {
+        Some(self.clone())
+    }
+
+    fn capabilities(&self) -> DeviceCapabilities {
+        let mut caps = DeviceCapabilities::default();
+        caps.medium = Medium::Ethernet;
+        caps.max_transmission_unit = AXI_NET_CONFIG.mtu;
+        caps.max_burst_size = Some(1);
+        caps
+    }
 }
+
 
 pub static NET_DEVICE: Lazy<NetDevice> = Lazy::new(|| NetDevice::default());
 

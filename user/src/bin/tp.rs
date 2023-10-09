@@ -141,14 +141,19 @@ pub fn main() -> i32 {
         add_virtual_core();
     }
 
-    let tcp_fd = listen(80);
-    if tcp_fd < 0 {
-        println!("Failed to listen on port 80");
-        return -1;
-    }
+    // let tcp_fd = listen(80);
+    // if tcp_fd < 0 {
+    //     println!("Failed to listen on port 80");
+    //     return -1;
+    // }
     init_connection();
     for i in 0..CONNECTION_NUM {
-        let client_fd = accept(tcp_fd as usize);
+        // let client_fd = accept(tcp_fd as usize);
+        let client_fd = listen(80);
+        if client_fd < 0 {
+            println!("Failed to listen on port 80");
+            return -1;
+        }
         let send_rsp_cid = spawn(move || send_rsp_async(client_fd as usize), i % SERVER_USE_PRIO);
         let matrix_calc_cid = spawn(move || matrix_calc_async(client_fd as usize, send_rsp_cid), i % SERVER_USE_PRIO);
         spawn(move || handle_tcp_client_async(client_fd as usize, matrix_calc_cid), i % SERVER_USE_PRIO);
