@@ -1,4 +1,4 @@
-use riscv::register::sstatus::{self, Sstatus, SPP};
+use riscv::register::{sstatus::{self, Sstatus, SPP}, ustatus::{Ustatus, self}, utvec::{Utvec, self}};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -9,6 +9,8 @@ pub struct TrapContext {
     pub kernel_satp: usize,
     pub kernel_sp: usize,
     pub trap_handler: usize,
+    pub ustatus: Ustatus,
+    pub utvec: Utvec
 }
 
 impl TrapContext {
@@ -33,6 +35,8 @@ impl TrapContext {
             kernel_satp,
             kernel_sp,
             trap_handler,
+            ustatus: ustatus::read(),
+            utvec: utvec::read(),
         };
         cx.set_sp(sp);
         cx

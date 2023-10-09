@@ -123,7 +123,7 @@ lazy_static! {
 
 pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
     // push_trace(PUSH_TRAP_RECORD_ENTER + pid);
-    debug!(
+    trace!(
         "[push trap record] pid: {}, cause: {}, message: {}",
         pid, trap_record.cause, trap_record.message
     );
@@ -160,17 +160,4 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
         // push_trace(PUSH_TRAP_RECORD_EXIT);
         Err(UserTrapError::TaskNotFound)
     }
-}
-
-
-pub fn push_message(pid: usize, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
-    if let Some(pcb) = pid2process(pid) {
-        let mut pcb_inner = pcb.acquire_inner_lock();
-        pcb_inner.push_message(trap_record)
-    } else {
-        warn!("[push trap record] Task Not Found!");
-        // push_trace(PUSH_TRAP_RECORD_EXIT);
-        Err(UserTrapError::TaskNotFound)
-    }
-    
 }

@@ -18,7 +18,7 @@ const CLOSE_CONNECT_STR: &str = "close connection";
 static MAX_POLL_THREADS: usize = 4 - 1;
 
 const SERVER_USE_PRIO: usize = 8;
-const CONNECTION_NUM: usize = SERVER_USE_PRIO * 12;
+const CONNECTION_NUM: usize = SERVER_USE_PRIO * 16;
 
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();
@@ -135,7 +135,7 @@ async fn send_rsp_async(client_fd: usize) {
 pub fn main() -> i32 {
 
     println!("This is a very simple http server");
-    let init_res = init_uintr_trap();
+    let init_res = init_user_trap();
     println!("Enabled user interrupts, trap_info_base {:#x}", init_res);
     for _ in 0..MAX_POLL_THREADS {
         add_virtual_core();

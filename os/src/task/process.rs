@@ -97,42 +97,6 @@ impl ProcessControlBlockInner {
         self.is_sstatus_uie
     }
 
-    pub fn init_uintr(&mut self) -> Result<isize, isize> {
-        use riscv::register::sstatus;
-        if self.user_trap_info.is_none() {
-            // R | W
-            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
-                let phys_addr =
-                    translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
-                self.user_trap_info = Some(UserTrapInfo {
-                    user_trap_buffer_ppn: PhysPageNum::from(PhysAddr::from(phys_addr)),
-                    devices: Vec::new(),
-                });
-                let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
-                *trap_queue = UserTrapQueue::new();
-                unsafe { sstatus::set_uie(); }
-                self.is_sstatus_uie = true;
-                let mut ustatus = 0usize;
-                unsafe { core::arch::asm!("csrr {0}, ustatus", out(reg)ustatus); }
-                let ucsr = Ucsr {
-                    ustatus,
-                    uepc: uepc::read(),
-                    utvec: utvec::read().bits(),
-                    uie: uie::read().bits(),
-                    uscratch: uscratch::read(),
-                };
-                debug!("init ucsr {:#x?}", ucsr);
-                self.ucsr = Some(ucsr);
-                return Ok(USER_TRAP_BUFFER as isize);
-            } else {
-                warn!("[init uintr] mmap failed!");
-            }
-        } else {
-            warn!("[init uintr] self user trap info is not None!");
-        }
-        Err(-1)
-    }
-
     pub fn init_user_trap(&mut self) -> Result<isize, isize> {
         use riscv::register::sstatus;
         if self.user_trap_info.is_none() {
@@ -165,9 +129,10 @@ impl ProcessControlBlockInner {
         if self.is_user_trap_enabled() && sys_gettid() as usize == self.user_trap_handler_tid {
             if let Some(trap_info) = &mut self.user_trap_info {
                 if !trap_info.get_trap_queue().is_empty() {
-                    debug!("restore {} user trap", trap_info.user_trap_record_num());
+                    trace!("restore {} user trap", trap_info.user_trap_record_num());
                     uscratch::write(trap_info.user_trap_record_num());
                     unsafe {
+                        sip::set_usoft();
                         uip::set_usoft();
                     }
                 }
@@ -180,7 +145,7 @@ impl ProcessControlBlockInner {
         if let Some(trap_info) = &mut self.user_trap_info {
             if let Some(task) = self.user_trap_handler_task.take() {
                 res = trap_info.push_trap_record(trap_record);
-                debug!("add wake thread");
+                trace!("add wake thread");
                 add_task(task);
             } else {
                 self.user_trap_info_cache.push(trap_record);

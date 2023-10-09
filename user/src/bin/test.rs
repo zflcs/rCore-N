@@ -10,7 +10,7 @@ use user_lib::*;
 #[no_mangle]
 pub fn main() -> i32 {
     println!("This is a very simple http server");
-    let init_res = init_uintr_trap();
+    let init_res = init_user_trap();
     println!("Enabled user interrupts, trap_info_base {:#x}", init_res);
     let tcp_fd = listen(80);
     if tcp_fd < 0 {

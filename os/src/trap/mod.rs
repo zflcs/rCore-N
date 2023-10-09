@@ -181,11 +181,11 @@ pub fn trap_return() -> ! {
     unsafe {
         sstatus::clear_sie();
     }
-    // current_process()
-    //     .unwrap()
-    //     .acquire_inner_lock()
-    //     .restore_user_trap_info();
-    current_process().unwrap().ucsr_restore();
+    current_process()
+        .unwrap()
+        .acquire_inner_lock()
+        .restore_user_trap_info();
+    // current_process().unwrap().ucsr_restore();
     let mut trap_cx = current_trap_cx();
     // if trap_cx.x[17] == 1203 {
     //     debug!("{:#x?}", trap_cx);
@@ -237,5 +237,5 @@ pub extern "C" fn trap_from_kernel(cx: &mut TrapContext) {
 
 pub use context::TrapContext;
 pub use usertrap::{
-    push_trap_record, UserTrapError, UserTrapInfo, UserTrapQueue, UserTrapRecord, USER_EXT_INT_MAP, push_message
+    push_trap_record, UserTrapError, UserTrapInfo, UserTrapQueue, UserTrapRecord, USER_EXT_INT_MAP
 };

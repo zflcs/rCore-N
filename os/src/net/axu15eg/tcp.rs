@@ -8,7 +8,7 @@ use crate::mm::UserBuffer;
 
 
 use crate::task::{block_current_and_run_next, current_task, suspend_current_and_run_next};
-use crate::trap::{UserTrapRecord, push_message};
+use crate::trap::{UserTrapRecord, push_trap_record};
 use super::{ASYNC_RDMP, SOCKET_SET, iface_poll};
 use super::iface::INTERFACE;
 use smoltcp::socket::tcp::{Socket, SocketBuffer};
@@ -52,6 +52,7 @@ impl File for TcpFile {
         let mut head_buf = buf_iter.next();
         let mut count = 0usize;
         loop {
+            iface_poll();
             let mut socket_set = SOCKET_SET.lock();
             let socket = socket_set.get_mut::<Socket>(self.0);
             if socket.is_active() {
@@ -128,6 +129,7 @@ async fn async_read(handle: SocketHandle, mut buf: UserBuffer, cid: usize, pid: 
     let waker = TcpSocketWaker::new(lib_so::current_cid(true));
     let mut helper = Box::new(ReadHelper::new());
     loop {
+        iface_poll();
         let mut socket_set = SOCKET_SET.lock();
         let socket = socket_set.get_mut::<Socket>(handle);
         if socket.is_active() {
@@ -156,7 +158,7 @@ async fn async_read(handle: SocketHandle, mut buf: UserBuffer, cid: usize, pid: 
         }
     }
     log::trace!("push message");
-    let _ = push_message(pid, UserTrapRecord {
+    let _ = push_trap_record(pid, UserTrapRecord {
         cause: 1,
         message: cid,
     });

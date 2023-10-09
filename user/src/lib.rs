@@ -13,7 +13,6 @@ pub mod trace;
 pub mod trap;
 pub mod user_uart;
 pub mod matrix;
-pub mod uintrtrap;
 
 extern crate alloc;
 use core::future::Future;
@@ -23,9 +22,8 @@ use core::task::{Context, Poll};
 pub use syscall::*;
 mod heap;
 use riscv::register::mtvec::TrapMode;
-use riscv::register::{uie, utvec};
+use riscv::register::{uie, utvec, ustatus};
 
-pub use uintrtrap::*;
 
 
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
@@ -152,13 +150,14 @@ fn user_interrupt_handler() {
     }
     unsafe {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
+        ustatus::set_uie();
         uie::set_usoft();
         uie::set_utimer();
     }
 
     loop {
         hang();
-        println!("user_interrupt_handler thread is run");
+        // println!("user_interrupt_handler thread is run");
 
     }
 
