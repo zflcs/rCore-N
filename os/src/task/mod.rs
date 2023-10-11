@@ -23,7 +23,7 @@ pub use processor::{
     set_current_priority, take_current_task, current_trap_cx_user_va
 };
 pub use task::{TaskControlBlock, TaskStatus};
-use crate::task::pool::{remove_from_pid2process};
+use crate::task::pool::remove_from_pid2process;
 pub use process::ProcessControlBlock;
 use crate::task::pid::TaskUserRes;
 

@@ -60,7 +60,6 @@ pub fn trap_handler() -> ! {
     let mut inner = task.acquire_inner_lock();
     inner.user_time_us += get_time_us() - inner.last_user_time_us;
     drop(inner);
-    current_process().unwrap().ucsr_save();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             // jump to next instruction anyway

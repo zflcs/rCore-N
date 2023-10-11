@@ -19,13 +19,13 @@ enum ModelType {
 }
 
 const BUF_LEN: usize = 2048;
-const MATRIX_SIZE: usize = 20;
+const MATRIX_SIZE: usize = 15;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 3;
-static MODEL_TYPE: ModelType = ModelType::Coroutine;
-static CONNECTION_NUM: usize = 128;
+static MODEL_TYPE: ModelType = ModelType::Thread;
+static CONNECTION_NUM: usize = 64;
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();
 static mut REQ_MAP_MUTEX: Vec<usize> = Vec::new();
@@ -270,15 +270,20 @@ pub fn main() -> i32 {
 
     }
     
-    let tcp_fd = listen(80);
-    if tcp_fd < 0 {
-        println!("Failed to listen on port 80");
-        return -1;
-    }
+    // let tcp_fd = listen(80);
+    // if tcp_fd < 0 {
+    //     println!("Failed to listen on port 80");
+    //     return -1;
+    // }
     init_connection();
     let mut wait_tid = vec![];
     for _ in 0..CONNECTION_NUM {
-        let client_fd = accept(tcp_fd as usize);
+        // let client_fd = accept(tcp_fd as usize);
+        let client_fd = listen(80);
+        if client_fd < 0 {
+            println!("Failed to listen on port 80");
+            return -1;
+        }
         // println!("client connected: {}", client_fd);
         if MODEL_TYPE == ModelType::Thread {
             let tid1 = thread_create(handle_tcp_client as usize, client_fd as usize) as usize;

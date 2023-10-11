@@ -2,11 +2,9 @@
 cases = [
     "initproc",
     "sharedscheduler",
-    "async_demo",
-    "async_pipe",
-    "u",
-    "threads_arg",
     "tcp_test",
-    "tp",
-    "test"
+    "tp1",
+    "tp2",
+    "tp3",
+    "tp4",
 ]

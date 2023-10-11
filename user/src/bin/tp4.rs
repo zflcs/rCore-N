@@ -11,14 +11,14 @@ use spin::Mutex;
 use lazy_static::*;
 
 const BUF_LEN: usize = 2048;
-const MATRIX_SIZE: usize = 10;
+const MATRIX_SIZE: usize = 15;
 
 const CLOSE_CONNECT_STR: &str = "close connection";
 
 static MAX_POLL_THREADS: usize = 4 - 1;
 
 const SERVER_USE_PRIO: usize = 8;
-const CONNECTION_NUM: usize = SERVER_USE_PRIO * 16;
+const CONNECTION_NUM: usize = SERVER_USE_PRIO * 8;
 
 
 static mut REQ_MAP: Vec<VecDeque<String>> = Vec::new();

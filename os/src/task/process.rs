@@ -1,11 +1,13 @@
+use kernel_sync::{SpinLock, SpinLockGuard};
 use lib_so::get_symbol_addr;
 use riscv::register::{utvec, uepc, ustatus::{self, Ustatus}, uie, uscratch, uip, sstatus, sip};
+use smoltcp::iface::SocketHandle;
 use spin::{Mutex, MutexGuard};
-use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
+use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr, UserBuffer};
 use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
 use super::add_user_intr_task;
 use super::pid::RecycleAllocator;
-use alloc::sync::{Arc, Weak};
+use alloc::{sync::{Arc, Weak}, collections::BTreeMap};
 use alloc::vec;
 use alloc::vec::Vec;
 use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
@@ -22,14 +24,19 @@ pub struct ProcessControlBlock {
     inner: Mutex<ProcessControlBlockInner>,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Ucsr {
-    pub ustatus: usize,
-    pub uepc: usize,
-    pub utvec: usize,
-    pub uie: usize,
-    pub uscratch: usize,
+pub struct Socket2ktaskinfo(SpinLock<Vec<(SocketHandle, (UserBuffer, usize, usize))>>);
+
+impl Socket2ktaskinfo {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self(SpinLock::new(Vec::new())))
+    }
+
+    pub fn lock<'a>(self: &'a Arc<Self>) -> SpinLockGuard<'a, Vec<(SocketHandle, (UserBuffer, usize, usize))>> {
+        self.0.lock()
+    }
+
 }
+
 
 pub struct ProcessControlBlockInner {
     pub is_zombie: bool,
@@ -43,11 +50,12 @@ pub struct ProcessControlBlockInner {
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
     pub user_trap_handler_tid: usize,
-    pub ucsr: Option<Ucsr>,
     pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
     pub user_trap_info_cache: Vec<UserTrapRecord>,
     pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
+    pub has_poll_thread: bool,
+    pub socket2ktaskinfo: Arc<Socket2ktaskinfo>,
 }
 
 impl ProcessControlBlockInner {
@@ -163,6 +171,10 @@ impl ProcessControlBlockInner {
         res
     }
 
+    pub fn get_socket2ktaskinfo(&self) -> Arc<Socket2ktaskinfo> {
+        self.socket2ktaskinfo.clone()
+    }
+
 }
 
 impl ProcessControlBlock {
@@ -174,53 +186,6 @@ impl ProcessControlBlock {
         self.acquire_inner_lock().user_trap_handler_tid = user_trap_handler_tid;
     }
 
-    pub fn ucsr_restore(self: &Arc<Self>) {
-        let mut inner = self.acquire_inner_lock();
-        if inner.is_user_trap_enabled() && sys_gettid() as usize == inner.user_trap_handler_tid 
-            && inner.ucsr.is_some() {
-            let inner_ucsr = inner.ucsr.as_mut();
-            let ucsr = inner_ucsr.unwrap();
-            unsafe { 
-                core::arch::asm!("csrw ustatus, {0}", in(reg)ucsr.ustatus); 
-                utvec::write(ucsr.utvec, utvec::TrapMode::Direct);
-                uepc::write(ucsr.uepc);
-                uscratch::write(ucsr.uscratch);
-                core::arch::asm!("csrw uie, {0}", in(reg)ucsr.uie); 
-            }
-            if let Some(trap_info) = &mut inner.user_trap_info {
-                if !trap_info.get_trap_queue().is_empty() {
-                    debug!("restore {} user trap", trap_info.user_trap_record_num());
-                    unsafe { 
-                        sip::set_usoft();
-                        uip::set_usoft();
-                    }
-                } else {
-                    // debug!("trap enbale, no trap message");
-                    unsafe {
-                        sip::clear_usoft();
-                        uip::clear_usoft();
-                    }
-                }
-                
-            }
-        }
-    }
-
-    pub fn ucsr_save(self: &Arc<Self>) {
-        let mut inner = self.acquire_inner_lock();
-        if inner.is_user_trap_enabled() && inner.ucsr.is_some() && sys_gettid() as usize == inner.user_trap_handler_tid {
-            let inner_ucsr = inner.ucsr.as_mut();        
-            let ucsr = inner_ucsr.unwrap();
-            ucsr.utvec = utvec::read().bits();
-            ucsr.uepc = uepc::read();
-            let mut ustatus = 0usize;
-            unsafe { core::arch::asm!("csrr {0}, ustatus", out(reg)ustatus); }
-            ucsr.ustatus = ustatus;
-            ucsr.uie = uie::read().bits();
-            ucsr.uscratch = uscratch::read();
-            // debug!("save ucsr {:#x?}", ucsr);
-        }
-    }
 
     pub fn get_user_trap_handler_tid(self: &Arc<Self>) -> usize {
         self.acquire_inner_lock().user_trap_handler_tid
@@ -253,11 +218,12 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
-                    ucsr: None,
                     user_trap_handler_task: None,
                     user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    has_poll_thread: false,
+                    socket2ktaskinfo: Socket2ktaskinfo::new(),
                 }
             )
         });
@@ -368,11 +334,12 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
-                    ucsr: None,
                     user_trap_handler_task: None,
                     user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    has_poll_thread: false,
+                    socket2ktaskinfo: Socket2ktaskinfo::new(),
                 }
             )
         });

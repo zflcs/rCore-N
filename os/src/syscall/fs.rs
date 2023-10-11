@@ -50,10 +50,15 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) 
                 -3
             }
         } else {
-            
-            let work = file.awrite(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), pid, key);
-            lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
-            0
+            if let Ok(count) = file.awrite(
+                UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), 
+                pid, 
+                key
+            ) {
+                count as _
+            } else {
+                -2
+            }
         }
     } else {
         -4
@@ -86,11 +91,16 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -
                 -3
             }
         } else {
-            // info!("test2: {}", fd);
-            let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
-            lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
-            // info!("test3: {}", fd);
-            0
+            if let Ok(count) = file.aread(
+                UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()),
+                cid, 
+                pid, 
+                key
+            ) {
+                count as _
+            } else {
+                -2
+            }
         }
     } else {
         -4

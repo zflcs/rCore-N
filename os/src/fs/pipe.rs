@@ -184,14 +184,15 @@ impl File for Pipe {
         }
         debug!("pipe write end");
     }
-    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
-        Box::pin(awrite_work(self.clone(), buf, pid, key))
+    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Result<usize, isize> {
+        let work = Box::pin(awrite_work(self.clone(), buf, pid, key));
+        lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
+        Ok(0)
     }
-    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
-        // debug!("UserBuffer len: {}", buf.len());
-
-        // log::warn!("pipe aread");
-        Box::pin(aread_work(self.clone(), buf, cid, pid, key))
+    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Result<usize, isize> {
+        let work = Box::pin(aread_work(self.clone(), buf, cid, pid, key));
+        lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
+        Ok(0)
     }
 
     fn readable(&self) -> bool {

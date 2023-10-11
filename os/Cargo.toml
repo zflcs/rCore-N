@@ -49,8 +49,12 @@ features = [
 [features]
 board_qemu = ["uart8250", "virtio-drivers"]
 board_axu15eg = ["uart_xilinx", "axi-ethernet", "axi-dma"]
+ktut = []                   # kernel-thread & user thread
+kcut = []                   # kernel-coroutine & user thread
+ktuc = []                   # kernel-thread & user coroutine
+kcuc = []                   # kernel-coroutine & user coroutine
 
-default = ["board_axu15eg"]
+default = ["board_axu15eg", "kcut", "ktuc"]
 
 [build-dependencies]
 serde_derive = "1.0"
