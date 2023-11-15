@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "lib",
+    "lib/sharedscheduler",
     "lib_so",
     "os",
     "user",

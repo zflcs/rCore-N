@@ -1,14 +1,19 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! This crate provides the runtime of sharedscheduler
+//! 
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![no_std]
+#![no_main]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[macro_use]
+extern crate lib;
+extern crate alloc;
+
+use alloc::vec;
+
+#[no_mangle]
+pub fn test() -> i32 {
+    let mut _a = vec![1, 3, 4];
+    _a.push(2);
+    println!("test");
+    2
 }
