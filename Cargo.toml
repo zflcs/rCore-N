@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "lib",
+    "lib_so",
+    "os",
+    "user",
+]
+resolver = "1"
+default-members = ["os"]

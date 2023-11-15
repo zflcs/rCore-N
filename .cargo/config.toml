@@ -1,0 +1,12 @@
+
+[source.crates-io]
+replace-with = 'ustc'
+[source.ustc]
+registry = "https://mirrors.ustc.edu.cn/crates.io-index"
+
+
+[build]
+target = "riscv64gc-unknown-none-elf"
+target-dir = "./target"
+incremental = false
+

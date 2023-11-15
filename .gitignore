@@ -1,7 +1,6 @@
 .vscode/
+.idea/
 debug.log
 link_app.asm
 cases_bak.toml
-*/target/
-script/result.txt
-script/test_with_prio/*
+/target/
