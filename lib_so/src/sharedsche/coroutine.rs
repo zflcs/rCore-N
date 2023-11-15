@@ -89,7 +89,6 @@ impl Coroutine {
                     prio,
                     waker: Arc::new(CoroutineWaker::new(cid)),
                 })
-                
             }
         )
     }
