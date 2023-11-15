@@ -1,70 +1,81 @@
-use core::{any::Any, ptr::NonNull};
 use alloc::sync::Arc;
+use spin::{Lazy, Mutex};
+use virtio_drivers::{VirtIOHeader, VirtIONet};
+use crate::device::virtio_bus::VirtioHal;
+use smoltcp::{phy::{Device, RxToken, TxToken, DeviceCapabilities, Medium}, wire::EthernetAddress};
 
-use lazy_static::*;
-use virtio_drivers::{
-    device::{blk::VirtIOBlk, gpu::VirtIOGpu, input::VirtIOInput, net::{VirtIONet, RxBuffer}, self},
-    transport::{
-        mmio::{MmioTransport, VirtIOHeader},
-        DeviceType, Transport,
-    },
-};
-use crate::device::bus::virtio::VirtioHal;
-use spin::Mutex;
 
-pub static mut NET_DEVICE_ADDR: usize = 0x10008000;
-const NET_QUEUE_SIZE: usize = 128;
-const NET_BUFFER_LEN: usize = 2048;
+static VIRTIO_NET_ADDR: usize = 0x10008000;
 
-static mut NET_DEVICE: usize = 0;
+pub static NET_DEVICE: Lazy<NetDevice> = Lazy::new(|| NetDevice::new());
 
-pub struct NetDevice;
+
+#[derive(Clone)]
+pub struct NetDevice(Arc<Mutex<VirtIONet<'static, VirtioHal>>>);
 
 impl NetDevice {
-    pub fn transmit(&self, data: &[u8]) {
-        let net = get_net_device();
-        net.lock().send(device::net::TxBuffer::from(data)).expect("can't send data");
+    pub fn new() -> Self {
+        let virtio = 
+            VirtIONet::<VirtioHal>::new(unsafe { &mut *(VIRTIO_NET_ADDR as *mut VirtIOHeader) })
+            .expect("can't create net device by virtio");
+        Self(Arc::new(Mutex::new(virtio)))
     }
 
-    pub fn receive(&self) -> Option<RxBuffer> {
-        let net = get_net_device();
-        match net.lock().receive() {
-            Ok(buf) => {
-                Some(buf)
-            }
-            Err(virtio_drivers::Error::NotReady) => {
-                debug!("net read not ready");
-                None
-            }
-            Err(err) => {
-                panic!("net failed to recv: {:?}", err)
-            }
-        }
-    }
-
-    pub fn recycle_rx_buffer(&self, buf: RxBuffer) {
-        let net = get_net_device();
-        net.lock().recycle_rx_buffer(buf);
+    pub fn mac(&self) -> EthernetAddress {
+        EthernetAddress(self.0.lock().mac())
     }
 }
 
-fn get_net_device() -> &'static mut Mutex<VirtIONet<VirtioHal, MmioTransport, NET_QUEUE_SIZE>> {
-    unsafe {
-        &mut *(NET_DEVICE as *mut Mutex<VirtIONet<VirtioHal, MmioTransport, NET_QUEUE_SIZE>>)
+impl RxToken for NetDevice {
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, f: F) -> R {
+        let mut buffer = [0u8; 2000];
+        let mut driver = self.0.lock();
+        let len = driver.recv(&mut buffer).expect("failed to recv packet");
+        f(&mut buffer[..len])
+    }
+}
+
+impl TxToken for NetDevice {
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, len: usize, f: F) -> R {
+        let mut buffer = [0u8; 2000];
+        let result = f(&mut buffer[..len]);
+        let mut driver = self.0.lock();
+        driver.send(&buffer).expect("failed to send packet");
+        result
+    }
+}
+
+impl Device for NetDevice {
+    type RxToken<'a> = Self;
+    type TxToken<'a> = Self;
+
+    fn receive(&mut self, _timestamp: smoltcp::time::Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        let net = self.0.lock();
+        if net.can_recv() {
+            Some((self.clone(), self.clone()))
+        } else {
+            None
+        }
+    }
+
+    fn transmit(&mut self, _timestamp: smoltcp::time::Instant) -> Option<Self::TxToken<'_>> {
+        let net = self.0.lock();
+        if net.can_send() {
+            Some(self.clone())
+        } else {
+            None
+        }
+    }
+
+    fn capabilities(&self) -> DeviceCapabilities {
+        let mut caps = DeviceCapabilities::default();
+        caps.max_transmission_unit = 1536;
+        caps.max_burst_size = Some(1);
+        caps.medium = Medium::Ethernet;
+        caps
     }
 }
 
 pub fn init() {
-    unsafe {
-        let header = NonNull::new(NET_DEVICE_ADDR as *mut VirtIOHeader).unwrap();
-        let transport = MmioTransport::new(header).unwrap();
-        debug!("NET_DEVICE_ADDR: {:#x}", NET_DEVICE_ADDR);
-        let virtio = VirtIONet::<VirtioHal, MmioTransport, NET_QUEUE_SIZE>
-            ::new(transport, NET_BUFFER_LEN)
-            .expect("can't create net device by virtio");
-        let net = Arc::new(Mutex::new(virtio));
-        NET_DEVICE = net.as_ref() as *const Mutex<VirtIONet<VirtioHal, MmioTransport, NET_QUEUE_SIZE>> as usize;
-        core::mem::forget(net);
-    }
-    
+
 }

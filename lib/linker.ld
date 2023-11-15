@@ -1,26 +1,77 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 BASE_ADDRESS = 0;
-SECTIONS {
+SECTIONS
+{
     . = BASE_ADDRESS;
-    .text : ALIGN(4K) {
-        *(.text.entry)
+    . = ALIGN(0x1000);
+    .text : {
         *(.text .text.*)
     }
-    .rodata : ALIGN(4K) {
-        *(.rodata .rodata.*)
-        *(.srodata .srodata.*)
+
+    . = ALIGN(0x1000);
+    .dynstr : {
+        *(.dynstr .dynstr.*)
     }
-    .data : ALIGN(4K) {
-        *(.data .data.*)
+
+    . = ALIGN(0x1000);
+    .dynsym : {
+        *(.dynsym .dynsym.*)
+    }
+
+    . = ALIGN(0x1000);
+    .gnu.hash : {
+        *(.gnu.hash .gnu.hash.*)
+    }
+
+
+    . = ALIGN(0x1000);
+    .rodata : {
+        *(.rodata .rodata.*)
+    }
+
+    . = ALIGN(0x1000);
+    .sdata : {
         *(.sdata .sdata.*)
     }
-    .bss : ALIGN(4K) {
-        *(.bss.uninit)
+
+    . = ALIGN(0x1000);
+    .data : {
+        *(.data .data.*)
+    }
+
+    . = ALIGN(0x1000);
+    .bss : {
         *(.bss .bss.*)
+    }
+
+    . = ALIGN(0x1000);
+    .sbss : {
         *(.sbss .sbss.*)
     }
-    .rcore-lkm : ALIGN(4K) {
-        *(.rcore-lkm)
+
+    . = ALIGN(0x1000);
+    .dynamic : {
+        *(.dynamic .dynamic.*)
+    }
+
+    . = ALIGN(0x1000);
+    .rela.dyn : {
+        *(.rela.dyn .rela.dyn.*)
+    }
+
+    . = ALIGN(0x1000);
+    .plt : {
+        *(.plt .plt.*)
+    }
+
+    . = ALIGN(0x1000);
+    .got : {
+        *(.got .got.*)
+    }
+
+    . = ALIGN(0x1000);
+    .interp : {
+        *(.interp .interp.*)
     }
 }

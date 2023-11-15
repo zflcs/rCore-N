@@ -2,15 +2,13 @@
 use alloc::boxed::Box;
 use alloc::vec;
 use smoltcp::time::Instant;
-use crate::device::net::NET_DEVICE;
+use crate::device::NET_DEVICE;
 use crate::fs::File;
 use crate::mm::UserBuffer;
 
-
 use crate::syscall::sys_thread_create;
 use crate::task::{block_current_and_run_next, current_task, suspend_current_and_run_next, TaskControlBlock, current_process};
-use crate::trap::{UserTrapRecord, push_trap_record};
-use super::{ASYNC_RDMP, SOCKET_SET, iface_poll};
+use super::{SOCKET_SET, iface_poll};
 use super::iface::INTERFACE;
 use smoltcp::socket::tcp::{Socket, SocketBuffer};
 use smoltcp::iface::SocketHandle;

@@ -1,19 +1,24 @@
 use alloc::{sync::Arc, vec};
-use kernel_sync::SpinLock;
 use smoltcp::{
     iface::{Interface, Config},
     wire::{EthernetAddress, IpCidr, IpAddress}, 
     time::Instant,
 };
-use spin::Lazy;
+use spin::{Mutex, Lazy};
 use smoltcp::iface::SocketSet;
 
 
-use crate::{config::AXI_NET_CONFIG, device::NET_DEVICE};
+use crate::device::NET_DEVICE;
 
 pub fn set_up() {
+    #[cfg(feature = "board_axu15eg")]
     INTERFACE.lock().update_ip_addrs(|ip_addrs|
         ip_addrs.push(IpCidr::new(IpAddress::v4(172, 16, 1, 2), 30)).unwrap()
+    );
+
+    #[cfg(feature = "board_qemu")]
+    INTERFACE.lock().update_ip_addrs(|ip_addrs|
+        ip_addrs.push(IpCidr::new(IpAddress::v4(10, 0, 2, 15), 30)).unwrap()
     );
 }
 
@@ -26,9 +31,9 @@ pub fn iface_poll() {
 }
 
 
-pub static INTERFACE: Lazy<Arc<SpinLock<Interface>>> = Lazy::new(|| Arc::new(SpinLock::new(
+pub static INTERFACE: Lazy<Arc<Mutex<Interface>>> = Lazy::new(|| Arc::new(Mutex::new(
     Interface::new(
-            Config::new(EthernetAddress(AXI_NET_CONFIG.mac_addr).into()),
+            Config::new(NET_DEVICE.mac().into()),
             unsafe { &mut *NET_DEVICE.as_mut_ptr() },
             Instant::ZERO
         )
@@ -36,7 +41,7 @@ pub static INTERFACE: Lazy<Arc<SpinLock<Interface>>> = Lazy::new(|| Arc::new(Spi
 
 
 
-pub static SOCKET_SET: Lazy<Arc<SpinLock<SocketSet>>> = Lazy::new(|| Arc::new(SpinLock::new(
+pub static SOCKET_SET: Lazy<Arc<Mutex<SocketSet>>> = Lazy::new(|| Arc::new(Mutex::new(
     SocketSet::new(vec![])
 )));
 

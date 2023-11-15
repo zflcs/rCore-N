@@ -1,4 +1,3 @@
-mod mail;
 mod pipe;
 pub mod stdio;
 
@@ -6,7 +5,6 @@ use crate::mm::UserBuffer;
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin, task::{Poll, Context}};
 
-pub use mail::{MailBox, Socket};
 pub trait File: Send + Sync {
     fn readable(&self) -> bool;
     fn writable(&self) -> bool;

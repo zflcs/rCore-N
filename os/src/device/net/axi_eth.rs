@@ -4,25 +4,30 @@ use core::pin::Pin;
 use alloc::{sync::Arc, boxed::Box, vec};
 use axi_dma::{AxiDmaIntr, AxiDma};
 use axi_ethernet::{AxiEthernet, XAE_JUMBO_OPTION, LinkStatus};
-use kernel_sync::SpinLock;
-use spin::Lazy;
+use spin::{Mutex, Lazy};
 use crate::config::{AXI_DMA_CONFIG, AXI_NET_CONFIG};
-use smoltcp::phy::{Device, RxToken, TxToken, DeviceCapabilities, Medium};
+use smoltcp::{phy::{Device, RxToken, TxToken, DeviceCapabilities, Medium}, wire::EthernetAddress};
 
 #[derive(Clone)]
 pub struct NetDevice {
     pub dma: Arc<AxiDma>,
     pub dma_intr: Arc<AxiDmaIntr>,
-    pub eth: Arc<SpinLock<AxiEthernet>>,
+    pub eth: Arc<Mutex<AxiEthernet>>,
 }
 
 impl NetDevice {
     pub const fn new(
         dma: Arc<AxiDma>,
         dma_intr: Arc<AxiDmaIntr>,
-        eth: Arc<SpinLock<AxiEthernet>>
+        eth: Arc<Mutex<AxiEthernet>>
     ) -> Self {
         Self { dma, dma_intr, eth }
+    }
+
+    pub fn mac(&self) -> EthernetAddress {
+        let mut address = [0; 6];
+        self.eth.lock().get_mac_address(&mut address);
+        EthernetAddress(address)
     }
 }
 
@@ -31,35 +36,6 @@ impl Default for NetDevice {
         NetDevice::new(AXI_DMA.clone(), AXI_DMA_INTR.clone(), AXI_ETH.clone())
     }
 }
-
-// impl NetDevice {
-//     pub fn transmit(&self, data: &[u8]) {
-//         log::trace!("net transmit");
-//         let buf = self.dma.tx_submit(Box::pin(data)).unwrap().wait();
-//         if !self.dma_intr.tx_intr_handler() {
-//             dma_init();
-//         }
-//         self.dma.tx_from_hw();
-//     }
-
-//     pub fn receive(&self) -> Option<Pin<Box<[u8]>>> {
-//         let mut eth = self.eth.lock();
-//         if eth.is_rx_cmplt() {
-//             eth.clear_rx_cmplt();
-//         }
-//         if eth.can_receive() {
-//             let rx_frame = Box::pin([0u8; AXI_NET_CONFIG.mtu]);
-//             let mut buf = self.dma.rx_submit(rx_frame).unwrap().wait();
-//             if !self.dma_intr.rx_intr_handler() {
-//                 dma_init();
-//             }
-//             self.dma.rx_from_hw();
-//             Some(buf)
-//         } else {
-//             None
-//         }
-//     }
-// }
 
 
 impl RxToken for NetDevice {
@@ -124,7 +100,7 @@ impl Device for NetDevice {
 
 pub static NET_DEVICE: Lazy<NetDevice> = Lazy::new(|| NetDevice::default());
 
-pub static AXI_ETH: Lazy<Arc<SpinLock<AxiEthernet>>> = Lazy::new(||  Arc::new(SpinLock::new(AxiEthernet::new(
+pub static AXI_ETH: Lazy<Arc<Mutex<AxiEthernet>>> = Lazy::new(||  Arc::new(Mutex::new(AxiEthernet::new(
     AXI_NET_CONFIG.eth_baseaddr, AXI_NET_CONFIG.dma_baseaddr
 ))));
 
