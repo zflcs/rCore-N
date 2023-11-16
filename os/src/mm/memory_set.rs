@@ -62,6 +62,7 @@ impl MemorySet {
             None,
         );
     }
+    
     pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
         if let Some((idx, area)) = self
             .areas

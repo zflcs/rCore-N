@@ -1,0 +1,6 @@
+[build]
+target = "x86_64-unknown-linux-gnu"
+incremental = false
+
+# [target.riscv64gc-unknown-linux-gnu]
+# linker = "riscv64-unknown-linux-gnu-gcc"

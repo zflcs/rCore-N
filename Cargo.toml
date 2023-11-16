@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "executor",
+    "easy-fs",
+    "easy-fs-fuse",
     "lang",
     "lib/sharedscheduler",
     "os",
@@ -8,4 +10,3 @@ members = [
 ]
 resolver = "1"
 default-members = ["os"]
-
