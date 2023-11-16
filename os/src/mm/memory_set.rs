@@ -22,8 +22,6 @@ extern "C" {
     fn edata();
     fn sbss_with_stack();
     fn ebss();
-    fn svdso();
-    fn evdso();
     fn ekernel();
     fn strampoline();
 }
@@ -145,19 +143,6 @@ impl MemorySet {
             MapArea::new(
                 (sbss_with_stack as usize).into(),
                 (ebss as usize).into(),
-                MapType::Identical,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
-        );
-        debug!(
-            "mapping .vdso section [{:#x}, {:#x})",
-            svdso as usize, evdso as usize
-        );
-        memory_set.push(
-            MapArea::new(
-                (svdso as usize).into(),
-                (evdso as usize).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ),

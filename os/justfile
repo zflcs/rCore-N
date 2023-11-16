@@ -44,7 +44,8 @@ disasm_axu15eg: build_axu15eg
     {{OBJDUMP}} -S -t {{KERNEL_ELF}} > {{KERNEL_ASM}}
 
 run: build
-    {{QEMU}} -machine virt -smp 4  -nographic -bios ./rustsbi-qemu.bin -device loader,file={{KERNEL_BIN}},addr=0x80200000 \
+    cd ../opensbi && make CROSS_COMPILE=riscv64-unknown-elf- PLATFORM=generic
+    {{QEMU}} -machine virt -smp 4  -nographic -bios ../opensbi/build/platform/generic/firmware/fw_payload.elf \
     -device virtio-net-device,netdev=net0 \
     -netdev user,id=net0,hostfwd=tcp::6201-:80
 
