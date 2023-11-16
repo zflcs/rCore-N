@@ -3,7 +3,7 @@ TARGET := "riscv64gc-unknown-linux-gnu"
 MODE := "release"
 OBJDUMP := "riscv64-unknown-linux-gnu-objdump"
 
-BUILD_PATH := "../target/" + TARGET + "/" + MODE + "/"
+BUILD_PATH := "../../target/" + TARGET + "/" + MODE + "/"
 ELF := BUILD_PATH + "libsharedscheduler.so"
 ASM := BUILD_PATH + "libsharedscheduler.asm"
 

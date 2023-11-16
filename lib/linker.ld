@@ -1,5 +1,5 @@
 OUTPUT_ARCH(riscv)
-ENTRY(_start)
+ENTRY(__libc_start_main)
 BASE_ADDRESS = 0;
 SECTIONS
 {

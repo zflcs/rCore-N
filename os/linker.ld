@@ -1,5 +1,5 @@
 OUTPUT_ARCH(riscv)
-ENTRY(__libc_start_main)
+ENTRY(_start)
 BASE_ADDRESS = 0x80200000;
 
 SECTIONS
@@ -49,16 +49,9 @@ SECTIONS
 
     . = ALIGN(4K);
     ebss = .;
-    svdso = .;
-    .vdso : {
-        *(.vdso .vdso.*)
-    }
-    . = ALIGN(4K);
-    evdso = .;
     ekernel = .;
 
     /DISCARD/ : {
         *(.eh_frame)
-        *(.debug*)
     }
 }

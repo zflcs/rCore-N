@@ -58,7 +58,7 @@ static mut STACK: [u8; TOTAL_BOOT_STACK_SIZE] = [0u8; TOTAL_BOOT_STACK_SIZE];
 #[naked]
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub unsafe extern "C" fn __libc_start_main(hartid: usize) -> ! {
+pub unsafe extern "C" fn _start(hartid: usize) -> ! {
     core::arch::asm!(
         // Use tp to save hartid
         "mv tp, a0",
@@ -121,8 +121,8 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     clear_bss();
     lang::console::init(option_env!("LOG"));
     mm::init();
-    BOOT_HART.fetch_add(1, Ordering::Relaxed);
     mm::remap_test();
+    BOOT_HART.fetch_add(1, Ordering::Relaxed);
     // trap::init();
     // net::init();
     // device::init();

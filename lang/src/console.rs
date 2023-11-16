@@ -36,21 +36,22 @@ pub fn _print(args: Arguments) {
     CONSOLE.lock().write_fmt(args).unwrap();
 }
 
+
+
 /// print!
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => {
-        $crate::console::_print(core::format_args!($($arg)*));
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        $crate::console::_print(format_args!($fmt $(, $($arg)+)?))
     }
 }
 
 /// println!
 #[macro_export]
 macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => {{
-        $crate::console::_print(core::format_args_nl!($($arg)*));
-    }}
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        $crate::console::_print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?))
+    }
 }
 
 ///
@@ -89,7 +90,8 @@ impl log::Log for Console {
             Trace => 90,
         };
         println!(
-            "\x1b[{color_code}m[core {}][{:>5}] {}:{} {}\x1b[0m",
+            "\x1b[{}m[core {}][{:>5}] {}:{} {}\x1b[0m",
+            color_code,
             hart_id(),
             record.level(),
             record.file().unwrap(),

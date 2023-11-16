@@ -12,9 +12,7 @@ bitflags = "2.4.1"
 buddy_system_allocator = "0.9.0"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 log = "0.4"
-riscv = { git = "https://github.com/duskmoon314/riscv", branch = "extN", features = [
-    "inline-asm",
-] }
+riscv = "0.10"
 spin = "0.9"
 xmas-elf = "0.9.1"
 rv-plic = { git = "https://github.com/duskmoon314/rv-plic" }

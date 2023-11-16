@@ -200,7 +200,7 @@ pub fn async_fn(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut async_helper = proc_macro2::TokenStream::default();
     if let Ok(flag) = attr.to_string().parse::<bool>() {
         if flag {
-            println!("{:?}", flag);
+            // println!("{:?}", flag);
             async_helper.extend(quote!(
                 let async_call = $crate::AsyncCall::new();
                 async_call.await;

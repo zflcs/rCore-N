@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lang = { path = "../../lang"}
+lang = { path = "../../lang", features = ["not_kernel"]}
 executor = { path = "../../executor" }
 
 [lib]
