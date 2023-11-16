@@ -1,5 +1,5 @@
-mod mutex;
 mod condvar;
+mod mutex;
 
-pub use mutex::{SimpleMutex, MutexSpin, MutexBlocking};
 pub use condvar::Condvar;
+pub use mutex::{MutexBlocking, MutexSpin, SimpleMutex};

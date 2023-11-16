@@ -4,11 +4,11 @@
 #![feature(alloc_error_handler)]
 #![feature(map_try_insert)]
 #![feature(vec_into_raw_parts)]
-#![allow(unused)]
 #![feature(new_uninit)]
 #![feature(naked_functions)]
 #![feature(asm_const)]
 #![feature(exact_size_is_empty)]
+#![allow(unused)]
 
 extern crate alloc;
 extern crate rv_plic;
@@ -18,8 +18,8 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
-use crate::{config::CPU_NUM, mm::init_kernel_space, sbi::send_ipi};
-use core::{arch::{asm, global_asm}, sync::atomic::{Ordering::Relaxed, AtomicUsize}};
+use crate::{config::CPU_NUM, mm::init_kernel_space};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 #[macro_use]
 mod console;
@@ -31,29 +31,25 @@ mod loader;
 mod logger;
 mod mm;
 mod sbi;
+mod sync;
 mod syscall;
 mod task;
-mod sync;
 mod timer;
 mod trap;
-#[macro_use]
-mod trace;
-mod lkm;
+
 mod device;
+mod lkm;
 mod net;
 
-use alloc::vec;
+use device::plic;
 
-use device::{plic, uart};
-
-global_asm!(include_str!("link_app.asm"));
+core::arch::global_asm!(include_str!("link_app.asm"));
 
 /// Boot kernel size allocated in `_start` for single CPU.
 pub const BOOT_STACK_SIZE: usize = 0x4_0000;
 
 /// Total boot kernel size.
 pub const TOTAL_BOOT_STACK_SIZE: usize = BOOT_STACK_SIZE * CPU_NUM;
-
 
 /// Initialize kernel stack in .bss section.
 #[link_section = ".bss.stack"]
@@ -123,20 +119,16 @@ static BOOT_HART: AtomicUsize = AtomicUsize::new(0);
 
 #[no_mangle]
 pub fn rust_main_init(hart_id: usize) -> ! {
-    if BOOT_HART.load(Relaxed) != 0 {
-        return rust_main_init_other(hart_id);
-    }
     clear_bss();
     logger::init();
     mm::init();
-    BOOT_HART.fetch_add(1, Relaxed);
+    BOOT_HART.fetch_add(1, Ordering::Relaxed);
     mm::remap_test();
     trap::init();
     net::init();
     device::init();
     plic::init();
     plic::init_hart(hart_id);
-    uart::init();
     lkm::init();
 
     debug!("trying to add initproc");
@@ -145,36 +137,38 @@ pub fn rust_main_init(hart_id: usize) -> ! {
 
     if CPU_NUM > 1 {
         for i in 0..CPU_NUM {
-            let boot_hart_cnt = BOOT_HART.load(Relaxed);
+            let boot_hart_cnt = BOOT_HART.load(Ordering::Relaxed);
             if i != hart_id {
                 debug!("Start {}", i);
                 // Starts other harts.
                 let ret = sbi_rt::hart_start(i, __entry_others as _, 0);
                 assert!(ret.is_ok(), "Failed to shart hart {}", i);
-                while BOOT_HART.load(Relaxed) == boot_hart_cnt {}
+                while BOOT_HART.load(Ordering::Relaxed) == boot_hart_cnt {}
             }
         }
     }
     loader::list_apps();
     rust_main(hart_id)
-
 }
 
 #[no_mangle]
-pub fn rust_main_init_other(hart_id: usize) -> !{
+pub fn rust_main_init_other(hart_id: usize) -> ! {
     init_kernel_space();
     trap::init();
     plic::init_hart(hart_id);
-    BOOT_HART.fetch_add(1, Relaxed);
+    BOOT_HART.fetch_add(1, Ordering::Relaxed);
     rust_main(hart_id)
 }
 
 #[no_mangle]
-pub fn rust_main(hart_id: usize) -> ! {
+pub fn rust_main(_hart_id: usize) -> ! {
     timer::set_next_trigger();
-    lib_so::spawn(move || task::run_tasks(), 7, 0, lib_so::CoroutineKind::KernSche);
+    lib_so::spawn(
+        move || task::run_tasks(),
+        7,
+        0,
+        lib_so::CoroutineKind::KernSche,
+    );
     lib_so::poll_kernel_future();
     panic!("Unreachable in rust_main!");
 }
-
-

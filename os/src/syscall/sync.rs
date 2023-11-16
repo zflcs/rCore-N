@@ -1,5 +1,5 @@
+use crate::sync::{Condvar, MutexBlocking, MutexSpin, SimpleMutex};
 use crate::task::current_process;
-use crate::sync::{SimpleMutex, MutexSpin, MutexBlocking, Condvar};
 use alloc::sync::Arc;
 
 pub fn sys_mutex_create(blocking: bool) -> isize {

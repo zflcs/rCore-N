@@ -1,15 +1,8 @@
-mod tcp;
 mod iface;
+mod tcp;
 
 pub use iface::*;
 pub use tcp::TcpFile;
-
-use alloc::{sync::Arc, collections::BTreeMap};
-use spin::{Lazy, Mutex};
-
-use crate::device::NET_DEVICE;
-
-use smoltcp::{wire::*, time::Instant};
 
 pub fn init() {
     iface::set_up();

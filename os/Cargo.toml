@@ -32,7 +32,6 @@ lib_so = { path = "../lib_so", features = ["kernel"] }
 axi-ethernet = { path = "../../axi-ethernet", optional = true }
 axi-dma = { path = "../../axi-dma", optional = true }
 sbi-rt = { version = "0.0.2", features = ["legacy"] }
-kernel-sync = {  git = "https://github.com/tkf2019/kernel-sync" }
 
 [dependencies.smoltcp]
 version = "0.10.0"

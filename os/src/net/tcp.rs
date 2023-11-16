@@ -1,17 +1,14 @@
-
-use alloc::boxed::Box;
-use alloc::vec;
-use smoltcp::time::Instant;
-use crate::device::NET_DEVICE;
 use crate::fs::File;
 use crate::mm::UserBuffer;
+use alloc::boxed::Box;
 
-use crate::syscall::sys_thread_create;
-use crate::task::{block_current_and_run_next, current_task, suspend_current_and_run_next, TaskControlBlock, current_process};
-use super::{SOCKET_SET, iface_poll};
-use super::iface::INTERFACE;
-use smoltcp::socket::tcp::{Socket, SocketBuffer};
+use super::{iface_poll, SOCKET_SET};
+use crate::task::{
+    block_current_and_run_next, current_process, current_task, suspend_current_and_run_next,
+    TaskControlBlock,
+};
 use smoltcp::iface::SocketHandle;
+use smoltcp::socket::tcp::Socket;
 
 pub struct TcpFile(SocketHandle);
 
@@ -20,7 +17,6 @@ impl TcpFile {
         Self(handle)
     }
 }
-
 
 impl File for TcpFile {
     fn readable(&self) -> bool {
@@ -35,11 +31,17 @@ impl File for TcpFile {
         socket.can_send()
     }
 
-    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> Result<usize, isize> {
+    fn awrite(&self, _buf: UserBuffer, _pid: usize, _key: usize) -> Result<usize, isize> {
         todo!()
     }
 
-    fn aread(&self, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> Result<usize, isize> {
+    fn aread(
+        &self,
+        buf: UserBuffer,
+        cid: usize,
+        pid: usize,
+        _key: usize,
+    ) -> Result<usize, isize> {
         #[cfg(feature = "kcuc")]
         {
             let work = Box::pin(async_read(self.0, buf, cid, pid));
@@ -51,19 +53,23 @@ impl File for TcpFile {
             // check current process's poll thread is or not exist
             let current_process = current_process().unwrap();
             // add socket & user coroutine relation to map
-            current_process.acquire_inner_lock().get_socket2ktaskinfo().lock().push((self.0, (buf, cid, pid)));
+            current_process
+                .acquire_inner_lock()
+                .get_socket2ktaskinfo()
+                .lock()
+                .push((self.0, (buf, cid, pid)));
             if !current_process.acquire_inner_lock().has_poll_thread {
-                kernel_thread_create(poll_socket_thread as _);      // create a thread & add_task to scheduler
+                kernel_thread_create(poll_socket_thread as _); // create a thread & add_task to scheduler
                 current_process.acquire_inner_lock().has_poll_thread = true;
             }
             Ok(0)
         }
     }
 
-    /// only two scenario will break the loop 
+    /// only two scenario will break the loop
     /// 1. the socket cannot receive
     /// 2. the buffer is full
-    fn read(&self, mut buf: UserBuffer) -> Result<usize, isize> {
+    fn read(&self, buf: UserBuffer) -> Result<usize, isize> {
         #[cfg(feature = "ktut")]
         {
             let mut buf_iter = buf.buffers.iter_mut();
@@ -82,16 +88,19 @@ impl File for TcpFile {
                                 drop(socket_set);
                                 head_buf = buf_iter.next();
                             }
-                        } else {  // socket has no buffer, need wait
+                        } else {
+                            // socket has no buffer, need wait
                             drop(socket);
                             drop(socket_set);
                             suspend_current_and_run_next();
                             continue;
                         }
-                    } else {    // buffer is full
+                    } else {
+                        // buffer is full
                         break;
                     }
-                } else {    // socket is not active
+                } else {
+                    // socket is not active
                     break;
                 }
             }
@@ -100,16 +109,11 @@ impl File for TcpFile {
         #[cfg(feature = "kcut")]
         {
             let current_task = current_task().unwrap();
-            let work = thread_async_read(
-                current_task, 
-                self.0, 
-                buf
-            );
+            let work = thread_async_read(current_task, self.0, buf);
             lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
             block_current_and_run_next();
             Ok(0)
         }
-
     }
 
     // send as much as possible
@@ -125,21 +129,22 @@ impl File for TcpFile {
                     if socket.can_send() {
                         if let Ok(size) = socket.send_slice(head_buf.as_mut().unwrap()) {
                             count += size;
-                            drop(socket);
                             drop(socket_set);
                             head_buf = buf_iter.next();
                             iface_poll();
                         }
-                    } else {  // socket has no space, need wait
-                        drop(socket);
+                    } else {
+                        // socket has no space, need wait
                         drop(socket_set);
                         suspend_current_and_run_next();
                         continue;
                     }
-                } else {    // buffer is full
+                } else {
+                    // buffer is full
                     break;
                 }
-            } else {    // socket is not active
+            } else {
+                // socket is not active
                 break;
             }
         }
@@ -153,11 +158,9 @@ impl Drop for TcpFile {
     }
 }
 
-
-async fn async_read(handle: SocketHandle, mut buf: UserBuffer, cid: usize, pid: usize) {
+async fn async_read(handle: SocketHandle, mut buf: UserBuffer, _cid: usize, _pid: usize) {
     let mut buf_iter = buf.buffers.iter_mut();
     let mut head_buf = buf_iter.next();
-    let mut count = 0usize;
     let waker = TcpSocketWaker::new(lib_so::current_cid(true));
     let mut helper = Box::new(ReadHelper::new());
     loop {
@@ -167,39 +170,37 @@ async fn async_read(handle: SocketHandle, mut buf: UserBuffer, cid: usize, pid: 
         if socket.is_active() {
             if head_buf.is_some() {
                 if socket.can_recv() {
-                    if let Ok(size) = socket.recv_slice(head_buf.as_mut().unwrap()) {
-                        count += size;
-                        drop(socket);
+                    if let Ok(_size) = socket.recv_slice(head_buf.as_mut().unwrap()) {
                         drop(socket_set);
                         head_buf = buf_iter.next();
                     }
-                } else {  // socket has no buffer, need wait
+                } else {
+                    // socket has no buffer, need wait
                     // register waker
                     socket.register_recv_waker(unsafe { &Waker::from_raw(waker.clone().into()) });
-                    drop(socket);
                     drop(socket_set);
                     log::trace!("register waker");
                     helper.as_mut().await;
                     log::trace!("be waked");
                 }
-            } else {    // buffer is full
+            } else {
+                // buffer is full
                 break;
             }
-        } else {    // socket is not active
+        } else {
+            // socket is not active
             break;
         }
     }
-    log::trace!("push message");
-    let _ = push_trap_record(pid, UserTrapRecord {
-        cause: 1,
-        message: cid,
-    });
 }
 
-use core::task::{Waker, RawWaker};
-use core::{future::Future, pin::Pin, task::{Poll, Context}};
-use alloc::{task::Wake, sync::Arc};
-
+use alloc::{sync::Arc, task::Wake};
+use core::task::Waker;
+use core::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 struct TcpSocketWaker(usize);
 
@@ -220,7 +221,6 @@ impl Wake for TcpSocketWaker {
         lib_so::re_back(self.0, 0);
     }
 }
-
 
 pub struct ReadHelper(usize);
 
@@ -244,11 +244,14 @@ impl Future for ReadHelper {
 }
 
 #[cfg(feature = "kcut")]
-pub async fn thread_async_read(thread: Arc<TaskControlBlock>, handle: SocketHandle, mut buf: UserBuffer) {
+pub async fn thread_async_read(
+    thread: Arc<TaskControlBlock>,
+    handle: SocketHandle,
+    mut buf: UserBuffer,
+) {
     use crate::task::add_task;
     let mut buf_iter = buf.buffers.iter_mut();
     let mut head_buf = buf_iter.next();
-    let mut count = 0usize;
     let waker = TcpSocketWaker::new(lib_so::current_cid(true));
     let mut helper = Box::new(ReadHelper::new());
     loop {
@@ -258,25 +261,25 @@ pub async fn thread_async_read(thread: Arc<TaskControlBlock>, handle: SocketHand
         if socket.is_active() {
             if head_buf.is_some() {
                 if socket.can_recv() {
-                    if let Ok(size) = socket.recv_slice(head_buf.as_mut().unwrap()) {
-                        count += size;
-                        drop(socket);
+                    if let Ok(_size) = socket.recv_slice(head_buf.as_mut().unwrap()) {
                         drop(socket_set);
                         head_buf = buf_iter.next();
                     }
-                } else {  // socket has no buffer, need wait
+                } else {
+                    // socket has no buffer, need wait
                     // register waker
                     socket.register_recv_waker(unsafe { &Waker::from_raw(waker.clone().into()) });
-                    drop(socket);
                     drop(socket_set);
                     log::trace!("register waker");
                     helper.as_mut().await;
                     log::trace!("be waked");
                 }
-            } else {    // buffer is full
+            } else {
+                // buffer is full
                 break;
             }
-        } else {    // socket is not active
+        } else {
+            // socket is not active
             break;
         }
     }
@@ -285,24 +288,21 @@ pub async fn thread_async_read(thread: Arc<TaskControlBlock>, handle: SocketHand
     add_task(thread);
 }
 
-
 #[cfg(feature = "ktuc")]
 /// poll socket & complete the data move option
 /// this thread will not block until the process is end
 pub fn poll_socket_thread() {
-    use alloc::vec::Vec;
-
-    use crate::task::{add_user_intr_task, exit_current_and_run_next, TaskStatus, schedule, take_current_task};
+    use crate::task::{add_user_intr_task, schedule, take_current_task, TaskStatus};
     loop {
         log::trace!("kernel poll_socket_thread loop");
         iface_poll();
         if let Some(curr_process) = current_process() {
-            let mut process_inner = curr_process.acquire_inner_lock();
+            let process_inner = curr_process.acquire_inner_lock();
             let socket2ktaskinfo = process_inner.get_socket2ktaskinfo();
             let mut need_suspend = false;
             let mut socket2ktaskinfo_inner = socket2ktaskinfo.lock();
             let len = socket2ktaskinfo_inner.len();
-            for i in 0..len {
+            for _i in 0..len {
                 let (handle, mut task_info) = socket2ktaskinfo_inner.pop().unwrap();
                 let mut buf_iter = task_info.0.buffers.iter_mut();
                 let mut head_buf = buf_iter.next();
@@ -313,35 +313,35 @@ pub fn poll_socket_thread() {
                         if socket.is_active() {
                             if head_buf.is_some() {
                                 if socket.can_recv() {
-                                    if let Ok(size) = socket.recv_slice(head_buf.as_mut().unwrap()) {
+                                    if let Ok(size) = socket.recv_slice(head_buf.as_mut().unwrap())
+                                    {
                                         count += size;
-                                        drop(socket);
                                         drop(socket_set);
                                         head_buf = buf_iter.next();
                                     } else {
                                     }
-                                } else {  // socket has no buffer, cannot receive
+                                } else {
+                                    // socket has no buffer, cannot receive
                                     break;
                                 }
-                            } else {    // buffer is full
+                            } else {
+                                // buffer is full
                                 break;
                             }
-                        } else {    // socket is not active
+                        } else {
+                            // socket is not active
                             break;
                         }
-                    } else {    // cannot get socket_set
+                    } else {
+                        // cannot get socket_set
                         break;
                     }
                 }
-                if count > 0 {      // read ok
+                if count > 0 {
+                    // read ok
                     need_suspend = true;
                     // wake up user coroutine
-                    log::trace!("push_trap_record");
                     add_user_intr_task(task_info.2);
-                    process_inner.push_user_trap_record(UserTrapRecord {
-                        cause: 1,
-                        message: task_info.1,
-                    });
                 } else {
                     socket2ktaskinfo_inner.push((handle, task_info));
                 }
@@ -356,7 +356,7 @@ pub fn poll_socket_thread() {
             }
         } else {
             // must take the current task from processor
-            let task = take_current_task().unwrap();    
+            let task = take_current_task().unwrap();
             let mut task_inner = task.acquire_inner_lock();
             // Change status to Zombie
             task_inner.task_status = TaskStatus::Zombie;
@@ -364,12 +364,10 @@ pub fn poll_socket_thread() {
             task_inner.exit_code = Some(0);
             // warn!("exit start: {} 2", tid);
             task_inner.res = None;
-            let task_cx_ptr = task_inner.get_task_cx_ptr();
             drop(task_inner);
             let mut _unused = Default::default();
             schedule(&mut _unused as *mut _);
         }
-        
     }
 }
 
@@ -383,11 +381,7 @@ pub fn kernel_thread_create(entry: usize) -> isize {
     // create a new thread
     let new_task = Arc::new(TaskControlBlock::new(
         Arc::clone(&process),
-        task.acquire_inner_lock()
-            .res
-            .as_ref()
-            .unwrap()
-            .ustack_base,
+        task.acquire_inner_lock().res.as_ref().unwrap().ustack_base,
         true,
     ));
     // debug!("tid: {}", new_task.acquire_inner_lock().res.as_ref().unwrap().tid);

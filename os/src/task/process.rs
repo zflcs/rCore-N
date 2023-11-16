@@ -1,21 +1,16 @@
-use kernel_sync::{SpinLock, SpinLockGuard};
-use lib_so::get_symbol_addr;
-use riscv::register::{utvec, uepc, ustatus::{self, Ustatus}, uie, uscratch, uip, sstatus, sip};
-use smoltcp::iface::SocketHandle;
-use spin::{Mutex, MutexGuard};
-use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr, UserBuffer};
-use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
-use super::add_user_intr_task;
 use super::pid::RecycleAllocator;
-use alloc::{sync::{Arc, Weak}, collections::BTreeMap};
+use crate::fs::{File, Stdin, Stdout};
+use crate::mm::{MemorySet, UserBuffer, KERNEL_SPACE};
+use crate::sync::{Condvar, SimpleMutex};
+use crate::task::pool::insert_into_pid2process;
+use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
+use crate::trap::{trap_handler, TrapContext};
+use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
-use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
-use crate::fs::{File, Stdin, Stdout};
-use crate::syscall::sys_gettid;
-use crate::task::pool::insert_into_pid2process;
-use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue, UserTrapRecord, UserTrapError};
-use crate::sync::{SimpleMutex, Condvar};
+use lib_so::get_symbol_addr;
+use smoltcp::iface::SocketHandle;
+use spin::{Mutex, MutexGuard};
 
 pub struct ProcessControlBlock {
     // immutable
@@ -24,25 +19,24 @@ pub struct ProcessControlBlock {
     inner: Mutex<ProcessControlBlockInner>,
 }
 
-pub struct Socket2ktaskinfo(SpinLock<Vec<(SocketHandle, (UserBuffer, usize, usize))>>);
+pub struct Socket2ktaskinfo(Mutex<Vec<(SocketHandle, (UserBuffer, usize, usize))>>);
 
 impl Socket2ktaskinfo {
     pub fn new() -> Arc<Self> {
-        Arc::new(Self(SpinLock::new(Vec::new())))
+        Arc::new(Self(Mutex::new(Vec::new())))
     }
 
-    pub fn lock<'a>(self: &'a Arc<Self>) -> SpinLockGuard<'a, Vec<(SocketHandle, (UserBuffer, usize, usize))>> {
+    pub fn lock<'a>(
+        self: &'a Arc<Self>,
+    ) -> MutexGuard<'a, Vec<(SocketHandle, (UserBuffer, usize, usize))>> {
         self.0.lock()
     }
-
 }
-
 
 pub struct ProcessControlBlockInner {
     pub is_zombie: bool,
     pub is_sstatus_uie: bool,
     pub memory_set: MemorySet,
-    pub user_trap_info: Option<UserTrapInfo>,
     pub parent: Option<Weak<ProcessControlBlock>>,
     pub children: Vec<Arc<ProcessControlBlock>>,
     pub exit_code: i32,
@@ -51,7 +45,6 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
     pub user_trap_handler_tid: usize,
     pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
-    pub user_trap_info_cache: Vec<UserTrapRecord>,
     pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
     pub has_poll_thread: bool,
@@ -101,94 +94,16 @@ impl ProcessControlBlockInner {
         self.memory_set.munmap(start, len)
     }
 
-    pub fn is_user_trap_enabled(&self) -> bool {
-        self.is_sstatus_uie
-    }
 
-    pub fn init_user_trap(&mut self) -> Result<isize, isize> {
-        use riscv::register::sstatus;
-        if self.user_trap_info.is_none() {
-            // R | W
-            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
-                let phys_addr =
-                    translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
-                self.user_trap_info = Some(UserTrapInfo {
-                    user_trap_buffer_ppn: PhysPageNum::from(PhysAddr::from(phys_addr)),
-                    devices: Vec::new(),
-                });
-                let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
-                *trap_queue = UserTrapQueue::new();
-                unsafe {
-                    sstatus::set_uie();
-                }
-                self.is_sstatus_uie = true;
-                return Ok(USER_TRAP_BUFFER as isize);
-            } else {
-                warn!("[init user trap] mmap failed!");
-            }
-        } else {
-            warn!("[init user trap] self user trap info is not None!");
-        }
-        Err(-1)
-    }
-
-    pub fn restore_user_trap_info(&mut self) {
-        use riscv::register::{uip, uscratch};
-        if self.is_user_trap_enabled() && sys_gettid() as usize == self.user_trap_handler_tid {
-            if let Some(trap_info) = &mut self.user_trap_info {
-                if !trap_info.get_trap_queue().is_empty() {
-                    trace!("restore {} user trap", trap_info.user_trap_record_num());
-                    uscratch::write(trap_info.user_trap_record_num());
-                    unsafe {
-                        sip::set_usoft();
-                        uip::set_usoft();
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn push_user_trap_record(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
-        let mut res = Err(UserTrapError::TaskNotFound);
-        if let Some(trap_info) = &mut self.user_trap_info {
-            if let Some(task) = self.user_trap_handler_task.take() {
-                res = trap_info.push_trap_record(trap_record);
-                trace!("add wake thread");
-                add_task(task);
-            } else {
-                self.user_trap_info_cache.push(trap_record);
-                res = Err(UserTrapError::TrapThreadBusy);
-            }
-        }
-        res
-    }
-
-    pub fn push_message(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
-        let mut res = Err(UserTrapError::TaskNotFound);
-        if let Some(trap_info) = &mut self.user_trap_info {
-            res = trap_info.push_trap_record(trap_record);
-        }
-        res
-    }
 
     pub fn get_socket2ktaskinfo(&self) -> Arc<Socket2ktaskinfo> {
         self.socket2ktaskinfo.clone()
     }
-
 }
 
 impl ProcessControlBlock {
     pub fn acquire_inner_lock(&self) -> MutexGuard<ProcessControlBlockInner> {
         self.inner.lock()
-    }
-
-    pub fn set_user_trap_handler_tid(self: &Arc<Self>, user_trap_handler_tid: usize) {
-        self.acquire_inner_lock().user_trap_handler_tid = user_trap_handler_tid;
-    }
-
-
-    pub fn get_user_trap_handler_tid(self: &Arc<Self>) -> usize {
-        self.acquire_inner_lock().user_trap_handler_tid
     }
 
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
@@ -198,34 +113,30 @@ impl ProcessControlBlock {
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
             pid: pid_handle,
-            inner: Mutex::new(
-                ProcessControlBlockInner {
-                    is_zombie: false,
-                    is_sstatus_uie: false,
-                    memory_set,
-                    user_trap_info: None,
-                    parent: None,
-                    children: Vec::new(),
-                    exit_code: 0,
-                    fd_table: vec![
-                        // 0 -> stdin
-                        Some(Arc::new(Stdin)),
-                        // 1 -> stdout
-                        Some(Arc::new(Stdout)),
-                        // 2 -> stderr
-                        Some(Arc::new(Stdout)),
-                    ],
-                    tasks: Vec::new(),
-                    task_res_allocator: RecycleAllocator::new(),
-                    user_trap_handler_tid: 0,
-                    user_trap_handler_task: None,
-                    user_trap_info_cache: Vec::new(),
-                    mutex_list: Vec::new(),
-                    condvar_list: Vec::new(),
-                    has_poll_thread: false,
-                    socket2ktaskinfo: Socket2ktaskinfo::new(),
-                }
-            )
+            inner: Mutex::new(ProcessControlBlockInner {
+                is_zombie: false,
+                is_sstatus_uie: false,
+                memory_set,
+                parent: None,
+                children: Vec::new(),
+                exit_code: 0,
+                fd_table: vec![
+                    // 0 -> stdin
+                    Some(Arc::new(Stdin)),
+                    // 1 -> stdout
+                    Some(Arc::new(Stdout)),
+                    // 2 -> stderr
+                    Some(Arc::new(Stdout)),
+                ],
+                tasks: Vec::new(),
+                task_res_allocator: RecycleAllocator::new(),
+                user_trap_handler_tid: 0,
+                user_trap_handler_task: None,
+                mutex_list: Vec::new(),
+                condvar_list: Vec::new(),
+                has_poll_thread: false,
+                socket2ktaskinfo: Socket2ktaskinfo::new(),
+            }),
         });
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
@@ -267,7 +178,6 @@ impl ProcessControlBlock {
         // substitute memory_set
         let mut process_inner = self.acquire_inner_lock();
         process_inner.memory_set = memory_set;
-        process_inner.user_trap_info = None;
         drop(process_inner);
         // then we alloc user resource for main thread again
         // since memory_set has been changed
@@ -276,9 +186,9 @@ impl ProcessControlBlock {
         task_inner.res.as_mut().unwrap().ustack_base = ustack_base;
         task_inner.res.as_mut().unwrap().alloc_user_res();
         task_inner.trap_cx_ppn = task_inner.res.as_mut().unwrap().trap_cx_ppn();
-        let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
+        let user_sp = task_inner.res.as_mut().unwrap().ustack_top();
         // initialize trap_cx
-        let mut trap_cx = TrapContext::app_init_context(
+        let trap_cx = TrapContext::app_init_context(
             // lib_so::user_entry(),
             get_symbol_addr(&crate::lkm::SHARED_ELF, "user_entry"),
             user_sp,
@@ -309,39 +219,26 @@ impl ProcessControlBlock {
             }
         }
 
-        let mut user_trap_info: Option<UserTrapInfo> = None;
-        if let Some(mut trap_info) = parent.user_trap_info.clone() {
-            trap_info.user_trap_buffer_ppn = memory_set
-                .translate(VirtAddr::from(USER_TRAP_BUFFER).into())
-                .unwrap()
-                .ppn();
-            user_trap_info = Some(trap_info);
-        }
-
         // create child process pcb
         let child = Arc::new(Self {
             pid,
-            inner: Mutex::new(
-                ProcessControlBlockInner {
-                    is_zombie: false,
-                    is_sstatus_uie: false,
-                    memory_set,
-                    user_trap_info: None,
-                    parent: Some(Arc::downgrade(self)),
-                    children: Vec::new(),
-                    exit_code: 0,
-                    fd_table: new_fd_table,
-                    tasks: Vec::new(),
-                    task_res_allocator: RecycleAllocator::new(),
-                    user_trap_handler_tid: 0,
-                    user_trap_handler_task: None,
-                    user_trap_info_cache: Vec::new(),
-                    mutex_list: Vec::new(),
-                    condvar_list: Vec::new(),
-                    has_poll_thread: false,
-                    socket2ktaskinfo: Socket2ktaskinfo::new(),
-                }
-            )
+            inner: Mutex::new(ProcessControlBlockInner {
+                is_zombie: false,
+                is_sstatus_uie: false,
+                memory_set,
+                parent: Some(Arc::downgrade(self)),
+                children: Vec::new(),
+                exit_code: 0,
+                fd_table: new_fd_table,
+                tasks: Vec::new(),
+                task_res_allocator: RecycleAllocator::new(),
+                user_trap_handler_tid: 0,
+                user_trap_handler_task: None,
+                mutex_list: Vec::new(),
+                condvar_list: Vec::new(),
+                has_poll_thread: false,
+                socket2ktaskinfo: Socket2ktaskinfo::new(),
+            }),
         });
         // add child
         parent.children.push(Arc::clone(&child));

@@ -1,4 +1,8 @@
-use riscv::register::{sstatus::{self, Sstatus, SPP}, ustatus::{Ustatus, self}, utvec::{Utvec, self}};
+use riscv::register::{
+    sstatus::{self, Sstatus, SPP},
+    ustatus::{self, Ustatus},
+    utvec::{self, Utvec},
+};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -10,7 +14,7 @@ pub struct TrapContext {
     pub kernel_sp: usize,
     pub trap_handler: usize,
     pub ustatus: Ustatus,
-    pub utvec: Utvec
+    pub utvec: Utvec,
 }
 
 impl TrapContext {

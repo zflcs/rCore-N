@@ -2,8 +2,11 @@ mod pipe;
 pub mod stdio;
 
 use crate::mm::UserBuffer;
-use alloc::boxed::Box;
-use core::{future::Future, pin::Pin, task::{Poll, Context}};
+use core::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 pub trait File: Send + Sync {
     fn readable(&self) -> bool;
@@ -12,12 +15,10 @@ pub trait File: Send + Sync {
     fn write(&self, buf: UserBuffer) -> Result<usize, isize>;
     fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Result<usize, isize>;
     fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Result<usize, isize>;
-
 }
 
 pub use pipe::{make_pipe, Pipe};
 pub use stdio::{Stdin, Stdout};
-
 
 pub struct ReadHelper(usize);
 

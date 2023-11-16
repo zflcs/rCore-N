@@ -10,7 +10,7 @@ pub const CPU_NUM: usize = 4;
 pub const MEMORY_END: usize = 0x84000000;
 /// page size: 4K
 pub const PAGE_SIZE: usize = 0x1000;
-/// 
+///
 pub const PAGE_SIZE_BITS: usize = 0xc;
 /// the base address of trampoline
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
@@ -20,8 +20,6 @@ pub const USER_TRAP_BUFFER: usize = TRAMPOLINE - PAGE_SIZE;
 pub const HEAP_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 /// the trap context of user thread 0
 pub const TRAP_CONTEXT: usize = HEAP_BUFFER - PAGE_SIZE;
-
-
 
 #[cfg(feature = "board_qemu")]
 /// the clock frequency in qemu
@@ -38,7 +36,7 @@ pub use axi_net::*;
 mod axi_net {
     use axi_dma::AxiDmaConfig;
     use axi_ethernet::{XAE_MAX_FRAME_SIZE, XAE_MAX_JUMBO_FRAME_SIZE};
-    
+
     pub const AXI_DMA_CONFIG: AxiDmaConfig = AxiDmaConfig {
         device_id: 0,
         base_address: 0x6010_0000,
@@ -56,16 +54,16 @@ mod axi_net {
         sg_length_width: 16,
         addr_width: 64,
     };
-    
+
     pub struct AxiNetConfig {
         pub tx_bd_cnt: usize,
         pub rx_bd_cnt: usize,
         pub eth_baseaddr: usize,
         pub dma_baseaddr: usize,
         pub mac_addr: [u8; 6],
-        pub mtu: usize
+        pub mtu: usize,
     }
-    
+
     pub const AXI_NET_CONFIG: AxiNetConfig = AxiNetConfig {
         tx_bd_cnt: 1024,
         rx_bd_cnt: 1024,
@@ -75,5 +73,3 @@ mod axi_net {
         mtu: XAE_MAX_JUMBO_FRAME_SIZE,
     };
 }
-
-

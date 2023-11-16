@@ -1,15 +1,17 @@
-use core::{future::Future, pin::Pin, task::{Context, Poll}};
+use core::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 // 异步系统调用辅助 future
 pub struct AsyncCall {
-    blocked: bool,         
+    blocked: bool,
 }
 
 impl AsyncCall {
     pub fn new() -> Self {
-        Self {
-            blocked: true
-        }
+        Self { blocked: true }
     }
 }
 

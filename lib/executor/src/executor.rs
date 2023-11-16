@@ -1,5 +1,4 @@
-
-use core::sync::atomic::{Ordering, AtomicU32};
+use core::sync::atomic::{AtomicU32, Ordering};
 
 use alloc::sync::Arc;
 
@@ -28,7 +27,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    /// 
+    ///
     pub fn new() -> Self {
         Self {
             wake_queue: WakeQueue::new(),
@@ -78,5 +77,4 @@ impl Executor {
         }
         task
     }
-    
 }

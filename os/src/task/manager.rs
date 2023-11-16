@@ -1,11 +1,10 @@
 use super::TaskControlBlock;
-use alloc::collections::{VecDeque, BTreeSet};
+use alloc::collections::{BTreeSet, VecDeque};
 use alloc::sync::Arc;
-use lib_so::max_prio_pid;
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
-    user_intr_process_set: BTreeSet<usize>
+    user_intr_process_set: BTreeSet<usize>,
 }
 
 /// A simple FIFO scheduler.
@@ -34,9 +33,6 @@ impl TaskManager {
         }
     }
 
-    pub fn remove_uintr_task(&mut self, pid: usize) {
-        self.user_intr_process_set.remove(&pid);
-    }
 
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         // // May need to concern affinity
@@ -56,7 +52,9 @@ impl TaskManager {
         //     return None;
         // }
         let n = self.ready_queue.len();
-        if n == 0 { return None; }
+        if n == 0 {
+            return None;
+        }
         let mut peek;
         let mut cnt = 0;
         loop {
@@ -67,7 +65,9 @@ impl TaskManager {
             }
             self.ready_queue.push_back(peek);
             cnt += 1;
-            if cnt >= n { break; }
+            if cnt >= n {
+                break;
+            }
         }
         self.ready_queue.pop_front()
     }

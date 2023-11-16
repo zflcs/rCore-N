@@ -1,11 +1,9 @@
-
 //! This mod specific the waker related with coroutine
-//! 
+//!
 
-use core::task::{RawWaker, RawWakerVTable, Waker};
-use alloc::sync::Arc;
 use super::task::{wake_task, Task, TaskRef};
-
+use alloc::sync::Arc;
+use core::task::{RawWaker, RawWakerVTable, Waker};
 
 const VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake, drop);
 

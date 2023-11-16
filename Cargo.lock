@@ -434,16 +434,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kernel-sync"
-version = "0.1.0"
-source = "git+https://github.com/tkf2019/kernel-sync#5ec6e78ddccea4a5418e34a0150400bec9fbd418"
-dependencies = [
- "cfg-if",
- "riscv 0.10.1",
- "spin 0.9.8",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -551,7 +541,6 @@ dependencies = [
  "device_tree",
  "embedded-hal 1.0.0-alpha.4",
  "heapless 0.7.16",
- "kernel-sync",
  "lazy_static",
  "lib_so",
  "log",

@@ -1,11 +1,9 @@
 use super::TaskContext;
 use super::TaskControlBlock;
-use super::__switch2;
+use super::__switch;
 use super::add_task;
 use super::{fetch_task, TaskStatus};
 use crate::config::CPU_NUM;
-use crate::trace::SCHEDULE;
-use crate::trace::{push_trace, RUN_NEXT, SUSPEND_CURRENT};
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -13,9 +11,8 @@ use core::arch::asm;
 use core::cell::RefCell;
 use riscv::register::cycle;
 
-use lazy_static::*;
 use crate::task::process::ProcessControlBlock;
-use crate::task::suspend_current_and_run_next;
+use lazy_static::*;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
 }
@@ -77,9 +74,6 @@ impl Processor {
         // acquire
         let process = task.process.upgrade().unwrap();
         let process_inner = process.acquire_inner_lock();
-        if process_inner.is_user_trap_enabled() {
-            process_inner.user_trap_info.as_ref().unwrap().enable_user_ext_int();
-        }
 
         drop(process_inner);
         drop(process);
@@ -99,7 +93,7 @@ impl Processor {
         drop(task_inner);
         self.inner.borrow_mut().current = Some(task);
         unsafe {
-            __switch2(idle_task_cx_ptr, next_task_cx_ptr);
+            __switch(idle_task_cx_ptr, next_task_cx_ptr);
         }
     }
 
@@ -110,9 +104,6 @@ impl Processor {
             // push_trace(SUSPEND_CURRENT + task.getpid());
             let process = task.process.upgrade().unwrap();
             let process_inner = process.acquire_inner_lock();
-            if process_inner.is_user_trap_enabled() {
-                process_inner.user_trap_info.as_ref().unwrap().disable_user_ext_int();
-            }
             drop(process_inner);
             drop(process);
             // Change status to Ready
@@ -176,8 +167,12 @@ pub async fn run_tasks() {
         helper.as_mut().await;
     }
 }
-use core::{task::{Context, Poll}, future::Future, pin::Pin};
 use alloc::boxed::Box;
+use core::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 pub struct ReadHelper(usize);
 
 impl ReadHelper {
@@ -251,7 +246,7 @@ pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
         unsafe { &*idle_task_cx_ptr }
     );
     unsafe {
-        __switch2(switched_task_cx_ptr, idle_task_cx_ptr);
+        __switch(switched_task_cx_ptr, idle_task_cx_ptr);
     }
 }
 

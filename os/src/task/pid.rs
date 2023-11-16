@@ -1,13 +1,12 @@
 use super::ProcessControlBlock;
-use crate::config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use crate::config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAP_CONTEXT, USER_STACK_SIZE};
 use crate::mm::{MapPermission, PhysPageNum, VirtAddr, KERNEL_SPACE};
-// use crate::sync::UPIntrFreeCell;
 use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
-use spin::Mutex;
 use lazy_static::*;
+use spin::Mutex;
 
 pub struct RecycleAllocator {
     current: usize,
@@ -44,8 +43,6 @@ lazy_static! {
     static ref PID_ALLOCATOR: Mutex<RecycleAllocator> = Mutex::new(RecycleAllocator::new());
     static ref KSTACK_ALLOCATOR: Mutex<RecycleAllocator> = Mutex::new(RecycleAllocator::new());
 }
-
-pub const IDLE_PID: usize = 0;
 
 pub struct PidHandle(pub usize);
 
@@ -92,8 +89,8 @@ impl Drop for KernelStack {
 impl KernelStack {
     #[allow(unused)]
     pub fn push_on_top<T>(&self, value: T) -> *mut T
-        where
-            T: Sized,
+    where
+        T: Sized,
     {
         let kernel_stack_top = self.get_top();
         let ptr_mut = (kernel_stack_top - core::mem::size_of::<T>()) as *mut T;

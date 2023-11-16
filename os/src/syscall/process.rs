@@ -1,15 +1,14 @@
-use alloc::sync::Arc;
-use lib_so::update_prio;
-use crate::config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
-use crate::{mm, println};
-use crate::plic::{get_context, Plic};
-use crate::task::{add_task, current_task, current_process, current_user_token, exit_current_and_run_next, hart_id, mmap, munmap, set_current_priority, suspend_current_and_run_next, WAIT_LOCK, current_trap_cx};
+use crate::mm;
+use crate::task::{
+    add_task, current_process, current_task, current_user_token, exit_current_and_run_next, mmap,
+    munmap, set_current_priority, suspend_current_and_run_next, WAIT_LOCK,
+};
 use crate::timer::get_time;
-use crate::trap::{push_trap_record, UserTrapRecord};
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem::size_of;
-use core::ptr::null;
+use lib_so::update_prio;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -126,7 +125,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     // ---- release current PCB lock automatically
 }
 
-pub fn sys_spawn(file: *const u8) -> isize {
+pub fn sys_spawn(_file: *const u8) -> isize {
     // trace!("SPAWN start");
     // let current_task = current_task().unwrap();
     // match current_task.spawn(file) {
@@ -155,59 +154,6 @@ pub fn sys_flush_trace() -> isize {
     0
 }
 
-
-
-pub fn sys_uintr_test(count: usize) -> isize {
-    let pid = current_process().unwrap().pid.0;
-    debug!("uintr test");
-    for _ in 0..count {
-        push_trap_record(pid, UserTrapRecord {
-            cause: 1,
-            message: 2,
-        });
-    }
-
-    0
-}
-
-pub fn sys_init_user_trap(user_trap_handler_tid: usize) -> isize {
-    trace!("init user trap!");
-    debug!("set handler {}", user_trap_handler_tid);
-    current_process().unwrap().set_user_trap_handler_tid(user_trap_handler_tid);
-    debug!("set handler end");
-    match current_process()
-        .unwrap()
-        .acquire_inner_lock()
-        .init_user_trap()
-    {
-        Ok(addr) => {
-            debug!("init trap end");
-            trace!("init ok, addr: {:#x}", addr);
-            return addr;
-        }
-        Err(errno) => {
-            return errno;
-        }
-    }
-    -1
-}
-
-pub fn sys_send_msg(pid: usize, msg: usize) -> isize {
-    if push_trap_record(
-        pid,
-        UserTrapRecord {
-            cause: pid << 4,
-            message: msg,
-        },
-    )
-    .is_ok()
-    {
-        0
-    } else {
-        -1
-    }
-}
-
 pub fn sys_set_timer(time_us: usize, cid: usize) -> isize {
     let pid = current_process().unwrap().pid.0;
     use crate::config::CLOCK_FREQ;
@@ -215,121 +161,4 @@ pub fn sys_set_timer(time_us: usize, cid: usize) -> isize {
     let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
     set_virtual_timer(time, pid, cid);
     0
-}
-
-pub fn sys_claim_ext_int(device_id: usize) -> isize {
-    let device_id = device_id as u16;
-    let current_process = current_process().unwrap();
-    let mut inner = current_process.acquire_inner_lock();
-    if !inner.is_user_trap_enabled() {
-        return -1;
-    }
-    use crate::plic;
-    use crate::trap::USER_EXT_INT_MAP;
-    let user_trap_info = &mut inner.user_trap_info;
-    match user_trap_info {
-        Some(info) => {
-            let mut map = USER_EXT_INT_MAP.lock();
-            if !map.contains_key(&device_id) {
-                let pid = current_process.getpid();
-                debug!(
-                    "[syscall claim] mapping device {} to pid {}",
-                    device_id, pid
-                );
-                map.insert(device_id, pid);
-                info.devices.push((device_id, false));
-                for hart_id in 0..CPU_NUM {
-                    let claim_addr = Plic::context_address(plic::get_context(hart_id, 'U'));
-                    if inner
-                        .memory_set
-                        .mmio_map(claim_addr, crate::config::PAGE_SIZE, 0b11)
-                        .is_err()
-                    {
-                        warn!("[syscall claim] map plic claim reg failed!");
-                        return -6;
-                    }
-                }
-            }
-            use crate::uart;
-            match device_id {
-                #[cfg(feature = "board_qemu")]
-                13 | 14 | 15 => {
-                    let base_address = uart::get_base_addr_from_irq(device_id);
-                    match inner
-                        .memory_set
-                        .mmio_map(base_address, uart::SERIAL_ADDRESS_STRIDE, 0x3)
-                    {
-                        Ok(_) => base_address as isize,
-                        Err(_) => -2,
-                    }
-                }
-                #[cfg(feature = "board_axu15eg")]
-                5 | 6 | 7 => {
-                    let base_address = uart::get_base_addr_from_irq(device_id);
-                    match inner
-                        .memory_set
-                        .mmio_map(base_address, uart::SERIAL_ADDRESS_STRIDE, 0x3)
-                    {
-                        Ok(_) => base_address as isize,
-                        Err(_) => -2,
-                    }
-                }
-                _ => -4,
-            }
-        }
-        None => {
-            warn!("[syscall claim] user trap info is None!");
-            -5
-        }
-    }
-}
-
-pub fn sys_set_ext_int_enable(device_id: usize, enable: usize) -> isize {
-    debug!("[SET EXT INT] dev: {}, enable: {}", device_id, enable);
-    let device_id = device_id as u16;
-    let is_enable = enable > 0;
-    let current_process = current_process().unwrap();
-    let mut inner = current_process.acquire_inner_lock();
-    if !inner.is_user_trap_enabled() {
-        return -1;
-    }
-    use crate::trap::USER_EXT_INT_MAP;
-    let user_trap_info = &mut inner.user_trap_info;
-    match user_trap_info {
-        Some(info) => {
-            if let Some(pid) = USER_EXT_INT_MAP.lock().get(&device_id) {
-                if *pid == current_process.getpid() {
-                    for (dev_id, en) in &mut info.devices {
-                        if *dev_id == device_id {
-                            *en = is_enable;
-                            if is_enable {
-                                Plic::enable(get_context(hart_id(), 'U'), device_id);
-                                for hart in 0..CPU_NUM {
-                                    Plic::disable(get_context(hart, 'S'), device_id);
-                                }
-                            } else {
-                                Plic::disable(get_context(hart_id(), 'U'), device_id);
-                            }
-                        }
-                    }
-
-                    return 0;
-                } else {
-                    warn!(
-                        "[sys set ext] device {} not held by pid {}!",
-                        device_id,
-                        current_process.getpid()
-                    );
-                    return -1;
-                }
-            } else {
-                warn!("[sys set ext] device not claimed!");
-                return -2;
-            }
-        }
-        None => {
-            warn!("[syscall claim] user trap info is None!");
-            -5
-        }
-    }
 }

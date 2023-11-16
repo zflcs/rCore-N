@@ -1,6 +1,10 @@
-use crate::{mm::kernel_token, task::{add_task, current_task, TaskControlBlock, remove_uintr_task}, trap::{trap_handler, TrapContext}};
+use crate::task::WAITTID_LOCK;
+use crate::{
+    mm::kernel_token,
+    task::{add_task, current_task,  TaskControlBlock},
+    trap::{trap_handler, TrapContext},
+};
 use alloc::sync::Arc;
-use crate::task::{block_current_and_run_next, current_process, suspend_current_and_run_next, take_current_task, WAIT_LOCK, WAITTID_LOCK};
 
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
@@ -9,11 +13,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     // create a new thread
     let new_task = Arc::new(TaskControlBlock::new(
         Arc::clone(&process),
-        task.acquire_inner_lock()
-            .res
-            .as_ref()
-            .unwrap()
-            .ustack_base,
+        task.acquire_inner_lock().res.as_ref().unwrap().ustack_base,
         true,
     ));
     // debug!("tid: {}", new_task.acquire_inner_lock().res.as_ref().unwrap().tid);
@@ -40,32 +40,6 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     add_task(Arc::clone(&new_task));
     debug!("thread create start end");
     new_task_tid as isize
-}
-
-pub fn sys_hang() -> isize {
-    let task = current_task().unwrap();
-    let process = task.process.upgrade().unwrap();
-    let mut process_inner = process.acquire_inner_lock();
-    let pid = process.pid.0;
-    if process_inner.user_trap_info.is_some() && process_inner.user_trap_info.as_ref().unwrap().get_trap_queue().is_empty()
-        && process_inner.user_trap_info_cache.is_empty() {
-
-        process_inner.user_trap_handler_task = Some(task);
-        drop(process_inner);
-        drop(process);
-        remove_uintr_task(pid);
-        block_current_and_run_next();
-    } else if !process_inner.user_trap_info_cache.is_empty() {
-        while !process_inner.user_trap_info_cache.is_empty() {
-            let record = process_inner.user_trap_info_cache.pop().unwrap();
-            process_inner.user_trap_info.as_mut().unwrap().push_trap_record(record);
-        }
-
-        drop(process_inner);
-        drop(process);
-        suspend_current_and_run_next();
-    }
-    0
 }
 
 pub fn sys_gettid() -> isize {

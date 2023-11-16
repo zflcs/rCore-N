@@ -2,7 +2,6 @@ use core::fmt::{self, Write};
 
 const STDOUT: usize = 1;
 
-
 struct Stdout;
 
 impl Write for Stdout {

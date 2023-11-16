@@ -3,10 +3,10 @@
 extern crate alloc;
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
 use proc_macro2::Span;
-use syn::{parse_macro_input, ItemFn, Ident};
+use quote::{quote, ToTokens};
 use regex::Regex;
+use syn::{parse_macro_input, Ident, ItemFn};
 
 #[proc_macro]
 pub fn get_libfn(item: TokenStream) -> TokenStream {
@@ -22,7 +22,10 @@ pub fn get_libfn(item: TokenStream) -> TokenStream {
     let mut args_value: Vec<_> = args_type_str.split(" , ").collect();
     args_value.pop();
     // println!("{:?}", args_value);
-    let args_value: Vec<syn::Ident> = args_value.iter().map(|s| Ident::new(*s, Span::call_site())).collect();
+    let args_value: Vec<syn::Ident> = args_value
+        .iter()
+        .map(|s| Ident::new(*s, Span::call_site()))
+        .collect();
     // println!("{:?}", args_value[0]);
     let mut output = input_fn.sig.output.to_token_stream();
     let mut derive_fn = TokenStream::default();
@@ -48,7 +51,8 @@ pub fn get_libfn(item: TokenStream) -> TokenStream {
                 func(#(#args_value),*)
             }
         }
-    ).into();
+    )
+    .into();
     // println!("{}", derive_fn.to_string());
     derive_fn
 }

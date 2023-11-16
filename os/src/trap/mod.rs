@@ -1,13 +1,14 @@
 mod context;
-mod usertrap;
+pub use context::TrapContext;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
-use crate::{plic, println};
-use crate::sbi::set_timer;
-use crate::syscall::{sys_gettid, syscall};
-use crate::task::{current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
-use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
-use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
+use crate::config::TRAMPOLINE;
+use crate::plic;
+use crate::syscall::syscall;
+use crate::task::{
+    current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    exit_current_and_run_next, hart_id,
+};
+use crate::timer::get_time_us;
 use core::arch::{asm, global_asm};
 use riscv::register::scounteren;
 use riscv::register::{
@@ -15,8 +16,6 @@ use riscv::register::{
     scause::{self, Exception, Interrupt, Trap},
     sepc, sideleg, sie, sip, sstatus, stval, stvec,
 };
-
-use riscv::register::cycle;
 
 global_asm!(include_str!("trap.asm"));
 
@@ -63,12 +62,14 @@ pub fn trap_handler() -> ! {
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             // jump to next instruction anyway
-            let mut cx = current_trap_cx();
+            let cx = current_trap_cx();
             cx.sepc += 4;
             let id = cx.x[17];
             // get system call return value
-            let mut result = 0isize;
-            result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]]);
+            let result = syscall(
+                cx.x[17],
+                [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]],
+            );
             if id != 221 || result != 0 {
                 cx.x[10] = result as usize;
             }
@@ -99,52 +100,8 @@ pub fn trap_handler() -> ! {
             // illegal instruction exit code
             exit_current_and_run_next(-3);
         }
-        Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            // let current_time = time::read();
-            let mut timer_map = TIMER_MAP[hart_id()].lock();
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {            
             // debug!("SupervisorTimer");
-            while let Some((_, task_id)) = timer_map.pop_first() {
-                if let Some((next_time, _)) = timer_map.first_key_value() {
-                    set_timer(*next_time);
-                }
-                drop(timer_map);
-                if task_id.pid == 0 {
-                    // debug!("SupervisorTimer 1");
-                    set_next_trigger();
-                    suspend_current_and_run_next();
-                } else {
-                    if task_id.coroutine_id.is_none() {
-                        if task_id.pid == current_task().unwrap().getpid() &&
-                        sys_gettid() as usize == current_process().unwrap().get_user_trap_handler_tid() {
-                            // debug!("SupervisorTimer 2");
-                            debug!("set UTIP for pid {}", task_id.pid);
-                            unsafe {
-                                sip::set_utimer();
-                            }
-                        } else {
-                            // debug!("SupervisorTimer 3");
-                            let _ = push_trap_record(
-                                task_id.pid,
-                                UserTrapRecord {
-                                    cause: 4,
-                                    message: get_time_us(),
-                                },
-                            );
-                        }
-                    } else {
-                        // debug!("SupervisorTimer 4");
-                        let _ = push_trap_record(
-                            task_id.pid, 
-                            UserTrapRecord {
-                                cause: 1,
-                                message: task_id.coroutine_id.unwrap(),
-                            }
-                        );
-                    }
-                } 
-
-                break;
-            }
         }
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
             // debug!("Supervisor External");
@@ -176,19 +133,10 @@ pub fn trap_return() -> ! {
     task_inner.last_user_time_us = get_time_us();
     drop(task_inner);
     drop(task);
-    
+
     unsafe {
         sstatus::clear_sie();
     }
-    current_process()
-        .unwrap()
-        .acquire_inner_lock()
-        .restore_user_trap_info();
-    // current_process().unwrap().ucsr_restore();
-    let mut trap_cx = current_trap_cx();
-    // if trap_cx.x[17] == 1203 {
-    //     debug!("{:#x?}", trap_cx);
-    // }
     set_user_trap_entry();
     let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();
@@ -233,8 +181,3 @@ pub extern "C" fn trap_from_kernel(cx: &mut TrapContext) {
         }
     }
 }
-
-pub use context::TrapContext;
-pub use usertrap::{
-    push_trap_record, UserTrapError, UserTrapInfo, UserTrapQueue, UserTrapRecord, USER_EXT_INT_MAP
-};

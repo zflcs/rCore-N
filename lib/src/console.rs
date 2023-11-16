@@ -4,11 +4,9 @@
 
 use core::fmt::{Arguments, Write};
 
-
 extern "C" {
     fn put_str(s: *const u8, len: usize);
 }
-
 
 /// _print
 #[doc(hidden)]
@@ -35,7 +33,7 @@ macro_rules! println {
     }}
 }
 
-/// 
+///
 struct Console;
 
 /// The requirement of `core::fmt::Write` trait

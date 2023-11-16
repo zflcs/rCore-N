@@ -1,4 +1,3 @@
-use crate::trap::{push_trap_record, UserTrapRecord, USER_EXT_INT_MAP};
 use crate::net::net_interrupt_handler;
 use rv_plic::{Priority, PLIC};
 

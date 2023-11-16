@@ -1,23 +1,24 @@
+use crate::device::virtio_bus::VirtioHal;
 use alloc::sync::Arc;
+use smoltcp::{
+    phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken},
+    wire::EthernetAddress,
+};
 use spin::{Lazy, Mutex};
 use virtio_drivers::{VirtIOHeader, VirtIONet};
-use crate::device::virtio_bus::VirtioHal;
-use smoltcp::{phy::{Device, RxToken, TxToken, DeviceCapabilities, Medium}, wire::EthernetAddress};
-
 
 static VIRTIO_NET_ADDR: usize = 0x10008000;
 
 pub static NET_DEVICE: Lazy<NetDevice> = Lazy::new(|| NetDevice::new());
-
 
 #[derive(Clone)]
 pub struct NetDevice(Arc<Mutex<VirtIONet<'static, VirtioHal>>>);
 
 impl NetDevice {
     pub fn new() -> Self {
-        let virtio = 
+        let virtio =
             VirtIONet::<VirtioHal>::new(unsafe { &mut *(VIRTIO_NET_ADDR as *mut VirtIOHeader) })
-            .expect("can't create net device by virtio");
+                .expect("can't create net device by virtio");
         Self(Arc::new(Mutex::new(virtio)))
     }
 
@@ -49,7 +50,10 @@ impl Device for NetDevice {
     type RxToken<'a> = Self;
     type TxToken<'a> = Self;
 
-    fn receive(&mut self, _timestamp: smoltcp::time::Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+    fn receive(
+        &mut self,
+        _timestamp: smoltcp::time::Instant,
+    ) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
         let net = self.0.lock();
         if net.can_recv() {
             Some((self.clone(), self.clone()))
@@ -76,6 +80,4 @@ impl Device for NetDevice {
     }
 }
 
-pub fn init() {
-
-}
+pub fn init() {}

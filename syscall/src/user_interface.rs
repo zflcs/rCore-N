@@ -1,6 +1,6 @@
-use syscall_macro::async_fn;
-use bitflags::bitflags;
 use crate::*;
+use bitflags::bitflags;
+use syscall_macro::async_fn;
 
 pub fn dup(fd: usize) -> isize {
     sys_dup(fd)
@@ -183,19 +183,17 @@ pub fn waittid(tid: usize) -> isize {
             exit_code => return exit_code,
         }
     }
-    
 }
 
 pub fn hang() {
     sys_hang();
 }
 
-
 // pub fn sys_semaphore_create(res_count: usize) -> isize {
 //     unsafe {
 //         syscall1(SYSCALL_SEMAPHORE_CREATE, res_count)
 //     }
-    
+
 // }
 
 // pub fn sys_semaphore_up(sem_id: usize) -> isize {
@@ -209,7 +207,6 @@ pub fn hang() {
 //         syscall1(SYSCALL_SEMAPHORE_DOWN, sem_id)
 //     }
 // }
-
 
 pub fn mutex_create() -> isize {
     sys_mutex_create(false as usize)

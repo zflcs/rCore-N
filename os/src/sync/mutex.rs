@@ -1,7 +1,9 @@
+use crate::task::{
+    add_task, block_current_and_run_next, current_task, suspend_current_and_run_next,
+    TaskControlBlock,
+};
+use alloc::{collections::VecDeque, sync::Arc};
 use spin::Mutex;
-use crate::task::{suspend_current_and_run_next, TaskControlBlock, current_task,
-    block_current_and_run_next, add_task};
-use alloc::{collections::VecDeque,sync::Arc};
 pub trait SimpleMutex: Sync + Send {
     fn lock(&self);
     fn unlock(&self);
@@ -14,7 +16,7 @@ pub struct MutexSpin {
 impl MutexSpin {
     pub fn new() -> Self {
         Self {
-            locked: unsafe { Mutex::new(false) },
+            locked: Mutex::new(false),
         }
     }
 }
@@ -49,16 +51,13 @@ pub struct MutexBlockingInner {
     wait_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
-
 impl MutexBlocking {
     pub fn new() -> Self {
         Self {
-            inner: unsafe {
-                Mutex::new(MutexBlockingInner {
-                    locked: false,
-                    wait_queue: VecDeque::new(),
-                })
-            },
+            inner: Mutex::new(MutexBlockingInner {
+                locked: false,
+                wait_queue: VecDeque::new(),
+            })
         }
     }
 }

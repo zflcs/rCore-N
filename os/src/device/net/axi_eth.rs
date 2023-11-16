@@ -1,12 +1,14 @@
-
 use core::pin::Pin;
 
-use alloc::{sync::Arc, boxed::Box, vec};
-use axi_dma::{AxiDmaIntr, AxiDma};
-use axi_ethernet::{AxiEthernet, XAE_JUMBO_OPTION, LinkStatus};
-use spin::{Mutex, Lazy};
 use crate::config::{AXI_DMA_CONFIG, AXI_NET_CONFIG};
-use smoltcp::{phy::{Device, RxToken, TxToken, DeviceCapabilities, Medium}, wire::EthernetAddress};
+use alloc::{boxed::Box, sync::Arc, vec};
+use axi_dma::{AxiDma, AxiDmaIntr};
+use axi_ethernet::{AxiEthernet, LinkStatus, XAE_JUMBO_OPTION};
+use smoltcp::{
+    phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken},
+    wire::EthernetAddress,
+};
+use spin::{Lazy, Mutex};
 
 #[derive(Clone)]
 pub struct NetDevice {
@@ -19,7 +21,7 @@ impl NetDevice {
     pub const fn new(
         dma: Arc<AxiDma>,
         dma_intr: Arc<AxiDmaIntr>,
-        eth: Arc<Mutex<AxiEthernet>>
+        eth: Arc<Mutex<AxiEthernet>>,
     ) -> Self {
         Self { dma, dma_intr, eth }
     }
@@ -37,11 +39,11 @@ impl Default for NetDevice {
     }
 }
 
-
 impl RxToken for NetDevice {
     fn consume<R, F>(self, f: F) -> R
     where
-        F: FnOnce(&mut [u8]) -> R {
+        F: FnOnce(&mut [u8]) -> R,
+    {
         let rx_frame = Box::pin([0u8; AXI_NET_CONFIG.mtu]);
         let mut buf = self.dma.rx_submit(rx_frame).unwrap().wait();
         if !self.dma_intr.rx_intr_handler() {
@@ -56,7 +58,8 @@ impl RxToken for NetDevice {
 impl TxToken for NetDevice {
     fn consume<R, F>(self, len: usize, f: F) -> R
     where
-        F: FnOnce(&mut [u8]) -> R {
+        F: FnOnce(&mut [u8]) -> R,
+    {
         let mut tx_frame = Box::pin(vec![0u8; len]);
         let res = f((*tx_frame).as_mut());
         self.dma.tx_submit(tx_frame).unwrap().wait();
@@ -73,7 +76,10 @@ impl Device for NetDevice {
     type RxToken<'a> = Self;
     type TxToken<'a> = Self;
 
-    fn receive(&mut self, _timestamp: smoltcp::time::Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+    fn receive(
+        &mut self,
+        _timestamp: smoltcp::time::Instant,
+    ) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
         if self.eth.lock().is_rx_cmplt() {
             self.eth.lock().clear_rx_cmplt();
         }
@@ -97,17 +103,19 @@ impl Device for NetDevice {
     }
 }
 
-
 pub static NET_DEVICE: Lazy<NetDevice> = Lazy::new(|| NetDevice::default());
 
-pub static AXI_ETH: Lazy<Arc<Mutex<AxiEthernet>>> = Lazy::new(||  Arc::new(Mutex::new(AxiEthernet::new(
-    AXI_NET_CONFIG.eth_baseaddr, AXI_NET_CONFIG.dma_baseaddr
-))));
+pub static AXI_ETH: Lazy<Arc<Mutex<AxiEthernet>>> = Lazy::new(|| {
+    Arc::new(Mutex::new(AxiEthernet::new(
+        AXI_NET_CONFIG.eth_baseaddr,
+        AXI_NET_CONFIG.dma_baseaddr,
+    )))
+});
 
-pub static AXI_DMA_INTR: Lazy<Arc<AxiDmaIntr>> = Lazy::new(|| AxiDmaIntr::new(AXI_DMA_CONFIG.base_address));
+pub static AXI_DMA_INTR: Lazy<Arc<AxiDmaIntr>> =
+    Lazy::new(|| AxiDmaIntr::new(AXI_DMA_CONFIG.base_address));
 
 pub static AXI_DMA: Lazy<Arc<AxiDma>> = Lazy::new(|| AxiDma::new(AXI_DMA_CONFIG));
-
 
 pub fn init() {
     dma_init();

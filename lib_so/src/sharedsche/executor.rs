@@ -1,18 +1,18 @@
-use alloc::collections::{BTreeMap, VecDeque, BTreeSet};
-use alloc::sync::Arc;
-use alloc::vec::Vec;
-use spin::Mutex;
-use syscall::yield_;
 use super::{
     coroutine::{Coroutine, CoroutineId, CoroutineKind},
     BitMap,
 };
-use alloc::boxed::Box;
-use core::pin::Pin;
-use core::future::Future;
-use crate::USER_TRAP_BUFFER;
 use crate::config::{MAX_THREAD_NUM, PRIO_NUM};
+use crate::USER_TRAP_BUFFER;
+use alloc::boxed::Box;
+use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::future::Future;
+use core::pin::Pin;
 use heapless::spsc::Queue;
+use spin::Mutex;
+use syscall::yield_;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -23,7 +23,6 @@ pub struct UserTrapRecord {
 const MAX_USER_TRAP_NUM: usize = 128;
 pub type UserTrapQueue = Queue<UserTrapRecord, MAX_USER_TRAP_NUM>;
 
-
 pub struct ExMutex {
     mutex: Mutex<()>,
     busy_wait: bool,
@@ -31,7 +30,10 @@ pub struct ExMutex {
 
 impl ExMutex {
     pub const fn new(busy_wait: bool) -> Self {
-        ExMutex { mutex: Mutex::new(()), busy_wait, }
+        ExMutex {
+            mutex: Mutex::new(()),
+            busy_wait,
+        }
     }
 
     pub fn lock(&mut self) -> spin::MutexGuard<'_, ()> {
@@ -45,7 +47,6 @@ impl ExMutex {
                 }
                 yield_();
             }
-            
         }
     }
 }
@@ -71,7 +72,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    /// 
+    ///
     pub const fn new(busy_wait: bool) -> Self {
         Self {
             currents: [None; MAX_THREAD_NUM],
@@ -87,7 +88,6 @@ impl Executor {
 }
 
 impl Executor {
-
     pub fn get_msg(&mut self) -> Option<usize> {
         let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
         if let Some(trap_record) = trap_queue.dequeue() {
@@ -105,7 +105,7 @@ impl Executor {
         // task.inner.lock().prio = prio;
         let p = task.inner.lock().prio;
         // 先从队列中出来
-        if let Ok(idx) = self.ready_queue[p].binary_search(&cid){
+        if let Ok(idx) = self.ready_queue[p].binary_search(&cid) {
             self.ready_queue[p].remove(idx);
             if self.ready_queue[p].is_empty() {
                 self.bitmap.update(p, false);
@@ -117,7 +117,12 @@ impl Executor {
         self.priority = self.bitmap.get_priority();
     }
     /// 添加协程
-    pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
+    pub fn spawn(
+        &mut self,
+        future: Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>,
+        prio: usize,
+        kind: CoroutineKind,
+    ) -> usize {
         let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
@@ -130,7 +135,7 @@ impl Executor {
         drop(lock);
         return cid.0;
     }
-    
+
     /// 判断是否还有协程
     pub fn is_empty(&self) -> bool {
         self.tasks.is_empty()
@@ -169,7 +174,7 @@ impl Executor {
     //         }
     //         yield_();
     //     }
-        
+
     //     let prio = self.priority;
     //     if prio == PRIO_NUM {
     //         self.currents[tid] = None;

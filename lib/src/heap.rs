@@ -1,4 +1,3 @@
-
 use core::alloc::{GlobalAlloc, Layout};
 
 // Kernel must support thess function.
@@ -7,7 +6,7 @@ extern "C" {
     fn dealloc(ptr: *mut u8, size: usize, align: usize);
 }
 
-/// 
+///
 #[global_allocator]
 static GLOBAL: Global = Global;
 

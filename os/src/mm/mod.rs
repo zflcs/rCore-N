@@ -4,19 +4,16 @@ mod heap_allocator;
 mod memory_set;
 mod page_table;
 
-use core::arch::asm;
-
 pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 pub use address::{StepByOne, VPNRange};
-pub use frame_allocator::{frame_alloc, FrameTracker, frame_alloc_more, frame_dealloc};
+pub use frame_allocator::{frame_alloc, frame_alloc_more, frame_dealloc, FrameTracker};
 pub use memory_set::remap_test;
-pub use memory_set::{MapPermission, MemorySet, KERNEL_SPACE, kernel_token};
-pub use page_table::{
-    translate_writable_va, translated_byte_buffer, translated_refmut, translated_str,
-    PageTableEntry, UserBuffer, UserBufferIterator, PageTable
-};
+pub use memory_set::{kernel_token, MapPermission, MemorySet, KERNEL_SPACE};
 use page_table::PTEFlags;
-
+pub use page_table::{
+    translate_writable_va, translated_byte_buffer, translated_refmut, translated_str, PageTable,
+    PageTableEntry, UserBuffer, UserBufferIterator,
+};
 
 pub fn init() {
     heap_allocator::init_heap();

@@ -16,7 +16,6 @@ use alloc::vec::Vec;
 use user_lib::console::getchar;
 use user_lib::{close, dup, exec, fork, open, waitpid, OpenFlags};
 
-
 #[no_mangle]
 pub fn main() -> i32 {
     println!("=============================Rust user shell");

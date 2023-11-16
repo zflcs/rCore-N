@@ -26,7 +26,7 @@ impl WakeQueue {
 
 /// This queue stores the `Arc<Task>` which is ready to run.
 #[repr(transparent)]
-pub struct RunQueue(SegQueue::<Arc<Task>>);
+pub struct RunQueue(SegQueue<Arc<Task>>);
 
 impl RunQueue {
     pub const EMPTY: Self = Self(SegQueue::new());
@@ -45,5 +45,4 @@ impl RunQueue {
     pub fn enqueue(&self, task: Arc<Task>) {
         self.0.push(task);
     }
-
 }

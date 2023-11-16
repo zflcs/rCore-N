@@ -1,9 +1,9 @@
-use bit_field::BitField;
 use crate::config::PRIO_NUM;
+use bit_field::BitField;
 
 /// 协程优先级位图
 #[derive(Clone, Copy)]
-pub struct  BitMap(pub usize);
+pub struct BitMap(pub usize);
 
 impl BitMap {
     pub fn new() -> Self {
@@ -13,7 +13,6 @@ impl BitMap {
     pub fn update(&mut self, prio: usize, val: bool) {
         self.0.set_bit(prio, val);
     }
-
 
     pub fn get(&mut self, id: usize) -> bool {
         self.0.get_bit(id)
@@ -27,7 +26,7 @@ impl BitMap {
         }
         PRIO_NUM
     }
-    /// 
+    ///
     pub fn get_val(&self) -> usize {
         self.0
     }

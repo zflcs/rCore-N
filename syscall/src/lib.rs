@@ -7,13 +7,13 @@ mod user_interface;
 
 extern crate syscall_macro;
 
-use syscall_macro::{GenSysMacro, GenSysTrait};
 pub use async_help::AsyncCall;
+use syscall_macro::{GenSysMacro, GenSysTrait};
 pub use user_interface::*;
 
 #[repr(usize)]
 #[derive(Debug, GenSysMacro, GenSysTrait)]
-pub enum SyscallId{
+pub enum SyscallId {
     #[arguments(args = "fd")]
     Dup = 24,
     #[arguments(args = "path_ptr, flag_bits")]
@@ -23,7 +23,7 @@ pub enum SyscallId{
     #[arguments(args = "pipe_ptr")]
     Pipe = 59,
     #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
-	Read = 63,
+    Read = 63,
     #[arguments(args = "fd, buffer_ptr, buffer_len, key, cid")]
     Write = 64,
     #[arguments(args = "exit_code")]
