@@ -1,4 +1,4 @@
-mod pipe;
+// mod pipe;
 pub mod stdio;
 
 use crate::mm::UserBuffer;
@@ -17,7 +17,7 @@ pub trait File: Send + Sync {
     fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Result<usize, isize>;
 }
 
-pub use pipe::{make_pipe, Pipe};
+// pub use pipe::{make_pipe, Pipe};
 pub use stdio::{Stdin, Stdout};
 
 pub struct ReadHelper(usize);

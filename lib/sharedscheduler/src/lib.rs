@@ -5,7 +5,7 @@
 #![no_main]
 
 #[macro_use]
-extern crate lib;
+extern crate lang;
 extern crate alloc;
 
 use core::{future::Future, task::Poll};

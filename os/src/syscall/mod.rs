@@ -31,7 +31,7 @@ const SYSCALL_LISTEN: usize = 1200;
 mod fs;
 mod net;
 mod process;
-mod sync;
+// mod sync;
 mod thread;
 
 pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid};
@@ -39,7 +39,7 @@ use fs::*;
 pub use fs::{AsyncKey, WRMAP};
 use net::sys_listen;
 use process::*;
-use sync::*;
+// use sync::*;
 
 pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
@@ -64,12 +64,12 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         SYSCALL_THREAD_CREATE => sys_thread_create(args[0], args[1]),
         SYSCALL_GETTID => sys_gettid(),
         SYSCALL_WAITTID => sys_waittid(args[0]) as isize,
-        SYSCALL_MUTEX_CREATE => sys_mutex_create(args[0] == 1),
-        SYSCALL_MUTEX_LOCK => sys_mutex_lock(args[0]),
-        SYSCALL_MUTEX_UNLOCK => sys_mutex_unlock(args[0]),
-        SYSCALL_CONDVAR_CREATE => sys_condvar_create(args[0]),
-        SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args[0]),
-        SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
+        // SYSCALL_MUTEX_CREATE => sys_mutex_create(args[0] == 1),
+        // SYSCALL_MUTEX_LOCK => sys_mutex_lock(args[0]),
+        // SYSCALL_MUTEX_UNLOCK => sys_mutex_unlock(args[0]),
+        // SYSCALL_CONDVAR_CREATE => sys_condvar_create(args[0]),
+        // SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args[0]),
+        // SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
         SYSCALL_LISTEN => sys_listen(args[0] as u16),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     };

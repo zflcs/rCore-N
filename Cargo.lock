@@ -111,12 +111,6 @@ checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 
 [[package]]
 name = "bit_field"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed8765909f9009617974ab6b7d332625b320b33c326b1e9321382ef1999b5d56"
-
-[[package]]
-name = "bit_field"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc827186963e592360843fb5ba4b973e145841266c1357f7180c43526f2e5b61"
@@ -132,6 +126,12 @@ name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+
+[[package]]
+name = "bitflags"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
 name = "blake2"
@@ -171,6 +171,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4e85e760e105b46ae0bd1236578793c6c147ae7463fe95c8350296b8bfcb830"
 dependencies = [
  "spin 0.7.1",
+]
+
+[[package]]
+name = "buddy_system_allocator"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43f9365b6b0c9e1663ca4ca9440c00eda46bc85a3407070be8b5e0d8d1f29629"
+dependencies = [
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -282,18 +291,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "customizable-buddy"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eace6325758817ca21d4f27c2ec7d307bcac92f468ef5e0eaa2573787402a62e"
-
-[[package]]
 name = "defmt"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8a2d011b2fee29fb7d659b83c43fce9a2cb4df453e16d441a51448e448f3f98"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "defmt-macros",
 ]
 
@@ -364,6 +367,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "equivalent"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
+
+[[package]]
 name = "executor"
 version = "0.1.0"
 dependencies = [
@@ -402,6 +411,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f93e7192158dbcda357bdec5fb5788eebf8bbac027f3f33e719d29135ae84156"
+
+[[package]]
 name = "heapless"
 version = "0.7.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -434,33 +449,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "indexmap"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
+dependencies = [
+ "equivalent",
+ "hashbrown",
+]
+
+[[package]]
+name = "lang"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "sbi-rt",
+ "spin 0.9.8",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 dependencies = [
  "spin 0.5.2",
-]
-
-[[package]]
-name = "lib"
-version = "0.1.0"
-
-[[package]]
-name = "lib_so"
-version = "0.1.0"
-dependencies = [
- "bit_field 0.9.0",
- "buddy_system_allocator",
- "customizable-buddy",
- "heapless 0.7.16",
- "lazy_static",
- "log",
- "riscv 0.8.0",
- "spin 0.9.8",
- "syscall",
- "vdso_macro",
- "xmas-elf",
 ]
 
 [[package]]
@@ -490,7 +503,7 @@ name = "lose-net-stack"
 version = "0.1.0"
 source = "git+https://github.com/yfblock/lose-net-stack?rev=db42380#db4238008f0bb97f0b82550ef949c9a32ead59d2"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
 ]
 
 [[package]]
@@ -536,13 +549,13 @@ dependencies = [
  "array-init",
  "axi-dma",
  "axi-ethernet",
- "bitflags",
- "buddy_system_allocator",
+ "bitflags 2.4.1",
+ "buddy_system_allocator 0.9.0",
  "device_tree",
- "embedded-hal 1.0.0-alpha.4",
- "heapless 0.7.16",
+ "executor",
+ "heapless 0.8.0",
+ "lang",
  "lazy_static",
- "lib_so",
  "log",
  "lose-net-stack",
  "nb 1.1.0",
@@ -554,8 +567,6 @@ dependencies = [
  "smoltcp",
  "spin 0.9.8",
  "toml",
- "uart8250",
- "uart_xilinx",
  "virtio-drivers",
  "xmas-elf",
 ]
@@ -652,20 +663,9 @@ version = "0.7.0"
 source = "git+https://github.com/duskmoon314/riscv?branch=extN#4f92ef0efa6883017203343310a65d6d6eaee165"
 dependencies = [
  "bare-metal 1.0.0",
- "bit_field 0.10.2",
+ "bit_field",
  "embedded-hal 0.2.7",
  "riscv-target",
-]
-
-[[package]]
-name = "riscv"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e2856a701069e2d262b264750d382407d272d5527f7a51d3777d1805b4e2d3c"
-dependencies = [
- "bare-metal 1.0.0",
- "bit_field 0.10.2",
- "embedded-hal 0.2.7",
 ]
 
 [[package]]
@@ -674,7 +674,7 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa3145d2fae3778b1e31ec2e827b228bdc6abd9b74bb5705ba46dcb82069bc4f"
 dependencies = [
- "bit_field 0.10.2",
+ "bit_field",
  "critical-section",
  "embedded-hal 0.2.7",
 ]
@@ -781,6 +781,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12022b835073e5b11e90a14f86838ceb1c8fb0325b72416845c487ac0fa95e80"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -796,7 +805,7 @@ name = "sharedscheduler"
 version = "0.1.0"
 dependencies = [
  "executor",
- "lib",
+ "lang",
 ]
 
 [[package]]
@@ -805,7 +814,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d2e3a36ac8fea7b94e666dfa3871063d6e0a5c9d5d4fec9a1a6b7b6760f0229"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "byteorder",
  "cfg-if",
  "defmt",
@@ -879,7 +888,7 @@ dependencies = [
 name = "syscall"
 version = "0.1.0"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "log",
  "spin 0.9.8",
  "syscall_macro",
@@ -919,11 +928,36 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.5.11"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
+checksum = "a1a195ec8c9da26928f773888e0742ca3ca1040c6cd859c919c9f59c1954ab35"
 dependencies = [
  "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d34d383cd00a163b4a5b85053df514d45bc330f6de7737edfe0a93311d1eaa03"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "winnow",
 ]
 
 [[package]]
@@ -938,7 +972,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f79d76028cbe0f22c51604082d2c7045b170fbbc1a0930fba295835a36531b90"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "volatile-register",
 ]
 
@@ -948,7 +982,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "385dd34924f5a9132a5e1803a663aeed4034f4b5d1ca08383e9011a616d8d17e"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "volatile-register",
 ]
 
@@ -969,14 +1003,13 @@ name = "user_lib"
 version = "0.1.0"
 dependencies = [
  "array-init",
- "bitflags",
+ "bitflags 1.3.2",
  "blake2",
  "blake3",
- "buddy_system_allocator",
+ "buddy_system_allocator 0.6.0",
  "embedded-hal 1.0.0-alpha.4",
  "heapless 0.7.16",
  "lazy_static",
- "lib_so",
  "nb 1.1.0",
  "rand_core",
  "rand_xorshift",
@@ -996,18 +1029,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77439c1b53d2303b20d9459b1ade71a83c716e3f9c34f3228c00e6f185d6c002"
 
 [[package]]
-name = "vdso_macro"
-version = "0.1.0"
-dependencies = [
- "bae",
- "log",
- "proc-macro2",
- "quote",
- "regex",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1018,7 +1039,7 @@ name = "virtio-drivers"
 version = "0.1.0"
 source = "git+https://github.com/rcore-os/virtio-drivers?rev=4ee80e5#4ee80e50babd681869f428ee026167bc12dc6856"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "log",
  "volatile",
 ]
@@ -1045,10 +1066,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "xmas-elf"
-version = "0.7.0"
+name = "winnow"
+version = "0.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e74de9a366f6ab8c405fa6b371d9ac24943921fa14b3d64afcb202065c405f11"
+checksum = "829846f3e3db426d4cee4510841b71a8e58aa2a76b1132579487ae430ccd9c7b"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "xmas-elf"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42c49817e78342f7f30a181573d82ff55b88a35f86ccaf07fc64b3008f56d1c6"
 dependencies = [
  "zero",
 ]

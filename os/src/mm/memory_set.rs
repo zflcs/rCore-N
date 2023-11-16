@@ -9,7 +9,6 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::arch::asm;
 use lazy_static::*;
-use lib_so::{get_symbol_addr, vdso_table};
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 use spin::Mutex;
@@ -222,7 +221,7 @@ impl MemorySet {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
-        memory_set.add_user_module(&crate::lkm::SHARED_SCHE_MEMORYSET);
+        // memory_set.add_user_module(&crate::lkm::SHARED_SCHE_MEMORYSET);
 
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
@@ -261,33 +260,6 @@ impl MemorySet {
         // guard page
         user_stack_bottom += PAGE_SIZE;
 
-        debug!("map sharedscheduler buffer: {:#x}", HEAP_BUFFER);
-        let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
-        for vdso_item in vdso_table(&elf) {
-            let vdso_item_paddr =
-                translate_writable_va(memory_set.token(), vdso_item.1).unwrap() as *mut usize;
-            let ptr = get_symbol_addr(&crate::lkm::SHARED_ELF, vdso_item.0.to_lowercase().as_str());
-            unsafe {
-                *vdso_item_paddr = ptr;
-            }
-            debug!("get func {} ptr {:#x}", vdso_item.0.to_lowercase(), ptr);
-        }
-        // 另外分配一个物理页，只存放 heap 的虚拟地址
-        memory_set.push(
-            MapArea::new(
-                HEAP_BUFFER.into(),
-                (HEAP_BUFFER + PAGE_SIZE).into(),
-                MapType::Framed,
-                MapPermission::R | MapPermission::W | MapPermission::U,
-            ),
-            None,
-        );
-        let sharedsche_paddr =
-            translate_writable_va(memory_set.token(), HEAP_BUFFER).unwrap() as *mut usize;
-        unsafe {
-            *sharedsche_paddr = data_section_vir_addr;
-        }
-        debug!("map heap buffer done");
         unsafe { asm!("fence.i") }
         (
             memory_set,
@@ -299,7 +271,7 @@ impl MemorySet {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
-        memory_set.add_user_module(&crate::lkm::SHARED_SCHE_MEMORYSET);
+        // memory_set.add_user_module(&crate::lkm::SHARED_SCHE_MEMORYSET);
 
         // copy data sections/trap_context/user_stack
         for area in user_space.areas.iter() {
@@ -544,19 +516,19 @@ impl MemorySet {
         }
     }
 
-    pub fn add_user_module(&mut self, module_space: &MemorySet) {
-        for area in module_space.areas.iter() {
-            // println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());
-            for vpn in area.vpn_range {
-                // println!("ppn {:#x?}", module_space.translate(vpn).unwrap().ppn());
-                self.page_table.map(
-                    vpn,
-                    module_space.translate(vpn).unwrap().ppn(),
-                    PTEFlags::R | PTEFlags::X | PTEFlags::W | PTEFlags::U,
-                );
-            }
-        }
-    }
+    // pub fn add_user_module(&mut self, module_space: &MemorySet) {
+    //     for area in module_space.areas.iter() {
+    //         // println!("addr {:#x?} - {:#x?}", area.vpn_range.get_start(), area.vpn_range.get_end());
+    //         for vpn in area.vpn_range {
+    //             // println!("ppn {:#x?}", module_space.translate(vpn).unwrap().ppn());
+    //             self.page_table.map(
+    //                 vpn,
+    //                 module_space.translate(vpn).unwrap().ppn(),
+    //                 PTEFlags::R | PTEFlags::X | PTEFlags::W | PTEFlags::U,
+    //             );
+    //         }
+    //     }
+    // }
 }
 
 pub struct MapArea {
@@ -606,7 +578,7 @@ impl MapArea {
                 trace!("map_one: vpn {:?} ppn {:?}", vpn, ppn);
             }
         }
-        let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
+        let pte_flags = PTEFlags::from_bits(self.map_perm.bits()).unwrap();
         page_table.map(vpn, ppn, pte_flags);
     }
     pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
@@ -657,6 +629,7 @@ pub enum MapType {
 }
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct MapPermission: u8 {
         const R = 1 << 1;
         const W = 1 << 2;

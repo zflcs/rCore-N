@@ -1,8 +1,0 @@
-[build]
-target = "riscv64gc-unknown-linux-gnu"
-target-dir = "target"
-incremental = false
-
-[target.riscv64gc-unknown-linux-gnu]
-rustflags = ["-Clink-args=-fpic -nostartfiles -T../../../linker.ld"]
-linker = "riscv64-unknown-linux-gnu-gcc"

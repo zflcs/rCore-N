@@ -1,7 +1,5 @@
 use super::File;
 use crate::mm::UserBuffer;
-use crate::print;
-use core::fmt::{self, Write};
 
 pub struct Stdin;
 
@@ -62,34 +60,5 @@ impl File for Stdout {
 
     fn writable(&self) -> bool {
         true
-    }
-}
-
-impl Write for Stdout {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for c in s.chars() {
-            // let _ = serial_putchar(0, c as u8);
-            let _ = crate::sbi::console_putchar(c as usize);
-        }
-        Ok(())
-    }
-}
-
-#[allow(dead_code)]
-pub fn print(args: fmt::Arguments) {
-    Stdout.write_fmt(args).unwrap();
-}
-
-#[macro_export]
-macro_rules! print {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::fs::stdio::print(format_args!($fmt $(, $($arg)+)?));
-    }
-}
-
-#[macro_export]
-macro_rules! println {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::fs::stdio::print(format_args!(concat!($fmt, "\r\n") $(, $($arg)+)?));
     }
 }

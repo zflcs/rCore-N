@@ -7,7 +7,7 @@ MODE := "release"
 OBJDUMP := "rust-objdump --arch-name=riscv64"
 OBJCOPY := "rust-objcopy --binary-architecture=riscv64"
 
-BUILD_PATH := "target/" + TARGET + "/" + MODE + "/"
+BUILD_PATH := "../target/" + TARGET + "/" + MODE + "/"
 KERNEL_ELF := BUILD_PATH + "os"
 KERNEL_ASM := BUILD_PATH + "os.asm"
 KERNEL_BIN := BUILD_PATH + "os.bin"
@@ -18,8 +18,8 @@ clean:
     cd ../lib_so && cargo clean
     cd ../user && make clean && cd -
 
-unifi-sche:
-    cd ../lib_so && make build
+# unifi-sche:
+#     cd ../lib_so && make build
 
 user:
     cd ../user && make build
@@ -27,11 +27,11 @@ user:
 user_axu15eg:
     cd ../user && make build_axu15eg
 
-build: user unifi-sche
+build: 
     LOG=DEBUG cargo build --features "board_qemu" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
 
-build_axu15eg: user_axu15eg unifi-sche
+build_axu15eg: user_axu15eg
     LOG=DEBUG cargo build --features "board_axu15eg" --release
     {{OBJCOPY}} {{KERNEL_ELF}} --strip-all -O binary {{KERNEL_BIN}}
     cp {{KERNEL_BIN}} {{KERNEL_BIN_axu15eg}}

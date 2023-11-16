@@ -1,11 +1,11 @@
 use crate::config::KERNEL_HEAP_SIZE;
 use alloc::{collections::VecDeque, vec};
-use buddy_system_allocator::Heap;
+use buddy_system_allocator::LockedHeap;
 use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
 };
-use lib_so::Executor;
+use executor::Executor;
 use spin::Mutex;
 
 #[alloc_error_handler]
@@ -15,11 +15,11 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".data.heap"]
-pub static mut HEAP: Mutex<Heap> = Mutex::new(Heap::empty());
+pub static mut HEAP: LockedHeap<32> = LockedHeap::new();
 
-#[no_mangle]
-#[link_section = ".data.executor"]
-pub static mut EXECUTOR: Executor = Executor::new(true);
+// #[no_mangle]
+// #[link_section = ".data.executor"]
+// pub static mut EXECUTOR: Executor = Executor::new();
 
 #[no_mangle]
 #[link_section = ".bss.memory"]
@@ -29,9 +29,6 @@ static mut MEMORY: [u8; KERNEL_HEAP_SIZE] = [0u8; KERNEL_HEAP_SIZE];
 pub fn init_heap() {
     unsafe {
         HEAP.lock().init(MEMORY.as_ptr() as usize, KERNEL_HEAP_SIZE);
-    }
-    unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
     }
 }
 

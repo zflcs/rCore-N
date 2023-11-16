@@ -22,26 +22,25 @@ use crate::{config::CPU_NUM, mm::init_kernel_space};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 #[macro_use]
-mod console;
+extern crate lang;
+
+
 mod config;
-#[macro_use]
 mod fs;
-mod lang_items;
 mod loader;
-mod logger;
 mod mm;
 mod sbi;
-mod sync;
-mod syscall;
-mod task;
-mod timer;
-mod trap;
+// mod sync;
+// mod syscall;
+// mod task;
+// mod timer;
+// mod trap;
 
-mod device;
-mod lkm;
-mod net;
+// mod device;
+// mod lkm;
+// mod net;
 
-use device::plic;
+// use device::plic;
 
 core::arch::global_asm!(include_str!("link_app.asm"));
 
@@ -120,19 +119,19 @@ static BOOT_HART: AtomicUsize = AtomicUsize::new(0);
 #[no_mangle]
 pub fn rust_main_init(hart_id: usize) -> ! {
     clear_bss();
-    logger::init();
+    lang::console::init(option_env!("LOG"));
     mm::init();
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
     mm::remap_test();
-    trap::init();
-    net::init();
-    device::init();
-    plic::init();
-    plic::init_hart(hart_id);
-    lkm::init();
+    // trap::init();
+    // net::init();
+    // device::init();
+    // plic::init();
+    // plic::init_hart(hart_id);
+    // lkm::init();
 
     debug!("trying to add initproc");
-    task::add_initproc();
+    // task::add_initproc();
     debug!("initproc added to task manager!");
 
     if CPU_NUM > 1 {
@@ -154,21 +153,28 @@ pub fn rust_main_init(hart_id: usize) -> ! {
 #[no_mangle]
 pub fn rust_main_init_other(hart_id: usize) -> ! {
     init_kernel_space();
-    trap::init();
-    plic::init_hart(hart_id);
+    // trap::init();
+    // plic::init_hart(hart_id);
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
     rust_main(hart_id)
 }
 
 #[no_mangle]
 pub fn rust_main(_hart_id: usize) -> ! {
-    timer::set_next_trigger();
-    lib_so::spawn(
-        move || task::run_tasks(),
-        7,
-        0,
-        lib_so::CoroutineKind::KernSche,
-    );
-    lib_so::poll_kernel_future();
+    // timer::set_next_trigger();
+    // lib_so::spawn(
+    //     move || task::run_tasks(),
+    //     7,
+    //     0,
+    //     lib_so::CoroutineKind::KernSche,
+    // );
+    // lib_so::poll_kernel_future();
     panic!("Unreachable in rust_main!");
+}
+
+
+#[no_mangle]
+extern "C" fn put_char(s: u8) {
+    #[allow(deprecated)]
+    sbi_rt::legacy::console_putchar(s as _);
 }

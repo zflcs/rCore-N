@@ -1,11 +1,11 @@
 [workspace]
 members = [
-    "lib",
-    "lib/executor",
+    "executor",
+    "lang",
     "lib/sharedscheduler",
-    "lib_so",
     "os",
     "user",
 ]
 resolver = "1"
 default-members = ["os"]
+
