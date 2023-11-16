@@ -1,5 +1,5 @@
 OUTPUT_ARCH(riscv)
-ENTRY(_start)
+ENTRY(__libc_start_main)
 BASE_ADDRESS = 0x80200000;
 
 SECTIONS
@@ -59,5 +59,6 @@ SECTIONS
 
     /DISCARD/ : {
         *(.eh_frame)
+        *(.debug*)
     }
 }

@@ -3,7 +3,7 @@
 
 #![no_std]
 #![no_main]
-#![feature(lang_items, panic_info_message, format_args_nl)]
+#![feature(lang_items, panic_info_message, format_args_nl, alloc_error_handler)]
 #![allow(internal_features)]
 
 #[macro_use]
@@ -18,6 +18,22 @@ pub mod heap;
 #[no_mangle]
 pub extern "C" fn rust_eh_personality() {}
 
+///
+#[no_mangle]
+pub extern "C" fn _Unwind_Resume() {}
+
+///
+#[no_mangle]
+pub extern "C" fn memcpy() {}
+
+///
+#[no_mangle]
+pub extern "C" fn memmove() {}
+
+///
+#[no_mangle]
+pub extern "C" fn memset() {}
+
 #[inline]
 pub fn hart_id() -> usize {
     let hart_id: usize;
@@ -28,7 +44,7 @@ pub fn hart_id() -> usize {
 }
 
 #[cfg(feature = "kernel")]
-pub mod lang_item {
+pub mod kernel_lang_item {
 
     use sbi_rt::{system_reset, Shutdown,  SystemFailure};
     /// kernel panic
@@ -42,12 +58,11 @@ pub mod lang_item {
 
 #[cfg(feature = "not_kernel")]
 pub mod lang_item {
-    /// kernel panic
+    /// not_kernel panic
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
         log::warn!("{info}");
-        unreachable!()
-        // exit(-1);
+        syscall::exit(-1)
     }
 }
 

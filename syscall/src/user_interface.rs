@@ -40,7 +40,7 @@ pub fn write(fd: usize, buffer: &[u8], key: usize, cid: usize) -> isize {
 
 pub fn exit(exit_code: i32) -> ! {
     sys_exit(exit_code as usize);
-    panic!("sys_exit never returns!");
+    unreachable!()
 }
 
 pub fn yield_() -> isize {

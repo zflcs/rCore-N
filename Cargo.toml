@@ -6,7 +6,8 @@ members = [
     "lang",
     "lib/sharedscheduler",
     "os",
-    "user",
+    "user_lib",
+    "syscall",
 ]
 resolver = "1"
 default-members = ["os"]

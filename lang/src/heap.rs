@@ -1,5 +1,10 @@
 use core::alloc::{GlobalAlloc, Layout};
 
+#[alloc_error_handler]
+pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+    panic!("Heap allocation error, layout = {:?}", layout);
+}
+
 // Kernel must support thess function.
 extern "C" {
     fn alloc(size: usize, align: usize) -> *mut u8;
