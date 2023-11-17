@@ -7,7 +7,7 @@ mod kernel;
 mod vma;
 mod flags;
 
-use self::flags::*;
+pub use self::flags::*;
 use vma::VMArea;
 use crate::{Result, config::{PAGE_SIZE, USER_HEAP_SIZE, MAX_MAP_COUNT, LOW_MAX_VA}};
 use alloc::{vec::Vec, collections::BTreeMap, sync::Arc};

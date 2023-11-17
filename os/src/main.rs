@@ -18,7 +18,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
-use crate::{config::CPU_NUM, mm::init_kernel_space};
+use crate::{config::CPU_NUM, mm::init_kernel_space, lkm::LKM_MANAGER};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 #[macro_use]
@@ -29,6 +29,7 @@ mod config;
 mod fs;
 mod mm;
 mod sbi;
+mod lkm;
 // mod sync;
 // mod syscall;
 // mod task;
@@ -122,7 +123,7 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     lang::console::init(option_env!("LOG"));
     mm::init();
     fs::inode::list_apps();
-    device::ramfs::RamFS::new();
+    let _ = LKM_MANAGER.lock();
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
     // trap::init();
     // net::init();

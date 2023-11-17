@@ -43,6 +43,24 @@ pub mod lang_item {
     #[no_mangle]
     pub extern "C" fn rust_eh_personality() {}
 
+    #[no_mangle]
+    pub extern "C" fn memcpy() {}
+
+    #[no_mangle]
+    pub extern "C" fn __cxa_finalize() {}
+
+    #[no_mangle]
+    pub extern "C" fn _Unwind_Resume() {}
+
+    #[no_mangle]
+    pub extern "C" fn _ITM_registerTMCloneTable() {}
+
+    #[no_mangle]
+    pub extern "C" fn _ITM_deregisterTMCloneTable() {}
+
+    #[no_mangle]
+    pub extern "C" fn memset() {}
+
     /// not_kernel panic
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {

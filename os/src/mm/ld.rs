@@ -2,3 +2,7 @@
 
 
 use elfloader::ElfLoader;
+
+use super::MmapFlags;
+
+
