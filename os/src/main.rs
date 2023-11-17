@@ -27,7 +27,6 @@ extern crate lang;
 
 mod config;
 mod fs;
-mod loader;
 mod mm;
 mod sbi;
 // mod sync;
@@ -42,7 +41,7 @@ mod sbi;
 
 // use device::plic;
 
-core::arch::global_asm!(include_str!("link_app.asm"));
+core::arch::global_asm!(include_str!("ramfs.asm"));
 
 /// Boot kernel size allocated in `_start` for single CPU.
 pub const BOOT_STACK_SIZE: usize = 0x4_0000;
@@ -121,6 +120,10 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     clear_bss();
     lang::console::init(option_env!("LOG"));
     mm::init();
+    extern "C" {
+        fn sramfs();
+    }
+    log::debug!("{:#x}", sramfs as usize);
     mm::remap_test();
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
     // trap::init();
@@ -146,7 +149,6 @@ pub fn rust_main_init(hart_id: usize) -> ! {
             }
         }
     }
-    loader::list_apps();
     rust_main(hart_id)
 }
 

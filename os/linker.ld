@@ -31,6 +31,10 @@ SECTIONS
     .data : {
         *(.data.heap)
         *(.data.executor)
+        . = ALIGN(4k);
+        /* sramfs = .; */
+        *(.data.ramfs)
+        /* eramfs = .; */
         *(.data .data.*)
         *(.sdata .sdata.*)
     }
@@ -44,7 +48,6 @@ SECTIONS
         *(.bss.memory)
         *(.bss .bss.*)
         *(.sbss .sbss.*)
-        ebss_ma = .;
     }
 
     . = ALIGN(4K);
