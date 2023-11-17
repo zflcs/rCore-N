@@ -23,7 +23,7 @@ clean:
 user: $(APPS)
 	@cd ../user_lib && make build
 	@rm -f $(FS_IMG)
-	@cd ../easy-fs-fuse && cargo run --release -- -s ../user_lib/src/bin/ -t ../target/riscv64gc-unknown-linux-gnu/release/
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user_lib/src/bin/ -t ../target/riscv64gc-unknown-linux-gnu/release/ -l ../target/riscv64gc-unknown-linux-gnu/release/
 
 build: user
 	@LOG=DEBUG cargo build --features board_qemu --release

@@ -49,9 +49,17 @@ fn easy_fs_pack() -> std::io::Result<()> {
                 .takes_value(true)
                 .help("Executable target dir(with backslash)"),
         )
+        .arg(
+            Arg::with_name("libs")
+                .short("l")
+                .long("libs")
+                .takes_value(true)
+                .help("shared object files dir(with backslash)"),
+        )
         .get_matches();
     let src_path = matches.value_of("source").unwrap();
     let target_path = matches.value_of("target").unwrap();
+    let libs_path = matches.value_of("libs").unwrap();
     println!("src_path = {}\ntarget_path = {}", src_path, target_path);
     let block_file = Arc::new(BlockFile(Mutex::new({
         let f = OpenOptions::new()
@@ -59,11 +67,11 @@ fn easy_fs_pack() -> std::io::Result<()> {
             .write(true)
             .create(true)
             .open(format!("{}{}", target_path, "fs.img"))?;
-        f.set_len(2048 * 512).unwrap();
+        f.set_len(2 * 2048 * 512).unwrap();
         f
     })));
     // 32MiB, at most 4095 files
-    let efs = EasyFileSystem::create(block_file, 2048, 1);
+    let efs = EasyFileSystem::create(block_file, 2* 2048, 1);
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     let apps: Vec<_> = read_dir(src_path)
         .unwrap()
@@ -81,6 +89,28 @@ fn easy_fs_pack() -> std::io::Result<()> {
         host_file.read_to_end(&mut all_data).unwrap();
         // create a file in easy-fs
         let inode = root_inode.create(app.as_str()).unwrap();
+        // write data to easy-fs
+        inode.write_at(0, all_data.as_slice());
+    }
+    let libs :Vec<_> = read_dir(libs_path)
+        .unwrap()
+        .into_iter().filter_map(|dir_entry| {
+            let name_with_ext = dir_entry.unwrap().file_name().into_string().unwrap();
+            if name_with_ext.ends_with(".so") {
+                Some(name_with_ext)
+            } else {
+                None
+            }
+        })
+        .collect();
+    for lib in libs {
+        println!("{}", lib);
+        // load shared object from host file system
+        let mut host_file = File::open(format!("{}{}", libs_path, lib)).unwrap();
+        let mut all_data: Vec<u8> = Vec::new();
+        host_file.read_to_end(&mut all_data).unwrap();
+        // create a file in easy-fs
+        let inode = root_inode.create(lib.as_str()).unwrap();
         // write data to easy-fs
         inode.write_at(0, all_data.as_slice());
     }

@@ -1,5 +1,8 @@
 mod net;
-pub mod plic;
+// pub mod plic;
+pub mod ramfs;
+pub use ramfs::BLOCK_DEVICE;
+
 #[cfg(feature = "board_qemu")]
 mod virtio_bus;
 

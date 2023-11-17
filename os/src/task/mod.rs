@@ -6,13 +6,12 @@ mod process;
 mod processor;
 mod switch;
 mod task;
-
-use crate::loader::get_app_data_by_name;
+use crate::fs::{open_file, OpenFlags};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::*;
 
-use spin::Mutex;
+use spin::{Mutex, Lazy};
 use switch::__switch;
 
 use crate::task::pid::TaskUserRes;
@@ -138,10 +137,11 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     schedule(&mut _unused as *mut _);
 }
 
-lazy_static! {
-    pub static ref INITPROC: Arc<ProcessControlBlock> =
-        ProcessControlBlock::new(get_app_data_by_name("initproc").unwrap());
-}
+pub static INITPROC: Lazy<Arc<ProcessControlBlock>> = Lazy::new(|| {
+    let inode = open_file("hello", OpenFlags::RDONLY).unwrap();
+    let v = inode.read_all();
+    ProcessControlBlock::new(v.as_slice())
+});
 
 pub fn add_initproc() {
     debug!("add_initproc");

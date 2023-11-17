@@ -21,6 +21,18 @@ pub const HEAP_BUFFER: usize = USER_TRAP_BUFFER - PAGE_SIZE;
 /// the trap context of user thread 0
 pub const TRAP_CONTEXT: usize = HEAP_BUFFER - PAGE_SIZE;
 
+/// The highest virtual address of the low 256 GB in SV39.
+// pub const LOW_MAX_VA: usize = 0x0000_003F_FFFF_FFFF;
+pub const LOW_MAX_VA: usize = 0xFFFF_FFFF;
+/// User heap size
+pub const USER_HEAP_SIZE: usize = 0x20_0000;
+/// User maximum pages
+pub const USER_MAX_PAGES: usize = (LOW_MAX_VA + 1) >> PAGE_SIZE_BITS;
+
+/// Maximum virtual memory areas in an address space
+pub const MAX_MAP_COUNT: usize = 256;
+
+
 #[cfg(feature = "board_qemu")]
 /// the clock frequency in qemu
 pub const CLOCK_FREQ: usize = 12500000;

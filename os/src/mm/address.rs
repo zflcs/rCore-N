@@ -2,7 +2,7 @@ use super::PageTableEntry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 use core::{
     fmt::{self, Debug, Formatter},
-    ops::BitOrAssign,
+    ops::{Add, AddAssign, Sub, SubAssign, BitOrAssign},
 };
 
 /// Definitions
@@ -17,6 +17,98 @@ pub struct PhysPageNum(pub usize);
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
+
+impl Add<usize> for PhysAddr {
+    type Output = PhysAddr;
+    fn add(self, rhs: usize) -> PhysAddr {
+        PhysAddr::from(self.0 + rhs)
+    }
+}
+impl AddAssign<usize> for PhysAddr {
+    fn add_assign(&mut self, rhs: usize) {
+        PhysAddr::from(self.0 + rhs);
+    }
+}
+impl Sub<usize> for PhysAddr {
+    type Output = PhysAddr;
+    fn sub(self, rhs: usize) -> PhysAddr {
+        PhysAddr::from(self.0 - rhs)
+    }
+}
+impl SubAssign<usize> for PhysAddr {
+    fn sub_assign(&mut self, rhs: usize) {
+        PhysAddr::from(self.0 - rhs);
+    }
+}
+
+impl Add<usize> for VirtAddr {
+    type Output = VirtAddr;
+    fn add(self, rhs: usize) -> VirtAddr {
+        VirtAddr::from(self.0 + rhs)
+    }
+}
+impl AddAssign<usize> for VirtAddr {
+    fn add_assign(&mut self, rhs: usize) {
+        VirtAddr::from(self.0 + rhs);
+    }
+}
+impl Sub<usize> for VirtAddr {
+    type Output = VirtAddr;
+    fn sub(self, rhs: usize) -> VirtAddr {
+        VirtAddr::from(self.0 - rhs)
+    }
+}
+impl SubAssign<usize> for VirtAddr {
+    fn sub_assign(&mut self, rhs: usize) {
+        VirtAddr::from(self.0 - rhs);
+    }
+}
+
+impl Add<usize> for PhysPageNum {
+    type Output = PhysPageNum;
+    fn add(self, rhs: usize) -> PhysPageNum {
+        PhysPageNum::from(self.0 + rhs)
+    }
+}
+impl AddAssign<usize> for PhysPageNum {
+    fn add_assign(&mut self, rhs: usize) {
+        PhysPageNum::from(self.0 + rhs);
+    }
+}
+impl Sub<usize> for PhysPageNum {
+    type Output = PhysPageNum;
+    fn sub(self, rhs: usize) -> PhysPageNum {
+        PhysPageNum::from(self.0 - rhs)
+    }
+}
+impl SubAssign<usize> for PhysPageNum {
+    fn sub_assign(&mut self, rhs: usize) {
+        PhysPageNum::from(self.0 - rhs);
+    }
+}
+
+impl Add<usize> for VirtPageNum {
+    type Output = VirtPageNum;
+    fn add(self, rhs: usize) -> VirtPageNum {
+        VirtPageNum::from(self.0 + rhs)
+    }
+}
+impl AddAssign<usize> for VirtPageNum {
+    fn add_assign(&mut self, rhs: usize) {
+        VirtPageNum::from(self.0 + rhs);
+    }
+}
+impl Sub<usize> for VirtPageNum {
+    type Output = VirtPageNum;
+    fn sub(self, rhs: usize) -> VirtPageNum {
+        VirtPageNum::from(self.0 - rhs)
+    }
+}
+impl SubAssign<usize> for VirtPageNum {
+    fn sub_assign(&mut self, rhs: usize) {
+        VirtPageNum::from(self.0 - rhs);
+    }
+}
 
 /// Debugging
 
@@ -258,3 +350,4 @@ where
     }
 }
 pub type VPNRange = SimpleRange<VirtPageNum>;
+pub type PPNRange = SimpleRange<PhysPageNum>;

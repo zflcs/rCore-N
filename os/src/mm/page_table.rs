@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use bitflags::*;
 
 bitflags! {
-    #[derive(PartialEq, Eq, Debug)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     pub struct PTEFlags: u8 {
         const V = 1 << 0;
         const R = 1 << 1;
@@ -74,7 +74,7 @@ impl PageTable {
             frames: Vec::new(),
         }
     }
-    fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+    pub fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
@@ -93,7 +93,7 @@ impl PageTable {
         }
         result
     }
-    fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
+    pub fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&PageTableEntry> = None;
@@ -113,7 +113,7 @@ impl PageTable {
     #[allow(unused)]
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.find_pte_create(vpn).unwrap();
-        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        // assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
         #[cfg(feature = "board_axu15eg")]
         let flags = flags | PTEFlags::A | PTEFlags::D;
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);

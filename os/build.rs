@@ -20,6 +20,8 @@ fn insert_ramfs() -> Result<()> {
         f,
 r#".align 3
 .section .data.ramfs
+.global sramfs
+.global eramfs
 sramfs:
     .incbin {:?}
 eramfs:"#, 

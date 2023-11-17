@@ -35,11 +35,12 @@ mod sbi;
 // mod timer;
 // mod trap;
 
-// mod device;
+mod device;
 // mod lkm;
 // mod net;
 
 // use device::plic;
+pub type Result<T> = core::result::Result<T, ()>;
 
 core::arch::global_asm!(include_str!("ramfs.asm"));
 
@@ -120,11 +121,8 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     clear_bss();
     lang::console::init(option_env!("LOG"));
     mm::init();
-    extern "C" {
-        fn sramfs();
-    }
-    log::debug!("{:#x}", sramfs as usize);
-    mm::remap_test();
+    fs::inode::list_apps();
+    device::ramfs::RamFS::new();
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
     // trap::init();
     // net::init();

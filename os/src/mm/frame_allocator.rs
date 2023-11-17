@@ -2,8 +2,7 @@ use super::{PhysAddr, PhysPageNum};
 use crate::config::MEMORY_END;
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
-use lazy_static::*;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
@@ -97,10 +96,9 @@ impl FrameAllocator for StackFrameAllocator {
 
 type FrameAllocatorImpl = StackFrameAllocator;
 
-lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<FrameAllocatorImpl> =
-        Mutex::new(FrameAllocatorImpl::new());
-}
+pub static FRAME_ALLOCATOR: Lazy<Mutex<FrameAllocatorImpl>> = Lazy::new(|| {
+    Mutex::new(FrameAllocatorImpl::new())
+});
 
 pub fn init_frame_allocator() {
     extern "C" {
