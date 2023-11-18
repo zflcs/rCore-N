@@ -1,3 +1,4 @@
+use super::api::*;
 use super::const_reloc as loader;
 use super::structs::*;
 use spin::{Lazy, Mutex};
@@ -6,6 +7,7 @@ use alloc::string::*;
 use alloc::sync::Arc;
 use alloc::boxed::Box;
 use alloc::vec::*;
+use xmas_elf::header::Data;
 use core::mem::transmute;
 use crate::fs::OpenFlags;
 use crate::fs::open_file;
@@ -23,7 +25,6 @@ use xmas_elf::{header, ElfFile};
 use xmas_elf::program::SegmentData;
 
 /// Module Manager is the core part of LKM.
-/// It does these jobs: Load preset(API) symbols; manage module loading dependency and linking modules.
 pub struct ModuleManager {
     stub_symbols: BTreeMap<String, ModuleSymbol>,
     loaded_modules: Vec<Box<LoadedModule>>,
@@ -41,7 +42,7 @@ pub static LKM_MANAGER: Lazy<Mutex<ModuleManager>> = Lazy::new(|| {
 impl ModuleManager {
     pub fn new() -> Self {
         Self {
-            stub_symbols: BTreeMap::new(),
+            stub_symbols: kernel_rt(),
             loaded_modules: Vec::new(),
         }
     }
@@ -72,7 +73,7 @@ impl ModuleManager {
         find_dependency: bool,
         this_module: usize,
     ) -> Option<usize> {
-        info!("symbol index: {}", symbol_index);
+        // info!("symbol index: {}", symbol_index);
         if symbol_index == 0 {
             return Some(0);
         }
@@ -91,10 +92,10 @@ impl ModuleManager {
 
     pub fn init_module(&mut self, module_name: &str) -> Result<()> {
         for i in 0..self.loaded_modules.len() {
-            if &self.loaded_modules[i].name == module_name {
+            if &self.loaded_modules[i].info.name == module_name {
                 error!(
                     "[LKM] another instance of module {} has been loaded!",
-                    self.loaded_modules[i].name
+                    self.loaded_modules[i].info.name
                 );
                 return Err(());
             }
@@ -119,6 +120,30 @@ impl ModuleManager {
                 return Err(());
             }
         }
+
+        let module_info = elf.find_section_by_name(".module_info").ok_or_else(|| {
+            error!("[LKM] module_info metadata not found!");
+            ()
+        })?;
+
+
+        let minfo = if let Undefined(info_content) = module_info.get_data(&elf).map_err(|_| {
+            error!("[LKM] load module_info error!");
+            ()
+        })? {
+            ModuleInfo::parse(core::str::from_utf8(info_content).unwrap()).ok_or_else(
+                || {
+                    error!("[LKM] parse info error!");
+                    ()
+                },
+            )?
+        } else {
+            return Err(());
+        };
+        info!(
+            "[LKM] loading module {} version {} api_version {}, exported {:?}",
+            minfo.name, minfo.version, minfo.api_version, minfo.exported_symbols
+        );
 
         let mut max_addr = VirtAddr::from(0);
         let mut min_addr = VirtAddr::from(usize::MAX);
@@ -158,15 +183,10 @@ impl ModuleManager {
                         attr |= VMFlags::READ;
                     }
                     // Allocate a new virtual memory area
-                    let data = match ph.get_data(&elf).unwrap() {
-                        SegmentData::Undefined(data) => data,
-                        _ => {
-                            error!("elf data error");
-                            return Err(());
-                        }
-                    };
+                    let data = &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
                     let start = VirtAddr::from(prog_start_addr).floor();
                     let end = VirtAddr::from(prog_end_addr).ceil();
+                    // log::debug!("alloc so vma {:#X?}-{:#X?}", prog_start_addr - base, prog_end_addr - base);
                     KERNEL_SPACE.lock().alloc_write_vma(
                         Some(data),
                         start.into(), 
@@ -178,7 +198,7 @@ impl ModuleManager {
         }
 
         let mut loaded_minfo = Box::new(LoadedModule {
-            name: module_name.to_string(),
+            info: minfo,
             exported_symbols: Vec::new(),
             used_counts: 0,
             using_counts: Arc::new(ModuleRef {}),
@@ -224,12 +244,13 @@ impl ModuleManager {
                 ()
             })?
         {
-            info!("[LKM] Iterating modules");
+            // info!("[LKM] Iterating modules");
             // start, total_size, single_size
             let mut reloc_jmprel: (usize, usize, usize) = (0, 0, 0);
             let mut reloc_rel: (usize, usize, usize) = (0, 0, 16);
             let mut reloc_rela: (usize, usize, usize) = (0, 0, 24);
             for dent in dynamic_entries.iter() {
+                // log::debug!("{:?}", dent.get_tag());
                 match dent.get_tag().map_err(|_| {
                     error! {"[LKM] invalid dynamic entry!"};
                     ()
@@ -262,30 +283,29 @@ impl ModuleManager {
                     _ => {}
                 }
             }
-            info!("[LKM] relocating three sections");
+            // info!("[LKM] relocating three sections");
             let this_module = &(*loaded_minfo) as *const _ as usize;
             self.reloc_symbols(&elf, reloc_jmprel, base, dynsym_table, this_module);
             self.reloc_symbols(&elf, reloc_rel, base, dynsym_table, this_module);
             self.reloc_symbols(&elf, reloc_rela, base, dynsym_table, this_module);
             info!("[LKM] relocation done. adding module to manager and call init_module");
-            let mut export_vec = Vec::new();
-            for exported in loaded_minfo.exported_symbols.iter() {
+            for exported in loaded_minfo.info.exported_symbols.iter() {
                 for sym in dynsym_table.iter() {
-                    if &exported.name
+                    if exported
                         == sym.get_name(&elf).map_err(|_| {
                             error!("[LKM] load symbol name error!");
                             ()
                         })?
                     {
+                        log::debug!("exported symbols {}", exported);
                         let exported_symbol = ModuleSymbol {
-                            name: exported.name.clone(),
+                            name: exported.clone(),
                             loc: base + (sym.value() as usize),
                         };
-                        export_vec.push(exported_symbol);
+                        loaded_minfo.exported_symbols.push(exported_symbol);
                     }
                 }
             }
-            loaded_minfo.exported_symbols.append(&mut export_vec);
             self.loaded_modules.push(loaded_minfo);
         } else {
             error!("[LKM] Load dynamic field error!\n");
@@ -305,7 +325,7 @@ impl ModuleManager {
         dynsym: &[DynEntry64],
         this_module: usize,
     ) {
-        info!("Resolving symbol {}", sti);
+        // info!("Resolving symbol {} reloc_addr {:#X?} addend {:#X?} itype {}", sti, reloc_addr, addend, itype);
         let sym_val = self
             .get_symbol_loc(sti, elf, dynsym, base, true, this_module);
         if sym_val.is_none() {
@@ -347,7 +367,7 @@ impl ModuleManager {
         if total_size == 0 {
             return;
         }
-        // log::debug!("{}-{}-{}", start, total_size, _single_size);
+        // log::debug!("{:#X?}-{:#X?}-{:#X?}", start, total_size, _single_size);
         for s in elf.section_iter() {
             if (s.offset() as usize) == start {
                 {
@@ -403,7 +423,7 @@ impl ModuleManager {
         info!("[LKM] now you can plug out a kernel module!");
         let mut found = false;
         for i in 0..self.loaded_modules.len() {
-            if &(self.loaded_modules[i].name) == name {
+            if &(self.loaded_modules[i].info.name) == name {
                 let mut current_module = &mut (self.loaded_modules[i]);
                 let mod_lock = current_module.lock.lock();
                 if current_module.used_counts > 0 {

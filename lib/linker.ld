@@ -74,4 +74,9 @@ SECTIONS
     .interp : {
         *(.interp .interp.*)
     }
+
+    .module_info : {
+        *(.module_info .module_info.*)
+    }
+    
 }

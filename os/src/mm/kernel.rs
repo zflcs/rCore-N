@@ -133,6 +133,7 @@ fn new_kernel() -> Result<MM> {
             "mmio", 0x6000_0000, 0x6200_0000
         );
     }
+    mm.start_brk = MEMORY_END.into();
     unsafe { core::arch::asm!("fence.i") }
     log::debug!("{:?}", mm);
     Ok(mm)

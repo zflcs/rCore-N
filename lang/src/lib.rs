@@ -4,7 +4,7 @@
 #![no_std]
 #![no_main]
 #![feature(lang_items, panic_info_message, alloc_error_handler)]
-#![allow(internal_features)]
+#![allow(internal_features, non_snake_case)]
 
 #[macro_use]
 pub mod console;
@@ -41,25 +41,25 @@ pub mod lang_item {
     ///
     #[lang = "eh_personality"]
     #[no_mangle]
-    pub extern "C" fn rust_eh_personality() {}
+    pub fn rust_eh_personality() {}
 
     #[no_mangle]
-    pub extern "C" fn memcpy() {}
+    pub fn memcpy() {}
 
     #[no_mangle]
-    pub extern "C" fn __cxa_finalize() {}
+    pub fn __cxa_finalize() {}
 
     #[no_mangle]
-    pub extern "C" fn _Unwind_Resume() {}
+    pub fn _Unwind_Resume() {}
 
     #[no_mangle]
-    pub extern "C" fn _ITM_registerTMCloneTable() {}
+    pub fn _ITM_registerTMCloneTable() {}
 
     #[no_mangle]
-    pub extern "C" fn _ITM_deregisterTMCloneTable() {}
+    pub fn _ITM_deregisterTMCloneTable() {}
 
     #[no_mangle]
-    pub extern "C" fn memset() {}
+    pub fn memset() {}
 
     /// not_kernel panic
     #[panic_handler]

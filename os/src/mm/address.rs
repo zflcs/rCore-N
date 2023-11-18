@@ -26,7 +26,7 @@ impl Add<usize> for PhysAddr {
 }
 impl AddAssign<usize> for PhysAddr {
     fn add_assign(&mut self, rhs: usize) {
-        PhysAddr::from(self.0 + rhs);
+        self.0 += rhs;
     }
 }
 impl Sub<usize> for PhysAddr {
@@ -37,7 +37,7 @@ impl Sub<usize> for PhysAddr {
 }
 impl SubAssign<usize> for PhysAddr {
     fn sub_assign(&mut self, rhs: usize) {
-        PhysAddr::from(self.0 - rhs);
+        self.0 -= rhs;
     }
 }
 
@@ -49,7 +49,7 @@ impl Add<usize> for VirtAddr {
 }
 impl AddAssign<usize> for VirtAddr {
     fn add_assign(&mut self, rhs: usize) {
-        VirtAddr::from(self.0 + rhs);
+        self.0 += rhs;
     }
 }
 impl Sub<usize> for VirtAddr {
@@ -60,7 +60,7 @@ impl Sub<usize> for VirtAddr {
 }
 impl SubAssign<usize> for VirtAddr {
     fn sub_assign(&mut self, rhs: usize) {
-        VirtAddr::from(self.0 - rhs);
+        self.0 -= rhs;
     }
 }
 
@@ -72,7 +72,7 @@ impl Add<usize> for PhysPageNum {
 }
 impl AddAssign<usize> for PhysPageNum {
     fn add_assign(&mut self, rhs: usize) {
-        PhysPageNum::from(self.0 + rhs);
+        self.0 += rhs;
     }
 }
 impl Sub<usize> for PhysPageNum {
@@ -83,7 +83,7 @@ impl Sub<usize> for PhysPageNum {
 }
 impl SubAssign<usize> for PhysPageNum {
     fn sub_assign(&mut self, rhs: usize) {
-        PhysPageNum::from(self.0 - rhs);
+        self.0 -= rhs;
     }
 }
 
@@ -95,7 +95,7 @@ impl Add<usize> for VirtPageNum {
 }
 impl AddAssign<usize> for VirtPageNum {
     fn add_assign(&mut self, rhs: usize) {
-        VirtPageNum::from(self.0 + rhs);
+        self.0 += rhs;
     }
 }
 impl Sub<usize> for VirtPageNum {
@@ -106,7 +106,7 @@ impl Sub<usize> for VirtPageNum {
 }
 impl SubAssign<usize> for VirtPageNum {
     fn sub_assign(&mut self, rhs: usize) {
-        VirtPageNum::from(self.0 - rhs);
+        self.0 -= rhs;
     }
 }
 

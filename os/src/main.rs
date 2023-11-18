@@ -18,7 +18,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
-use crate::{config::CPU_NUM, mm::init_kernel_space, lkm::LKM_MANAGER};
+use crate::{config::CPU_NUM, mm::{init_kernel_space, KERNEL_SPACE}, lkm::LKM_MANAGER};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 #[macro_use]
@@ -135,6 +135,13 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     debug!("trying to add initproc");
     // task::add_initproc();
     debug!("initproc added to task manager!");
+    log::debug!("{:X?}", KERNEL_SPACE.lock());
+    let a = lkm::LKM_MANAGER.lock().resolve_symbol("test").unwrap();
+    log::warn!("{:#X?}", a);
+    unsafe {
+        let test: fn() -> i32 = core::mem::transmute(a);
+        log::debug!("test func res 0x{:X?}", test() as usize);
+    }
 
     if CPU_NUM > 1 {
         for i in 0..CPU_NUM {
@@ -170,12 +177,18 @@ pub fn rust_main(_hart_id: usize) -> ! {
     //     lib_so::CoroutineKind::KernSche,
     // );
     // lib_so::poll_kernel_future();
+    
     panic!("Unreachable in rust_main!");
+}
+
+#[no_mangle]
+pub fn main() -> i32 {
+    0
 }
 
 
 #[no_mangle]
-extern "C" fn put_char(s: u8) {
+pub extern "C" fn put_char(s: u8) {
     #[allow(deprecated)]
     sbi_rt::legacy::console_putchar(s as _);
 }

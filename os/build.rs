@@ -4,6 +4,9 @@ fn main() {
     let pwd = std::env::current_dir().unwrap();
     let linker_path = pwd.join("linker.ld");
     println!("cargo:rerun-if-changed=/src/");
+    println!("cargo:rerun-if-changed=../lib/");
+    println!("cargo:rerun-if-changed=../user/");
+
     println!("cargo:rustc-link-arg=-T{}", linker_path.display());
 
     insert_ramfs().unwrap();

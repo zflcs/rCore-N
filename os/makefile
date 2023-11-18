@@ -19,8 +19,10 @@ FS_IMG := ../target/$(TARGET)/$(MODE)/fs.img
 clean:
 	@cargo clean
 
+libs: 
+	@cd ../lib/sharedscheduler && make build
 
-user: $(APPS)
+user: $(APPS) libs
 	@cd ../user_lib && make build
 	@rm -f $(FS_IMG)
 	@cd ../easy-fs-fuse && cargo run --release -- -s ../user_lib/src/bin/ -t ../target/riscv64gc-unknown-linux-gnu/release/ -l ../target/riscv64gc-unknown-linux-gnu/release/

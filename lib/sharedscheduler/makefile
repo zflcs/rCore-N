@@ -13,6 +13,7 @@ clean:
 
 build:
 	cargo build --release
+	$(OBJDUMP) -S -t $(ELF) > $(ASM)
 
 
 disasm: build

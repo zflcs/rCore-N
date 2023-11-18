@@ -7,6 +7,8 @@ mod kernel;
 mod vma;
 mod flags;
 
+pub use heap_allocator::{alloc, dealloc};
+
 pub use self::flags::*;
 use vma::VMArea;
 use crate::{Result, config::{PAGE_SIZE, USER_HEAP_SIZE, MAX_MAP_COUNT, LOW_MAX_VA}};
@@ -60,6 +62,8 @@ pub struct MM {
 
     /// Heap pointer managed by `sys_brk`.
     pub brk: VirtAddr,
+
+
 }
 
 /* Global operations */
@@ -164,16 +168,19 @@ impl MM {
         let mut curr_va = start_va;
         let mut curr_page = VirtPageNum::from(start_va);
         let end_page = VirtPageNum::from(end_va); // inclusive
+        // log::debug!("write vma {:#X?}-{:#X?}", start_va, end_va);
+        // log::debug!("write page {:#X?}-{:#X?}", curr_page, end_page);
         loop {
             let page_len: usize = if curr_page == end_page {
                 (end_va - curr_va.0).into()
             } else {
                 PAGE_SIZE - curr_va.page_offset()
             };
-
+            // log::debug!("page len {}, curr_page {:X?}, curr_va {:X?}", page_len, curr_page, curr_va);
             // Copy data to allocated frames.
             let src = &data[data_ptr..end_ptr.min(data_ptr + page_len)];
             let dst = self.page_table.translate_va(curr_va).and_then(|pa| unsafe {
+                // log::debug!("pa {:X?}", pa.0);
                 Some(core::slice::from_raw_parts_mut(
                     pa.0 as *mut u8,
                     page_len.min(end_ptr - data_ptr),
@@ -276,7 +283,7 @@ impl MM {
                 last_end = vma.end_va;
             }
         }
-        Err(())
+        Ok(last_end)
     }
 
     /// Gets the virtual memory area that contains the virutal address.

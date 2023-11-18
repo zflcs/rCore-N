@@ -30,6 +30,7 @@ SECTIONS
     sdata = .;
     .data : {
         *(.data.heap)
+        executor_ptr = .;
         *(.data.executor)
         . = ALIGN(4k);
         /* sramfs = .; */

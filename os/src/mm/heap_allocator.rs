@@ -6,7 +6,7 @@ use core::{
     ptr::NonNull,
 };
 use executor::Executor;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
@@ -17,9 +17,10 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[link_section = ".data.heap"]
 pub static mut HEAP: LockedHeap<32> = LockedHeap::new();
 
-// #[no_mangle]
-// #[link_section = ".data.executor"]
-// pub static mut EXECUTOR: Executor = Executor::new();
+
+#[no_mangle]
+#[link_section = ".data.executor"]
+pub static mut EXECUTOR: Lazy<Executor> = Lazy::new(|| Executor::new());
 
 #[no_mangle]
 #[link_section = ".bss.memory"]
@@ -51,3 +52,21 @@ unsafe impl GlobalAlloc for Global {
         HEAP.lock().dealloc(NonNull::new_unchecked(ptr), layout)
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn alloc(size: usize, align: usize) -> *mut u8 {
+    HEAP.lock()
+        .alloc(Layout::from_size_align_unchecked(size, align))
+        .ok()
+        .map_or(0 as *mut u8, |allocation| allocation.as_ptr())
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn dealloc(ptr: *mut u8, size: usize, align: usize) {
+    HEAP.lock().dealloc(
+        NonNull::new_unchecked(ptr), 
+        Layout::from_size_align_unchecked(size, align)
+    )
+}
+
+
