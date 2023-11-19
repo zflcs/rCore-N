@@ -11,7 +11,7 @@ use crate::hart_id;
 pub extern crate log;
 
 extern "C" {
-    fn put_char(s: u8);
+    fn put_str(ptr: *const u8, len: usize);
 }
 
 
@@ -25,6 +25,7 @@ pub fn init(env: Option<&str>) {
 pub fn set_log_level(env: Option<&str>) {
     use log::LevelFilter as Lv;
     log::set_max_level(env.and_then(|s| Lv::from_str(s).ok()).unwrap_or(Lv::Trace));
+    // log::set_max_level(Lv::max());
 }
 
 
@@ -64,9 +65,8 @@ struct Console;
 impl Write for Console {
     #[inline]
     fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        for c in s.as_bytes() {
-            unsafe { put_char(*c) };
-        }
+        let buf = s.as_bytes();
+        unsafe { put_str(buf.as_ptr(), buf.len()) }
         Ok(())
     }
 }

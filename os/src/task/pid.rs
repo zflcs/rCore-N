@@ -1,12 +1,11 @@
 use super::ProcessControlBlock;
 use crate::config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAP_CONTEXT, USER_STACK_SIZE};
-use crate::mm::{MapPermission, PhysPageNum, VirtAddr, KERNEL_SPACE};
+use crate::mm::{VMFlags, PhysPageNum, VirtAddr, KERNEL_SPACE, do_munmap};
 use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
-use lazy_static::*;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 pub struct RecycleAllocator {
     current: usize,
@@ -39,10 +38,9 @@ impl RecycleAllocator {
     }
 }
 
-lazy_static! {
-    static ref PID_ALLOCATOR: Mutex<RecycleAllocator> = Mutex::new(RecycleAllocator::new());
-    static ref KSTACK_ALLOCATOR: Mutex<RecycleAllocator> = Mutex::new(RecycleAllocator::new());
-}
+static PID_ALLOCATOR: Lazy<Mutex<RecycleAllocator>> = Lazy::new(|| Mutex::new(RecycleAllocator::new()));
+static KSTACK_ALLOCATOR: Lazy<Mutex<RecycleAllocator>> = Lazy::new(|| Mutex::new(RecycleAllocator::new()));
+
 
 pub struct PidHandle(pub usize);
 
@@ -68,21 +66,19 @@ pub struct KernelStack(pub usize);
 pub fn kstack_alloc() -> KernelStack {
     let kstack_id = KSTACK_ALLOCATOR.lock().alloc();
     let (kstack_bottom, kstack_top) = kernel_stack_position(kstack_id);
-    KERNEL_SPACE.lock().insert_framed_area(
-        kstack_bottom.into(),
-        kstack_top.into(),
-        MapPermission::R | MapPermission::W,
+    KERNEL_SPACE.lock().alloc_write_vma(
+        None, 
+        kstack_bottom.into(), 
+        kstack_top.into(), 
+        VMFlags::READ | VMFlags::WRITE
     );
     KernelStack(kstack_id)
 }
 
 impl Drop for KernelStack {
     fn drop(&mut self) {
-        let (kernel_stack_bottom, _) = kernel_stack_position(self.0);
-        let kernel_stack_bottom_va: VirtAddr = kernel_stack_bottom.into();
-        KERNEL_SPACE
-            .lock()
-            .remove_area_with_start_vpn(kernel_stack_bottom_va.into());
+        let (kstack_bottom, kstack_top) = kernel_stack_position(self.0);
+        do_munmap(&mut *KERNEL_SPACE.lock(), kstack_bottom.into(), kstack_top - kstack_bottom);
     }
 }
 
@@ -143,18 +139,20 @@ impl TaskUserRes {
         // alloc user stack
         let ustack_bottom = ustack_bottom_from_tid(self.ustack_base, self.tid);
         let ustack_top = ustack_bottom + USER_STACK_SIZE;
-        process_inner.memory_set.insert_framed_area(
-            ustack_bottom.into(),
-            ustack_top.into(),
-            MapPermission::R | MapPermission::W | MapPermission::U,
+        process_inner.mm.alloc_write_vma(
+            None, 
+            ustack_bottom.into(), 
+            ustack_top.into(), 
+            VMFlags::READ | VMFlags::WRITE | VMFlags::USER
         );
         // alloc trap_cx
         let trap_cx_bottom = trap_cx_bottom_from_tid(self.tid);
         let trap_cx_top = trap_cx_bottom + PAGE_SIZE;
-        process_inner.memory_set.insert_framed_area(
-            trap_cx_bottom.into(),
-            trap_cx_top.into(),
-            MapPermission::R | MapPermission::W,
+        process_inner.mm.alloc_write_vma(
+            None, 
+            trap_cx_bottom.into(), 
+            trap_cx_top.into(), 
+            VMFlags::READ | VMFlags::WRITE
         );
     }
 
@@ -164,14 +162,11 @@ impl TaskUserRes {
         let mut process_inner = process.acquire_inner_lock();
         // dealloc ustack manually
         let ustack_bottom_va: VirtAddr = ustack_bottom_from_tid(self.ustack_base, self.tid).into();
-        process_inner
-            .memory_set
-            .remove_area_with_start_vpn(ustack_bottom_va.into());
+        do_munmap(&mut process_inner.mm, ustack_bottom_va.into(), USER_STACK_SIZE);
+        
         // dealloc trap_cx manually
         let trap_cx_bottom_va: VirtAddr = trap_cx_bottom_from_tid(self.tid).into();
-        process_inner
-            .memory_set
-            .remove_area_with_start_vpn(trap_cx_bottom_va.into());
+        do_munmap(&mut process_inner.mm, trap_cx_bottom_va.into(), PAGE_SIZE);
     }
 
     #[allow(unused)]
@@ -196,13 +191,14 @@ impl TaskUserRes {
 
     pub fn trap_cx_ppn(&self) -> PhysPageNum {
         let process = self.process.upgrade().unwrap();
-        let process_inner = process.acquire_inner_lock();
+        let mut process_inner = process.acquire_inner_lock();
         let trap_cx_bottom_va: VirtAddr = trap_cx_bottom_from_tid(self.tid).into();
+
         process_inner
-            .memory_set
+            .mm
             .translate(trap_cx_bottom_va.into())
             .unwrap()
-            .ppn()
+            .floor()
     }
 
     pub fn ustack_base(&self) -> usize {

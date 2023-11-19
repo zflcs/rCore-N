@@ -1,6 +1,7 @@
-use crate::{mm, put_char, main};
+use crate::{mm, put_str, main};
 use alloc::string::ToString;
 use alloc::{collections::BTreeMap, string::String};
+use xmas_elf::dynamic::Dynamic;
 use super::structs::ModuleSymbol;
 
 ///
@@ -9,7 +10,7 @@ pub fn kernel_rt() -> BTreeMap<String, ModuleSymbol> {
         fn executor_ptr();
     }
     let mut symbols = BTreeMap::new();
-    symbols.insert("put_char".to_string(), ModuleSymbol::create_symbol("put_char", put_char as _));
+    symbols.insert("put_str".to_string(), ModuleSymbol::create_symbol("put_char", put_str as _));
     symbols.insert("alloc".to_string(), ModuleSymbol::create_symbol("alloc", mm::alloc as _));
     symbols.insert("dealloc".to_string(), ModuleSymbol::create_symbol("dealloc", mm::dealloc as _));
     symbols.insert("main".to_string(), ModuleSymbol::create_symbol("main", main as _));
@@ -19,14 +20,14 @@ pub fn kernel_rt() -> BTreeMap<String, ModuleSymbol> {
 }
 
 ///
-pub fn from_elf<'a>(elf: &ElfFile<'a>) -> BTreeMap<String, ModuleSymbol> {
-    let put_char_sym = get_symbol_addr(elf, "put_char");
+pub fn user_rt<'a>(elf: &ElfFile<'a>) -> BTreeMap<String, ModuleSymbol> {
+    let put_str_sym = get_symbol_addr(elf, "put_str");
     let alloc_sym = get_symbol_addr(elf, "alloc");
     let dealloc_sym = get_symbol_addr(elf, "dealloc");
     let main_sym = get_symbol_addr(elf, "main");
     let executor_ptr_sym = get_symbol_addr(elf, "executor_ptr");
     let mut symbols = BTreeMap::new();
-    symbols.insert("put_char".to_string(), ModuleSymbol::create_symbol("put_char", put_char_sym));
+    symbols.insert("put_str".to_string(), ModuleSymbol::create_symbol("put_str", put_str_sym));
     symbols.insert("alloc".to_string(), ModuleSymbol::create_symbol("alloc", alloc_sym));
     symbols.insert("dealloc".to_string(), ModuleSymbol::create_symbol("dealloc", dealloc_sym));
     symbols.insert("main".to_string(), ModuleSymbol::create_symbol("main", main_sym));
@@ -37,16 +38,16 @@ pub fn from_elf<'a>(elf: &ElfFile<'a>) -> BTreeMap<String, ModuleSymbol> {
 
 
 use alloc::vec::Vec;
-use xmas_elf::sections::SectionData::SymbolTable64;
-use xmas_elf::symbol_table::{Entry, Entry64};
+use xmas_elf::sections::SectionData::{DynSymbolTable64, SymbolTable64, Dynamic64};
+use xmas_elf::symbol_table::{Entry, Entry64, DynEntry64};
 use xmas_elf::ElfFile;
 type P64 = u64;
 
 
-fn symbol_table<'a>(elf: &ElfFile<'a>) -> &'a [Entry64] {
+pub fn symbol_table<'a>(elf: &ElfFile<'a>) -> &'a [Entry64] {
     match elf.find_section_by_name(".symtab").unwrap().get_data(&elf).unwrap()
     {
-        SymbolTable64(dsym) => dsym,
+        SymbolTable64(sym) => sym,
         _ => panic!("corrupted .symtab"),
     }
 }
@@ -62,3 +63,18 @@ pub fn get_symbol_addr<'a>(elf: &ElfFile<'a>, symbol_name: &str) -> usize{
     entry
 }
 
+pub fn dynsym_table<'a>(elf: &ElfFile<'a>) -> &'a [DynEntry64] {
+    match elf.find_section_by_name(".dynsym").unwrap().get_data(&elf).unwrap()
+    {
+        DynSymbolTable64(dsym) => dsym,
+        _ => panic!("corrupted .dynsym"),
+    }
+}
+
+pub fn dynamic_table<'a>(elf: &ElfFile<'a>) -> &'a [Dynamic<P64>] {
+    match elf.find_section_by_name(".dynamic").unwrap().get_data(&elf).unwrap()
+    {
+        Dynamic64(dsym) => dsym,
+        _ => panic!("corrupted .dynamic"),
+    }
+}

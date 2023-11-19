@@ -5,7 +5,7 @@ use alloc::vec::*;
 
 use crate::mm::VirtAddr;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ModuleSymbol {
     pub name: String,
     pub loc: usize,
@@ -35,6 +35,7 @@ pub struct LoadedModule {
     pub vspace: (usize, usize),
     pub lock: Mutex<()>,
     pub state: ModuleState,
+    pub depend_symbols: Vec<ModuleSymbol>,
 }
 
 impl LoadedModule {

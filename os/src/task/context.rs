@@ -1,4 +1,3 @@
-use crate::trap::trap_return;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -10,12 +9,12 @@ pub struct TaskContext {
 }
 
 impl TaskContext {
-    pub fn goto_trap_return(kernel_stack_top: usize, tid: usize) -> Self {
+    pub fn goto_target(target: usize, kstack_top: usize, tid: usize) -> Self {
         Self {
-            ra: trap_return as usize,
+            ra: target as usize,
             s: [0; 12],
             tid,
-            sp: kernel_stack_top,
+            sp: kstack_top,
         }
     }
 }

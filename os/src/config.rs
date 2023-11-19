@@ -32,6 +32,8 @@ pub const USER_MAX_PAGES: usize = (LOW_MAX_VA + 1) >> PAGE_SIZE_BITS;
 /// Maximum virtual memory areas in an address space
 pub const MAX_MAP_COUNT: usize = 256;
 
+/// 
+pub const USER_STACK_BASE: usize = LOW_MAX_VA + 1;
 
 #[cfg(feature = "board_qemu")]
 /// the clock frequency in qemu

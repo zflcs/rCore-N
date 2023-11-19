@@ -1,6 +1,6 @@
 use spin::{Lazy, Mutex};
 
-use crate::config::MEMORY_END;
+use crate::{config::MEMORY_END, lkm::api::kernel_rt};
 use super::*;
 
 extern "C" {
@@ -13,7 +13,6 @@ extern "C" {
     fn sbss_with_stack();
     fn ebss();
     fn ekernel();
-    fn strampoline();
 }
 
 pub static KERNEL_SPACE: Lazy<Arc<Mutex<MM>>> = Lazy::new(|| Arc::new(Mutex::new(new_kernel().unwrap())));
@@ -35,7 +34,7 @@ pub fn kernel_activate() {
 fn new_kernel() -> Result<MM> {
     let mut mm = MM::new()?;
 
-
+    mm.exported_symbols = kernel_rt();
     // Map kernel .text section
     mm.alloc_write_vma(
         None,

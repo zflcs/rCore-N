@@ -3,7 +3,7 @@
 
 #![no_std]
 #![no_main]
-#![feature(lang_items, panic_info_message, alloc_error_handler)]
+#![feature(lang_items, panic_info_message, alloc_error_handler, linkage)]
 #![allow(internal_features, non_snake_case)]
 
 #[macro_use]
@@ -38,13 +38,23 @@ pub mod kernel_lang_item {
 
 #[cfg(feature = "not_kernel")]
 pub mod lang_item {
+
+    #[no_mangle]
+    #[link_section = ".text.entry"]
+    pub extern "C" fn __libc_start_main() {
+        extern "Rust" { fn main(); }
+        unsafe { main() };
+    }
+
     ///
     #[lang = "eh_personality"]
     #[no_mangle]
     pub fn rust_eh_personality() {}
 
     #[no_mangle]
-    pub fn memcpy() {}
+    pub fn memcpy() {
+        return;
+    }
 
     #[no_mangle]
     pub fn __cxa_finalize() {}
@@ -59,12 +69,14 @@ pub mod lang_item {
     pub fn _ITM_deregisterTMCloneTable() {}
 
     #[no_mangle]
-    pub fn memset() {}
+    pub fn memset() {
+        return;
+    }
 
     /// not_kernel panic
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        log::warn!("{info}");
+        println!("{}", info);
         syscall::exit(-1)
     }
 }

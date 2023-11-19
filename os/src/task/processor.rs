@@ -4,18 +4,18 @@ use super::__switch;
 use super::add_task;
 use super::{fetch_task, TaskStatus};
 use crate::config::CPU_NUM;
+use crate::mm::{MmapFlags, MmapProt};
+use crate::Result;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::arch::asm;
 use core::cell::RefCell;
 use riscv::register::cycle;
-
+use spin::Lazy;
 use crate::task::process::ProcessControlBlock;
-use lazy_static::*;
-lazy_static! {
-    pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
-}
+
+pub static PROCESSORS: Lazy<[Processor; CPU_NUM]> = Lazy::new(|| Default::default());
 
 pub struct Processor {
     inner: RefCell<ProcessorInner>,
@@ -157,7 +157,7 @@ pub fn hart_id() -> usize {
 //     debug!("run_tasks");
 //     PROCESSORS[hart_id()].run();
 // }
-pub async fn run_tasks() {
+pub async fn run_tasks() -> i32 {
     let mut helper = Box::new(ReadHelper::new());
     loop {
         if let Some(task) = fetch_task() {
@@ -166,7 +166,9 @@ pub async fn run_tasks() {
         }
         helper.as_mut().await;
     }
+    0
 }
+
 use alloc::boxed::Box;
 use core::{
     future::Future,
@@ -250,29 +252,20 @@ pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     }
 }
 
-pub fn set_current_priority(priority: isize) -> Result<isize, isize> {
-    if let Some(current) = current_task() {
-        let mut current = current.acquire_inner_lock();
-        current.set_priority(priority)
-    } else {
-        Err(-1)
-    }
-}
-
-pub fn mmap(start: usize, len: usize, port: usize) -> Result<isize, isize> {
+pub fn mmap(start: usize, len: usize, prot: usize, flags: usize) -> Result<usize> {
     if let Some(current) = current_process() {
         let mut current = current.acquire_inner_lock();
-        current.mmap(start, len, port)
+        current.mmap(start, len, MmapProt::from_bits(prot).unwrap(), MmapFlags::from_bits(flags).unwrap(), usize::MAX, 0)
     } else {
-        Err(-1)
+        Err(())
     }
 }
 
-pub fn munmap(start: usize, len: usize) -> Result<isize, isize> {
+pub fn munmap(start: usize, len: usize) -> Result<()> {
     if let Some(current) = current_process() {
         let mut current = current.acquire_inner_lock();
         current.munmap(start, len)
     } else {
-        Err(-1)
+        Err(())
     }
 }

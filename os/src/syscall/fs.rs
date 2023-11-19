@@ -1,9 +1,8 @@
-use crate::fs::make_pipe;
+// use crate::fs::make_pipe;
 use crate::mm::{translated_byte_buffer, translated_refmut, UserBuffer};
 use crate::task::{current_process, current_user_token};
 use alloc::{collections::BTreeMap, sync::Arc};
-use lazy_static::*;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Ord, Eq)]
 pub struct AsyncKey {
@@ -12,10 +11,8 @@ pub struct AsyncKey {
 }
 
 // key -> r_id, write coroutine can use WRMAP to find the corresponding read coroutine id
-lazy_static! {
-    pub static ref WRMAP: Arc<Mutex<BTreeMap<AsyncKey, usize>>> =
-        Arc::new(Mutex::new(BTreeMap::new()));
-}
+pub static WRMAP: Lazy<Arc<Mutex<BTreeMap<AsyncKey, usize>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(BTreeMap::new())));
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) -> isize {
     if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
@@ -112,16 +109,16 @@ pub fn sys_close(fd: usize) -> isize {
     0
 }
 
-pub fn sys_pipe(pipe: *mut usize) -> isize {
-    let task = current_process().unwrap();
-    let token = current_user_token();
-    let mut inner = task.acquire_inner_lock();
-    let (pipe_read, pipe_write) = make_pipe();
-    let read_fd = inner.alloc_fd();
-    inner.fd_table[read_fd] = Some(pipe_read);
-    let write_fd = inner.alloc_fd();
-    inner.fd_table[write_fd] = Some(pipe_write);
-    *translated_refmut(token, pipe) = read_fd;
-    *translated_refmut(token, unsafe { pipe.add(1) }) = write_fd;
-    0
-}
+// pub fn sys_pipe(pipe: *mut usize) -> isize {
+//     let task = current_process().unwrap();
+//     let token = current_user_token();
+//     let mut inner = task.acquire_inner_lock();
+//     let (pipe_read, pipe_write) = make_pipe();
+//     let read_fd = inner.alloc_fd();
+//     inner.fd_table[read_fd] = Some(pipe_read);
+//     let write_fd = inner.alloc_fd();
+//     inner.fd_table[write_fd] = Some(pipe_write);
+//     *translated_refmut(token, pipe) = read_fd;
+//     *translated_refmut(token, unsafe { pipe.add(1) }) = write_fd;
+//     0
+// }

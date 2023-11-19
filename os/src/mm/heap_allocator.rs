@@ -1,5 +1,4 @@
 use crate::config::KERNEL_HEAP_SIZE;
-use alloc::{collections::VecDeque, vec};
 use buddy_system_allocator::LockedHeap;
 use core::{
     alloc::{GlobalAlloc, Layout},

@@ -1,6 +1,4 @@
-use riscv::register::{
-    sstatus::{self, Sstatus, SPP},
-};
+use riscv::register::sstatus::{self, Sstatus, SPP};
 
 #[repr(C)]
 #[derive(Debug)]

@@ -8,7 +8,8 @@ pub struct Stdout;
 impl File for Stdin {
     fn read(&self, mut user_buf: UserBuffer) -> Result<usize, isize> {
         assert_eq!(user_buf.len(), 1);
-        let ch = crate::sbi::console_getchar() as isize;
+        #[allow(deprecated)]
+        let ch = sbi_rt::legacy::console_getchar() as isize;
         if ch < 0 {
             Err(-1)
         } else {

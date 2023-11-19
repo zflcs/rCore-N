@@ -1,14 +1,12 @@
-use crate::loader::get_app_data_by_name;
+use crate::fs::OpenFlags;
 use crate::mm;
 use crate::task::{
     add_task, current_process, current_task, current_user_token, exit_current_and_run_next, mmap,
-    munmap, set_current_priority, suspend_current_and_run_next, WAIT_LOCK,
+    munmap, suspend_current_and_run_next, WAIT_LOCK,
 };
-use crate::timer::get_time;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem::size_of;
-use lib_so::update_prio;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -21,34 +19,34 @@ pub fn sys_yield() -> isize {
     0
 }
 
-pub fn sys_set_priority(prio: isize) -> isize {
-    match set_current_priority(prio) {
-        Ok(prio) => prio,
-        Err(err) => err,
-    }
-}
+// pub fn sys_set_priority(prio: isize) -> isize {
+//     match set_current_priority(prio) {
+//         Ok(prio) => prio,
+//         Err(err) => err,
+//     }
+// }
 
-pub fn sys_get_time(time: usize, tz: usize) -> isize {
-    let token = current_user_token();
-    let mut pas: Vec<*mut usize> = Vec::new();
-    match mm::translate_writable_va(token, time) {
-        Err(_) => return -1,
-        Ok(pa) => pas.push(pa as *mut usize),
-    }
-    match mm::translate_writable_va(token, time + size_of::<usize>()) {
-        Err(_) => return -1,
-        Ok(pa) => pas.push(pa as *mut usize),
-    }
-    get_time(pas, tz)
-}
+// pub fn sys_get_time(time: usize, tz: usize) -> isize {
+//     let token = current_user_token();
+//     let mut pas: Vec<*mut usize> = Vec::new();
+//     match mm::translate_writable_va(token, time) {
+//         Err(_) => return -1,
+//         Ok(pa) => pas.push(pa as *mut usize),
+//     }
+//     match mm::translate_writable_va(token, time + size_of::<usize>()) {
+//         Err(_) => return -1,
+//         Ok(pa) => pas.push(pa as *mut usize),
+//     }
+//     get_time(pas, tz)
+// }
 
-pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
-    mmap(start, len, port).unwrap_or(-1)
-}
+// pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
+//     mmap(start, len, port).unwrap_or(-1)
+// }
 
-pub fn sys_munmap(start: usize, len: usize) -> isize {
-    munmap(start, len).unwrap_or(-1)
-}
+// pub fn sys_munmap(start: usize, len: usize) -> isize {
+//     munmap(start, len).unwrap_or(-1)
+// }
 
 pub fn sys_getpid() -> isize {
     current_task().unwrap().process.upgrade().unwrap().getpid() as isize
@@ -66,7 +64,6 @@ pub fn sys_fork() -> isize {
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
-    update_prio(new_pid + 1, 0);
     add_task((*task).clone());
     debug!("new_task {:?} via fork", new_pid);
     new_pid as isize
@@ -76,7 +73,8 @@ pub fn sys_exec(path: *const u8) -> isize {
     let token = current_user_token();
     let path = mm::translated_str(token, path);
     debug!("EXEC {}", &path);
-    if let Some(data) = get_app_data_by_name(path.as_str()) {
+    if let Some(inode) = crate::fs::open_file(path.as_str(), OpenFlags::RDONLY) {
+        let data = &inode.read_all();
         let task = current_process().unwrap();
         task.exec(data);
         0
@@ -117,7 +115,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         // ++++ temporarily hold child lock
         let exit_code = child.acquire_inner_lock().exit_code;
         // ++++ release child PCB lock
-        *mm::translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code;
+        *mm::translated_refmut(inner.mm.token(), exit_code_ptr) = exit_code;
         found_pid as isize
     } else {
         -2
@@ -154,11 +152,11 @@ pub fn sys_flush_trace() -> isize {
     0
 }
 
-pub fn sys_set_timer(time_us: usize, cid: usize) -> isize {
-    let pid = current_process().unwrap().pid.0;
-    use crate::config::CLOCK_FREQ;
-    use crate::timer::{set_virtual_timer, USEC_PER_SEC};
-    let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
-    set_virtual_timer(time, pid, cid);
-    0
-}
+// pub fn sys_set_timer(time_us: usize, cid: usize) -> isize {
+//     let pid = current_process().unwrap().pid.0;
+//     use crate::config::CLOCK_FREQ;
+//     use crate::timer::{set_virtual_timer, USEC_PER_SEC};
+//     let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
+//     set_virtual_timer(time, pid, cid);
+//     0
+// }

@@ -6,10 +6,10 @@ mod process;
 mod processor;
 mod switch;
 mod task;
+
 use crate::fs::{open_file, OpenFlags};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use lazy_static::*;
 
 use spin::{Mutex, Lazy};
 use switch::__switch;
@@ -19,19 +19,17 @@ use crate::task::pool::remove_from_pid2process;
 pub use context::TaskContext;
 pub use pid::{pid_alloc, KernelStack, PidHandle};
 pub use pool::{
-    add_task, add_user_intr_task, fetch_task, pid2process, prioritize_task,
+    add_task, fetch_task, pid2process,
 };
 pub use process::ProcessControlBlock;
 pub use processor::{
     current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
-    hart_id, mmap, munmap, run_tasks, schedule, set_current_priority, take_current_task,
+    hart_id, mmap, munmap, run_tasks, schedule, take_current_task
 };
 pub use task::{TaskControlBlock, TaskStatus};
 
-lazy_static! {
-    pub static ref WAIT_LOCK: Mutex<()> = Mutex::new(());
-    pub static ref WAITTID_LOCK: Mutex<()> = Mutex::new(());
-}
+pub static WAIT_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+pub static WAITTID_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /// This function must be followed by a schedule
 pub fn block_current_task() -> *mut TaskContext {
@@ -53,7 +51,6 @@ pub fn suspend_current_and_run_next() {
     task_inner.time_intr_count += 1;
     let task_cx_ptr = task_inner.get_task_cx_ptr();
     drop(task_inner);
-
     // jump to scheduling cycle
     schedule(task_cx_ptr);
 }
@@ -89,25 +86,16 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         let _wl = WAIT_LOCK.lock();
         let pid = process.getpid();
         remove_from_pid2process(pid);
-        debug!("test2");
         let mut process_inner = process.acquire_inner_lock();
         process_inner.is_zombie = true;
         process_inner.exit_code = exit_code;
         {
             let mut initproc_inner = INITPROC.acquire_inner_lock();
+
             for child in process_inner.children.iter() {
                 child.acquire_inner_lock().parent = Some(Arc::downgrade(&INITPROC));
                 initproc_inner.children.push(child.clone());
             }
-        }
-
-        if process_inner.user_trap_handler_task != None {
-            let task = process_inner.user_trap_handler_task.clone().unwrap();
-            let inner = task.acquire_inner_lock();
-            info!(
-                "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}, interrupt time: {}, user_cycle: {} us",
-                1, 1, 2, inner.time_intr_count, inner.total_cpu_cycle_count, inner.interrupt_time, inner.user_time_us
-            );
         }
 
         let mut recycle_res = Vec::<TaskUserRes>::new();
@@ -119,9 +107,8 @@ pub fn exit_current_and_run_next(exit_code: i32) {
             }
         }
         process_inner.children.clear();
-        process_inner.memory_set.recycle_data_pages();
+        process_inner.mm.recycle_vma_all();
         process_inner.fd_table.clear();
-        process_inner.user_trap_handler_task = None;
         drop(process_inner);
         recycle_res.clear();
     }
@@ -140,10 +127,11 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 pub static INITPROC: Lazy<Arc<ProcessControlBlock>> = Lazy::new(|| {
     let inode = open_file("hello", OpenFlags::RDONLY).unwrap();
     let v = inode.read_all();
-    ProcessControlBlock::new(v.as_slice())
+    ProcessControlBlock::empty()
 });
 
 pub fn add_initproc() {
-    debug!("add_initproc");
-    let _initproc = INITPROC.clone();
+    let inode = open_file("hello", OpenFlags::RDONLY).unwrap();
+    let v = inode.read_all();
+    let _init = ProcessControlBlock::new(&v);
 }

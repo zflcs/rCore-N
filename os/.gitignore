@@ -2,4 +2,6 @@ target/
 Cargo.lock
 debug.log
 src/link_app.S
+log.txt
+ramfs.asm
 

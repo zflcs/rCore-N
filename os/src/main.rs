@@ -18,8 +18,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
-use crate::{config::CPU_NUM, mm::{init_kernel_space, KERNEL_SPACE}, lkm::LKM_MANAGER};
-use core::sync::atomic::{AtomicUsize, Ordering};
+
 
 #[macro_use]
 extern crate lang;
@@ -28,20 +27,23 @@ extern crate lang;
 mod config;
 mod fs;
 mod mm;
-mod sbi;
 mod lkm;
 // mod sync;
-// mod syscall;
-// mod task;
-// mod timer;
-// mod trap;
+mod syscall;
+mod task;
+mod timer;
+mod trap;
 
 mod device;
-// mod lkm;
 // mod net;
 
 // use device::plic;
 pub type Result<T> = core::result::Result<T, ()>;
+
+use crate::{config::CPU_NUM, mm::{init_kernel_space, KERNEL_SPACE}, lkm::LKM_MANAGER};
+use core::sync::atomic::{AtomicUsize, Ordering};
+use alloc::boxed::Box;
+use core::future::Future;
 
 core::arch::global_asm!(include_str!("ramfs.asm"));
 
@@ -125,43 +127,33 @@ pub fn rust_main_init(hart_id: usize) -> ! {
     fs::inode::list_apps();
     let _ = LKM_MANAGER.lock();
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
-    // trap::init();
+    trap::init();
     // net::init();
     // device::init();
     // plic::init();
     // plic::init_hart(hart_id);
-    // lkm::init();
+    task::add_initproc();
 
-    debug!("trying to add initproc");
-    // task::add_initproc();
-    debug!("initproc added to task manager!");
-    log::debug!("{:X?}", KERNEL_SPACE.lock());
-    let a = lkm::LKM_MANAGER.lock().resolve_symbol("test").unwrap();
-    log::warn!("{:#X?}", a);
-    unsafe {
-        let test: fn() -> i32 = core::mem::transmute(a);
-        log::debug!("test func res 0x{:X?}", test() as usize);
-    }
 
-    if CPU_NUM > 1 {
-        for i in 0..CPU_NUM {
-            let boot_hart_cnt = BOOT_HART.load(Ordering::Relaxed);
-            if i != hart_id {
-                debug!("Start {}", i);
-                // Starts other harts.
-                let ret = sbi_rt::hart_start(i, __entry_others as _, 0);
-                assert!(ret.is_ok(), "Failed to shart hart {}", i);
-                while BOOT_HART.load(Ordering::Relaxed) == boot_hart_cnt {}
-            }
-        }
-    }
+    // if CPU_NUM > 1 {
+    //     for i in 0..CPU_NUM {
+    //         let boot_hart_cnt = BOOT_HART.load(Ordering::Relaxed);
+    //         if i != hart_id {
+    //             debug!("Start {}", i);
+    //             // Starts other harts.
+    //             let ret = sbi_rt::hart_start(i, __entry_others as _, 0);
+    //             assert!(ret.is_ok(), "Failed to shart hart {}", i);
+    //             while BOOT_HART.load(Ordering::Relaxed) == boot_hart_cnt {}
+    //         }
+    //     }
+    // }
     rust_main(hart_id)
 }
 
 #[no_mangle]
 pub fn rust_main_init_other(hart_id: usize) -> ! {
     init_kernel_space();
-    // trap::init();
+    trap::init();
     // plic::init_hart(hart_id);
     BOOT_HART.fetch_add(1, Ordering::Relaxed);
     rust_main(hart_id)
@@ -170,25 +162,29 @@ pub fn rust_main_init_other(hart_id: usize) -> ! {
 #[no_mangle]
 pub fn rust_main(_hart_id: usize) -> ! {
     // timer::set_next_trigger();
-    // lib_so::spawn(
-    //     move || task::run_tasks(),
-    //     7,
-    //     0,
-    //     lib_so::CoroutineKind::KernSche,
-    // );
-    // lib_so::poll_kernel_future();
+    lkm::spawn(Box::new(task::run_tasks()), 7);
+    lkm::entry();
     
     panic!("Unreachable in rust_main!");
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Box<dyn Future<Output = i32> + 'static + Send + Sync> {
+    log::debug!("into main function");
+    Box::new(test_fn())
+}
+
+async fn test_fn() -> i32 {
+    println!("into test");
     0
 }
 
 
 #[no_mangle]
-pub extern "C" fn put_char(s: u8) {
-    #[allow(deprecated)]
-    sbi_rt::legacy::console_putchar(s as _);
+fn put_str(ptr: *const u8, len: usize) {
+    let bytes = unsafe { core::slice::from_raw_parts(ptr, len) };
+    for c in bytes {
+        #[allow(deprecated)]
+        sbi_rt::legacy::console_putchar(*c as _);
+    }
 }

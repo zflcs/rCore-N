@@ -6,7 +6,7 @@ use crate::task::process::ProcessControlBlock;
 use crate::trap::TrapContext;
 use alloc::sync::{Arc, Weak};
 use spin::{Mutex, MutexGuard};
-
+use crate::trap::trap_return;
 pub struct TaskControlBlock {
     // immutable
     pub process: Weak<ProcessControlBlock>,
@@ -21,7 +21,6 @@ pub struct TaskControlBlockInner {
     pub task_cx: TaskContext,
     pub task_cx_ptr: usize,
     pub task_status: TaskStatus,
-    pub priority: isize,
     pub exit_code: Option<i32>,
     pub time_intr_count: usize,
     pub total_cpu_cycle_count: usize,
@@ -51,13 +50,6 @@ impl TaskControlBlockInner {
         self.get_status() == TaskStatus::Zombie
     }
 
-    pub fn set_priority(&mut self, priority: isize) -> Result<isize, isize> {
-        if priority < 2 {
-            return Err(-1);
-        }
-        self.priority = priority;
-        Ok(priority)
-    }
 }
 
 impl TaskControlBlock {
@@ -68,7 +60,7 @@ impl TaskControlBlock {
     pub fn get_user_token(&self) -> usize {
         let process = self.process.upgrade().unwrap();
         let inner = process.acquire_inner_lock();
-        inner.memory_set.token()
+        inner.mm.token()
     }
 
     pub fn getpid(&self) -> usize {
@@ -91,10 +83,9 @@ impl TaskControlBlock {
             inner: Mutex::new(TaskControlBlockInner {
                 res: Some(res),
                 trap_cx_ppn,
-                task_cx: TaskContext::goto_trap_return(kstack_top, tid),
+                task_cx: TaskContext::goto_target(trap_return as _, kstack_top, tid),
                 task_cx_ptr: 0,
                 task_status: TaskStatus::Ready,
-                priority: 0,
                 exit_code: None,
                 time_intr_count: 0,
                 total_cpu_cycle_count: 0,

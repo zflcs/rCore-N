@@ -2,7 +2,7 @@ mod address;
 mod frame_allocator;
 mod heap_allocator;
 mod page_table;
-mod ld;
+pub mod loader;
 mod kernel;
 mod vma;
 mod flags;
@@ -10,11 +10,13 @@ mod flags;
 pub use heap_allocator::{alloc, dealloc};
 
 pub use self::flags::*;
-use vma::VMArea;
-use crate::{Result, config::{PAGE_SIZE, USER_HEAP_SIZE, MAX_MAP_COUNT, LOW_MAX_VA}};
+pub use vma::VMArea;
+use crate::{Result, config::{PAGE_SIZE, USER_HEAP_SIZE, MAX_MAP_COUNT, LOW_MAX_VA, TRAMPOLINE}, lkm::manager::ModuleManager};
+use crate::lkm::structs::ModuleSymbol;
+use alloc::string::String;
 use alloc::{vec::Vec, collections::BTreeMap, sync::Arc};
 pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
-pub use address::{StepByOne, VPNRange};
+pub use address::{StepByOne, VPNRange, PPNRange};
 pub use frame_allocator::{frame_alloc, frame_alloc_more, frame_dealloc, FrameTracker};
 pub use kernel::*;
 use page_table::PTEFlags;
@@ -31,6 +33,10 @@ pub fn init() {
 
 pub fn init_kernel_space() {
     kernel_activate();
+}
+
+extern "C" {
+    fn strampoline();
 }
 
 /// memory space
@@ -63,7 +69,7 @@ pub struct MM {
     /// Heap pointer managed by `sys_brk`.
     pub brk: VirtAddr,
 
-
+    pub exported_symbols: BTreeMap<String, ModuleSymbol>,
 }
 
 /* Global operations */
@@ -85,13 +91,27 @@ impl MM {
             entry: VirtAddr::from(0),
             start_brk: VirtAddr::from(0),
             brk: VirtAddr::from(0),
+            exported_symbols: BTreeMap::new(),
         };
+        mm.page_table.map(
+            VirtAddr::from(TRAMPOLINE).into(),
+            PhysAddr::from(strampoline as usize).into(),
+            PTEFlags::R | PTEFlags::X | PTEFlags::V
+        );
         Ok(mm)
     }
 
     ///
     pub fn token(&self) -> usize {
         self.page_table.token()
+    }
+
+    ///
+    pub fn recycle_vma_all(&mut self) {
+        self.vma_list.clear();
+        self.vma_recycled.clear();
+        self.vma_cache = None;
+        self.vma_map.clear();
     }
 
     /// Create a new [`MM`] from cloner.
@@ -133,13 +153,18 @@ impl MM {
             entry: self.entry,
             start_brk: self.start_brk,
             brk: self.brk,
+            exported_symbols: self.exported_symbols.clone(),
         })
     }
 
     /// A warpper for `translate` in `PageTable`.
     pub fn translate(&mut self, va: VirtAddr) -> Option<PhysAddr> {
-        self.page_table
-            .translate_va(va)
+        self.page_table.translate_va(va)
+    }
+
+    /// 
+    pub fn translate_pte(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
     }
 
     /// The number of virtual memory areas.

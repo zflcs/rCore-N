@@ -18,6 +18,7 @@ SECTIONS
     . = ALIGN(4K);
     .data : {
         *(.data.heap)
+        executor_ptr = .;
         *(.data.executor)
         *(.data .data.*)
         *(.sdata .sdata.*)

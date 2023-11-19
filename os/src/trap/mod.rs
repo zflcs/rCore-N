@@ -2,7 +2,7 @@ mod context;
 pub use context::TrapContext;
 
 use crate::config::TRAMPOLINE;
-use crate::plic;
+// use crate::plic;
 use crate::syscall::syscall;
 use crate::task::{
     current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
@@ -65,6 +65,7 @@ pub fn trap_handler() -> ! {
             let cx = current_trap_cx();
             cx.sepc += 4;
             let id = cx.x[17];
+            // log::debug!("syscall {:?}", id);
             // get system call return value
             let result = syscall(
                 cx.x[17],
@@ -109,7 +110,7 @@ pub fn trap_handler() -> ! {
             let mut inner = current_task.acquire_inner_lock();
             inner.interrupt_time += 1;
             drop(inner);
-            plic::handle_external_interrupt(hart_id());
+            // plic::handle_external_interrupt(hart_id());
         }
         Trap::Interrupt(Interrupt::SupervisorSoft) => {
             // debug!("Supervisor Soft");

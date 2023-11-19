@@ -183,6 +183,8 @@ impl VMArea {
         } else {
             for (vpn, ppn) in zip(vpn_range, self.get_frames(alloc)?) {
                 if ppn.is_some() {
+                    // log::debug!("{:?}, {:?}", vpn, ppn.clone().unwrap().clone().ppn);
+
                     pt.map(vpn, ppn.unwrap().ppn, PTEFlags::V | flags);
                 }
             }

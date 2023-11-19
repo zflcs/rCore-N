@@ -16,7 +16,7 @@ fn main() {
 fn insert_ramfs() -> Result<()> {
     let pwd = std::env::current_dir().unwrap();
     let mut ancestors = pwd.ancestors();
-    let fs_img_path = ancestors.nth(1).unwrap().join("target/riscv64gc-unknown-linux-gnu/release/fs.img");
+    let fs_img_path = ancestors.nth(1).unwrap().join("target/riscv64gc-unknown-none-elf/release/fs.img");
     let mut f = File::create(pwd.join("src/ramfs.asm")).unwrap();
 
     writeln!(
