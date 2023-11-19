@@ -67,11 +67,11 @@ fn easy_fs_pack() -> std::io::Result<()> {
             .write(true)
             .create(true)
             .open(format!("{}{}", target_path, "fs.img"))?;
-        f.set_len(2 * 2048 * 512).unwrap();
+        f.set_len(8 * 2048 * 512).unwrap();
         f
     })));
     // 32MiB, at most 4095 files
-    let efs = EasyFileSystem::create(block_file, 2* 2048, 1);
+    let efs = EasyFileSystem::create(block_file, 8 * 2048, 1);
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     let apps: Vec<_> = read_dir(src_path)
         .unwrap()
