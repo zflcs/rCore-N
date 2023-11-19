@@ -23,3 +23,5 @@ lang = { path = "../lang", features = ["not_kernel"] }
 executor = { path = "../executor" }
 log = "0.4.17"
 
+macros = {path = "./macros"}
+
