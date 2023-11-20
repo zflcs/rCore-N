@@ -77,4 +77,10 @@ impl Executor {
         }
         task
     }
+    ///
+    pub fn wake(&mut self, task: Arc<Task>) {
+        let priority = task.priority.load(Ordering::Relaxed);
+        self.run_queue[priority as usize].enqueue(task);
+        self.priority.fetch_min(priority, Ordering::Relaxed);
+    }
 }

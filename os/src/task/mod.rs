@@ -125,13 +125,11 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 }
 
 pub static INITPROC: Lazy<Arc<ProcessControlBlock>> = Lazy::new(|| {
-    let inode = open_file("hello", OpenFlags::RDONLY).unwrap();
-    let v = inode.read_all();
     ProcessControlBlock::empty()
 });
 
 pub fn add_initproc() {
-    let inode = open_file("hello", OpenFlags::RDONLY).unwrap();
+    let inode = open_file("shell", OpenFlags::RDONLY).unwrap();
     let v = inode.read_all();
     let _init = ProcessControlBlock::new(&v);
 }

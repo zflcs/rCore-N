@@ -10,7 +10,7 @@
 pub mod console;
 extern crate alloc;
 
-#[cfg(feature = "not_kernel")]
+#[cfg(any(feature = "so", feature = "user"))]
 pub mod heap;
 
 
@@ -36,14 +36,14 @@ pub mod kernel_lang_item {
     }
 }
 
-#[cfg(feature = "not_kernel")]
+#[cfg(feature = "so")]
 pub mod lang_item {
 
     #[no_mangle]
     #[link_section = ".text.entry"]
     pub extern "C" fn __libc_start_main() {
         extern "Rust" { fn main(); }
-        unsafe { main() };
+        unsafe { main(); }
     }
 
     ///
@@ -72,6 +72,27 @@ pub mod lang_item {
     pub fn memset() {
         return;
     }
+
+    /// not_kernel panic
+    #[panic_handler]
+    fn panic(info: &core::panic::PanicInfo) -> ! {
+        println!("{}", info);
+        syscall::exit(-1)
+    }
+}
+
+
+
+#[cfg(feature = "user")]
+pub mod lang_item {
+
+    #[no_mangle]
+    #[link_section = ".text.entry"]
+    pub extern "C" fn __libc_start_main() {
+        extern "Rust" { fn main(); }
+        unsafe { main(); }
+    }
+
 
     /// not_kernel panic
     #[panic_handler]

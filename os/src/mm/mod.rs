@@ -119,42 +119,26 @@ impl MM {
     /// Uses the copy-on-write technique (COW) to prevent all data of the parent process from being copied
     /// when fork is executed.
     pub fn clone(&mut self) -> Result<Self> {
-        let mut page_table = PageTable::new();
-        let mut new_vma_list = Vec::new();
+        let mut mm = MM::new()?;
         for vma in self.vma_list.iter_mut() {
             if let Some(vma) = vma {
-                let mut new_vma = VMArea {
-                    flags: vma.flags,
-                    start_va: vma.start_va,
-                    end_va: vma.end_va,
-                    frames: vma.frames.clone(),
-                };
-                // read-only
-                let mut flags = PTEFlags::from(vma.flags);
-                flags.remove(PTEFlags::W);
-
-                // map the new vma of child process
-                new_vma.map_all(&mut page_table, flags, false)?;
-                new_vma_list.push(Some(new_vma));
-
-                // remap the old vma of parent process
-                vma.map_all(&mut self.page_table, flags, false)?;
-            } else {
-                new_vma_list.push(None);
+                let src_ptr = self.page_table.translate_va(vma.start_va).unwrap().0;
+                let len = vma.start_va.0 - vma.end_va.0;
+                let src_slice = unsafe { core::slice::from_raw_parts(src_ptr as *const u8, len) };
+                mm.alloc_write_vma(
+                    Some(src_slice), 
+                    vma.start_va, 
+                    vma.end_va, 
+                    vma.flags
+                )?;
             }
         }
+        mm.entry = self.entry;
+        mm.start_brk = self.start_brk;
+        mm.brk = self.brk;
+        mm.exported_symbols = self.exported_symbols.clone();
 
-        Ok(Self {
-            page_table,
-            vma_list: new_vma_list,
-            vma_recycled: self.vma_recycled.clone(),
-            vma_map: self.vma_map.clone(),
-            vma_cache: None,
-            entry: self.entry,
-            start_brk: self.start_brk,
-            brk: self.brk,
-            exported_symbols: self.exported_symbols.clone(),
-        })
+        Ok(mm)
     }
 
     /// A warpper for `translate` in `PageTable`.

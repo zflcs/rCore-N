@@ -274,6 +274,8 @@ impl ProcessControlBlock {
         // modify kstack_top in trap_cx of this thread
         let task_inner = task.acquire_inner_lock();
         let trap_cx = task_inner.get_trap_cx();
+        // log::debug!("{:#X?}", self.acquire_inner_lock().get_task(0).acquire_inner_lock().get_trap_cx());
+        // log::debug!("{:#X?}", trap_cx);
         trap_cx.kernel_sp = task.kstack.get_top();
         drop(task_inner);
         insert_into_pid2process(child.getpid(), Arc::clone(&child));

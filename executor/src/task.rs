@@ -36,11 +36,24 @@ impl TaskRef {
     }
 }
 
+///
+#[repr(C)]
+#[derive(Debug, PartialEq, Eq)]
+pub enum TaskType {
+    ///
+    KernelSche,
+    ///
+    Other,
+}
+
 /// The `Task` is stored in heap by using `Arc`.
 #[repr(C)]
 pub struct Task {
     pub(crate) executor: AtomicCell<Option<&'static Executor>>,
-    pub(crate) priority: AtomicU32,
+    ///
+    pub priority: AtomicU32,
+    ///
+    pub task_type: TaskType,
     fut: AtomicCell<Box<dyn Future<Output = i32> + 'static + Send + Sync>>,
 }
 
@@ -49,10 +62,12 @@ impl Task {
     pub fn new(
         fut: Box<dyn Future<Output = i32> + 'static + Send + Sync>,
         priority: u32,
+        task_type: TaskType
     ) -> Arc<Self> {
         Arc::new(Self {
             executor: AtomicCell::new(None),
             priority: AtomicU32::new(priority),
+            task_type,
             fut: AtomicCell::new(fut),
         })
     }

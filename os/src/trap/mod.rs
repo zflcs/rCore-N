@@ -65,12 +65,12 @@ pub fn trap_handler() -> ! {
             let cx = current_trap_cx();
             cx.sepc += 4;
             let id = cx.x[17];
-            // log::debug!("syscall {:?}", id);
             // get system call return value
             let result = syscall(
                 cx.x[17],
                 [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]],
             );
+            // log::debug!("syscall {:?}, res {:?}", id, result);
             if id != 221 || result != 0 {
                 cx.x[10] = result as usize;
             }

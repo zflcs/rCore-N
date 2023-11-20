@@ -71,17 +71,9 @@ impl Processor {
             idle_task_cx_ptr,
             unsafe { &*idle_task_cx_ptr }
         );
-        // acquire
-        let process = task.process.upgrade().unwrap();
-        let process_inner = process.acquire_inner_lock();
-
-        drop(process_inner);
-        drop(process);
-
         let mut task_inner = task.acquire_inner_lock();
         let next_task_cx_ptr = task_inner.get_task_cx_ptr();
         task_inner.task_status = TaskStatus::Running(hart_id());
-
         let task_cx = unsafe { &*next_task_cx_ptr };
         trace!(
             "next task cx ptr: {:#x?}, task cx: {:#x?}",
@@ -91,7 +83,9 @@ impl Processor {
         task_inner.last_cpu_cycle = cycle::read();
         // release
         drop(task_inner);
+        // log::debug!("here1");
         self.inner.borrow_mut().current = Some(task);
+        // log::debug!("here2");
         unsafe {
             __switch(idle_task_cx_ptr, next_task_cx_ptr);
         }
@@ -153,10 +147,7 @@ pub fn hart_id() -> usize {
     hart_id
 }
 
-// pub fn run_tasks() {
-//     debug!("run_tasks");
-//     PROCESSORS[hart_id()].run();
-// }
+
 pub async fn run_tasks() -> i32 {
     let mut helper = Box::new(ReadHelper::new());
     loop {
@@ -186,7 +177,7 @@ impl Future for ReadHelper {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.0 += 1;
-        if (self.0 % 200) == 0 {
+        if (self.0 % 2) == 0 {
             return Poll::Pending;
         } else {
             return Poll::Ready(());

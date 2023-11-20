@@ -162,7 +162,7 @@ pub fn rust_main_init_other(hart_id: usize) -> ! {
 #[no_mangle]
 pub fn rust_main(_hart_id: usize) -> ! {
     // timer::set_next_trigger();
-    lkm::spawn(Box::new(task::run_tasks()), 7);
+    lkm::spawn(Box::new(task::run_tasks()), 7, executor::TaskType::KernelSche);
     lkm::entry();
     
     panic!("Unreachable in rust_main!");
@@ -171,13 +171,10 @@ pub fn rust_main(_hart_id: usize) -> ! {
 #[no_mangle]
 pub fn main() -> Box<dyn Future<Output = i32> + 'static + Send + Sync> {
     log::debug!("into main function");
-    Box::new(test_fn())
+    Box::new(async {0})
 }
 
-async fn test_fn() -> i32 {
-    println!("into test");
-    0
-}
+
 
 
 #[no_mangle]

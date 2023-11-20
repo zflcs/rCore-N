@@ -23,10 +23,11 @@ SECTIONS
         *(.data .data.*)
         *(.sdata .sdata.*)
     }
+    . = ALIGN(4K);
     .bss : {
-        *(.bss.interface)
         *(.bss .bss.*)
         *(.sbss .sbss.*)
+        *(.bss .bss.memory)
     }
 
     /DISCARD/ : {

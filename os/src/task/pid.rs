@@ -41,7 +41,7 @@ impl RecycleAllocator {
 static PID_ALLOCATOR: Lazy<Mutex<RecycleAllocator>> = Lazy::new(|| Mutex::new(RecycleAllocator::new()));
 static KSTACK_ALLOCATOR: Lazy<Mutex<RecycleAllocator>> = Lazy::new(|| Mutex::new(RecycleAllocator::new()));
 
-
+#[derive(Debug)]
 pub struct PidHandle(pub usize);
 
 pub fn pid_alloc() -> PidHandle {

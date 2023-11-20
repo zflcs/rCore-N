@@ -23,17 +23,28 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
         use alloc::boxed::Box;
         use core::future::Future;
         extern crate syscall;
+        use syscall::*;
 
         #[no_mangle]
         pub fn main() -> Box<dyn Future<Output = i32> + 'static + Send + Sync> {
             init_heap();
+            lang::console::init(option_env!("LOG"));
             init_executor();
             Box::new(main_fut())
         }
 
         #[no_mangle]
         pub extern "C" fn put_str(ptr: *const u8, len: usize) {
-            syscall::sys_write(1, ptr as _, len, usize::MAX, usize::MAX);
+            sys_write(1, ptr as _, len, usize::MAX, usize::MAX);
+        }
+
+        pub fn getchar() -> u8 {
+            let mut c = [0u8; 1];
+            let mut res = -1;
+            while res < 0 {
+                res = sys_read(0, c.as_ptr() as usize, c.len(), usize::MAX, usize::MAX);
+            }
+            c[0]
         }
 
 
