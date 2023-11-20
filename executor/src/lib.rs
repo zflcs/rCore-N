@@ -10,7 +10,7 @@ extern crate alloc;
 mod executor;
 mod queue;
 mod task;
-mod waker;
+pub mod waker;
 
 pub use executor::*;
 pub use task::*;

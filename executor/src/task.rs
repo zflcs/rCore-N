@@ -54,7 +54,8 @@ pub struct Task {
     pub priority: AtomicU32,
     ///
     pub task_type: TaskType,
-    fut: AtomicCell<Box<dyn Future<Output = i32> + 'static + Send + Sync>>,
+    /// 
+    pub fut: AtomicCell<Box<dyn Future<Output = i32> + 'static + Send + Sync>>,
 }
 
 impl Task {

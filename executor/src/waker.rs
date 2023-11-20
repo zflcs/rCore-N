@@ -22,6 +22,7 @@ unsafe fn drop(p: *const ()) {
     println!("count {}", Arc::strong_count(&_task));
 }
 
-pub(crate) unsafe fn from_task(task: Arc<Task>) -> Waker {
+/// 
+pub unsafe fn from_task(task: Arc<Task>) -> Waker {
     Waker::from_raw(RawWaker::new(Arc::into_raw(task) as _, &VTABLE))
 }
