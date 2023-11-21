@@ -3,6 +3,7 @@ ENTRY(__libc_start_main)
 
 BASE_ADDRESS = 0x1000;
 
+
 SECTIONS
 {
     . = BASE_ADDRESS;

@@ -53,7 +53,7 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
             alloc::Layout,
             ptr::NonNull,
         };
-        use executor::Executor;
+        use executor::*;
         use spin::Once;
 
 
@@ -103,6 +103,44 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
         pub async fn main_fut() -> i32 {
             #(#statements)*
+        }
+    ).into();
+    // println!("{}", derive_fn.to_string());
+    derive_fn
+}
+
+
+use syn::Ident;
+use proc_macro2::Span;
+use regex::Regex;
+
+#[proc_macro]
+pub fn get_libfn(item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as ItemFn);
+    // let attrs: Vec<_> = input_fn.attrs.into_iter().map(|attr| attr.parse_meta().ok()).collect();
+    let ident = input_fn.sig.ident;
+    let args = input_fn.sig.inputs.to_token_stream();
+    let mut args_str = args.to_string();
+    args_str.push(',');
+    let re = Regex::new(r"(?s):[^,]*,").unwrap();
+    let mut args_type_str = re.replace_all(args_str.as_str(), r",").to_string();
+    args_type_str.push(' ');
+    let mut args_value: Vec<_> = args_type_str.split(" , ").collect();
+    args_value.pop();
+    let args_value: Vec<syn::Ident> = args_value.iter().map(|s| Ident::new(*s, Span::call_site())).collect();
+    let output = input_fn.sig.output.to_token_stream();
+    let mut derive_fn = TokenStream::default();
+    let fn_stub = quote::format_ident!("{}_stub", ident);
+    derive_fn = quote!(
+        #[no_mangle]
+        #[link_section = ".dependency"]
+        pub static mut #fn_stub: usize = 0;
+        #[inline(never)]
+        pub fn #ident(#args) #output {
+            unsafe {
+                let func: fn(#args) #output = core::mem::transmute(#fn_stub);
+                func(#(#args_value),*)
+            }
         }
     ).into();
     // println!("{}", derive_fn.to_string());

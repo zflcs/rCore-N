@@ -7,8 +7,10 @@ members = [
     "lib/sharedscheduler",
     "os",
     "user_lib",
-    "user_lib/macros",
+    "rcoren-macros",
     "syscall",
 ]
 resolver = "1"
 default-members = ["os"]
+
+

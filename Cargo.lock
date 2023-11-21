@@ -573,18 +573,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "macros"
-version = "0.1.0"
-dependencies = [
- "bae",
- "log",
- "proc-macro2",
- "quote",
- "regex",
- "syn 2.0.39",
-]
-
-[[package]]
 name = "managed"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -735,6 +723,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d25bf25ec5ae4a3f1b92f929810509a2f53d7dca2f50b794ff57e3face536c8f"
 dependencies = [
  "rand_core",
+]
+
+[[package]]
+name = "rcoren-macros"
+version = "0.1.0"
+dependencies = [
+ "bae",
+ "log",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.39",
 ]
 
 [[package]]
@@ -1122,10 +1122,10 @@ dependencies = [
  "heapless 0.8.0",
  "lang",
  "log",
- "macros",
  "nb 1.1.0",
  "rand_core",
  "rand_xorshift",
+ "rcoren-macros",
  "riscv 0.10.1",
  "sha2",
  "spin 0.9.8",

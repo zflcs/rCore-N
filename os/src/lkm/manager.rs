@@ -518,10 +518,10 @@ impl ModuleManager {
                 }
                 // We only search two tables for relocation info: the symbols from itself, and the symbols from the global exported symbols.
                 let module_content = open_file(module_name, OpenFlags::RDONLY).unwrap().read_all();
-                let elf = ElfFile::new(&module_content).expect("[LKM] failed to read elf");
-                let dynsym_table = dynsym_table(&elf);
+                let so_elf = ElfFile::new(&module_content).expect("[LKM] failed to read elf");
+                let dynsym_table = dynsym_table(&so_elf);
                 // info!("[LKM] Loading dynamic entry");
-                let dynamic_entries = dynamic_table(&elf);
+                let dynamic_entries = dynamic_table(&so_elf);
                 // info!("[LKM] Iterating modules");
                 // start, total_size, single_size
                 let mut reloc_jmprel: (usize, usize, usize) = (0, 0, 0);
@@ -561,12 +561,20 @@ impl ModuleManager {
                     }
                 }
                 // info!("[LKM] relocating three sections");
-                self.reloc_symbols(mm, &elf, reloc_jmprel, base.0, dynsym_table, 0);
-                self.reloc_symbols(mm, &elf, reloc_rel, base.0, dynsym_table, 0);
-                self.reloc_symbols(mm, &elf, reloc_rela, base.0, dynsym_table, 0);
+                self.reloc_symbols(mm, &so_elf, reloc_jmprel, base.0, dynsym_table, 0);
+                self.reloc_symbols(mm, &so_elf, reloc_rel, base.0, dynsym_table, 0);
+                self.reloc_symbols(mm, &so_elf, reloc_rela, base.0, dynsym_table, 0);
                 // info!("[LKM] relocation done. adding module to manager and call init_module");
-                let entry = get_symbol_addr(&elf, "entry");
+                let entry = get_symbol_addr(&so_elf, "entry");
                 mm.entry = base + entry;
+                let table = dependency_table(&elf);
+                for (name, location) in table {
+                    let target = get_symbol_addr(&so_elf, name);
+                    let pa = mm.translate(location.into()).unwrap();
+                    unsafe { *(pa.0 as *mut usize) = target + base.0 };
+                }
+                // log::debug!("{:?}", table);
+                
             }
         }
         Ok(())

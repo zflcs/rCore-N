@@ -78,3 +78,15 @@ pub fn dynamic_table<'a>(elf: &ElfFile<'a>) -> &'a [Dynamic<P64>] {
         _ => panic!("corrupted .dynamic"),
     }
 }
+
+
+pub fn dependency_table<'a>(elf: &ElfFile<'a>) -> Vec<(&'a str, usize)> {
+    let mut res_vec = Vec::new();
+    for sym  in symbol_table(elf){
+        let name = sym.get_name(elf);
+        if name.unwrap().contains("stub") {
+            res_vec.push((sym.get_name(&elf).unwrap().trim_end_matches("_stub"), sym.value() as usize));
+        }
+    }
+    res_vec
+}

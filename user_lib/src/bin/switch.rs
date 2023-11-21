@@ -2,18 +2,25 @@
 #![no_main]
 
 
-use macros::main;
 use executor::Task;
 
 
-#[main]
+#[rcoren::main]
 pub async fn main() -> i32 {
-    let task = Task::new(Box::new(test()), 0, executor::TaskType::Other);
+    let task = Task::new(Box::new(test(23)), 0, executor::TaskType::Other);
     unsafe {
-        let raw_task = Arc::into_raw(task) as usize;
+        let raw_task = Arc::into_raw(task.clone()) as usize;
         let exec_fn = execute as usize;
         core::arch::asm!(
-            "jr t0",
+            "jalr t0",
+            in("a0") raw_task,
+            in("t0") exec_fn,
+        );
+        let a = 1 + 2;
+        println!("back {}", a);
+        let raw_task = Arc::into_raw(task.clone()) as usize;
+        core::arch::asm!(
+            "jalr t0",
             in("a0") raw_task,
             in("t0") exec_fn,
         );
@@ -21,9 +28,25 @@ pub async fn main() -> i32 {
     0
 }
 
-async fn test() -> i32 {
-    println!("into test");
+async fn test(a: usize) -> i32 {
+    let mut help = Box::new(Help(false));
+    help.as_mut().await;
+    println!("into test {}", a);
     0
+}
+
+struct Help(bool);
+
+impl Future for Help {
+    type Output = i32;
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> core::task::Poll<Self::Output> {
+        if !self.0 {
+            self.0 = true;
+            core::task::Poll::Pending
+        } else {
+            core::task::Poll::Ready(0)
+        }
+    }
 }
 
 use executor::waker;
@@ -38,7 +61,10 @@ pub fn execute(task: *const Task) {
         let mut cx = Context::from_waker(&waker);
         let fut = &mut *task.fut.as_ptr();
         let mut future = Pin::new_unchecked(fut.as_mut());
-        future.as_mut().poll(&mut cx);
+        match future.as_mut().poll(&mut cx) {
+            core::task::Poll::Ready(_) => println!("ok"),
+            core::task::Poll::Pending => println!("pending"),
+        }
     }
-    sys_exit(0);
+    // sys_exit(0);
 }

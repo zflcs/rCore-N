@@ -23,5 +23,6 @@ lang = { path = "../lang", features = ["user"] }
 executor = { path = "../executor" }
 log = "0.4.17"
 
-macros = {path = "./macros"}
+rcoren = { path = "../rcoren-macros", package = "rcoren-macros"}
+
 

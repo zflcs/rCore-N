@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use macros::main;
 use alloc::string::String;
 use alloc::vec::Vec;
 use syscall::*;
@@ -69,7 +68,8 @@ impl ProcessArguments {
     }
 }
 
-#[main]
+
+#[rcoren::main]
 pub async fn main() -> i32 {
     println!("Rust user shell");
     let mut line: String = String::new();
