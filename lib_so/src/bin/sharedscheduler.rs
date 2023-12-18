@@ -263,7 +263,7 @@ pub fn reprio(cid: usize, prio: usize) {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        (*exe).reprio(CoroutineId(cid), prio);
+        // (*exe).reprio(CoroutineId(cid), prio);
     }
 }
 

@@ -1,9 +1,8 @@
-use alloc::{vec, collections::VecDeque};
 use syscall::yield_;
 use core::{
     alloc::{GlobalAlloc, Layout}, ptr::NonNull,
 };
-use lib_so::Executor;
+use lib_so::{Executor, Queue};
 use buddy_system_allocator::Heap;
 use spin::Mutex;
 #[no_mangle]
@@ -36,7 +35,7 @@ pub fn init() {
         // HEAP.lock().transfer(NonNull::new_unchecked(MEMORY.as_mut_ptr()), MEMORY.len());
     }
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
+        EXECUTOR.ready_queue = [Queue::EMPTY; lib_so::PRIO_NUM];
     }
 }
 

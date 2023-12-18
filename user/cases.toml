@@ -7,4 +7,6 @@ cases = [
     "tp2",
     "tp3",
     "tp4",
+    "forktest",
+    "threads"
 ]

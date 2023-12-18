@@ -4,7 +4,7 @@ use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
 };
-use lib_so::Executor;
+use lib_so::{Executor, Queue};
 use spin::Mutex;
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::Heap;
@@ -37,7 +37,7 @@ pub fn init_heap() {
         );
     }
     unsafe {
-        EXECUTOR.ready_queue = vec![VecDeque::new(); lib_so::PRIO_NUM];
+        EXECUTOR.ready_queue = [Queue::EMPTY; lib_so::PRIO_NUM];
     }
 }
 

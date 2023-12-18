@@ -1,6 +1,6 @@
 use kernel_sync::{SpinLock, SpinLockGuard};
 use lib_so::get_symbol_addr;
-use riscv::register::{utvec, uepc, ustatus::{self, Ustatus}, uie, uscratch, uip, sstatus, sip};
+use riscv::register::{sstatus, sip};
 use smoltcp::iface::SocketHandle;
 use spin::{Mutex, MutexGuard};
 use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr, UserBuffer};
@@ -40,7 +40,6 @@ impl Socket2ktaskinfo {
 
 pub struct ProcessControlBlockInner {
     pub is_zombie: bool,
-    pub is_sstatus_uie: bool,
     pub memory_set: MemorySet,
     pub parent: Option<Weak<ProcessControlBlock>>,
     pub children: Vec<Arc<ProcessControlBlock>>,
@@ -48,11 +47,8 @@ pub struct ProcessControlBlockInner {
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
-    pub user_trap_handler_tid: usize,
-    pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
     pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
-    pub has_poll_thread: bool,
     pub socket2ktaskinfo: Arc<Socket2ktaskinfo>,
 }
 
@@ -98,11 +94,6 @@ impl ProcessControlBlockInner {
     pub fn munmap(&mut self, start: usize, len: usize) -> Result<isize, isize> {
         self.memory_set.munmap(start, len)
     }
-
-    pub fn is_user_trap_enabled(&self) -> bool {
-        self.is_sstatus_uie
-    }
-
     
     pub fn get_socket2ktaskinfo(&self) -> Arc<Socket2ktaskinfo> {
         self.socket2ktaskinfo.clone()
@@ -115,15 +106,6 @@ impl ProcessControlBlock {
         self.inner.lock()
     }
 
-    pub fn set_user_trap_handler_tid(self: &Arc<Self>, user_trap_handler_tid: usize) {
-        self.acquire_inner_lock().user_trap_handler_tid = user_trap_handler_tid;
-    }
-
-
-    pub fn get_user_trap_handler_tid(self: &Arc<Self>) -> usize {
-        self.acquire_inner_lock().user_trap_handler_tid
-    }
-
     pub fn new(elf_data: &[u8]) -> Arc<Self> {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, ustack_base, _entry_point) = MemorySet::from_elf(elf_data);
@@ -134,7 +116,6 @@ impl ProcessControlBlock {
             inner: Mutex::new(
                 ProcessControlBlockInner {
                     is_zombie: false,
-                    is_sstatus_uie: false,
                     memory_set,
                     parent: None,
                     children: Vec::new(),
@@ -149,11 +130,8 @@ impl ProcessControlBlock {
                     ],
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    user_trap_handler_tid: 0,
-                    user_trap_handler_task: None,
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
-                    has_poll_thread: false,
                     socket2ktaskinfo: Socket2ktaskinfo::new(),
                 }
             )
@@ -246,7 +224,6 @@ impl ProcessControlBlock {
             inner: Mutex::new(
                 ProcessControlBlockInner {
                     is_zombie: false,
-                    is_sstatus_uie: false,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
@@ -254,11 +231,8 @@ impl ProcessControlBlock {
                     fd_table: new_fd_table,
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    user_trap_handler_tid: 0,
-                    user_trap_handler_task: None,
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
-                    has_poll_thread: false,
                     socket2ktaskinfo: Socket2ktaskinfo::new(),
                 }
             )

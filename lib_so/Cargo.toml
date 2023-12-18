@@ -16,7 +16,7 @@ lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 bit_field = "0.9.0"
 xmas-elf = "0.7.0"
 log = "0.4"
-heapless = "0.7.5"
+heapless = { version = "0.8", features = ["mpmc_large"] }
 
 vdso_macro ={ path = "./vdso_macro"}
 

@@ -1,4 +1,4 @@
-use alloc::collections::{BTreeMap, VecDeque, BTreeSet};
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -10,18 +10,34 @@ use super::{
 use alloc::boxed::Box;
 use core::pin::Pin;
 use core::future::Future;
-use crate::USER_TRAP_BUFFER;
 use crate::config::{MAX_THREAD_NUM, PRIO_NUM};
-use heapless::spsc::Queue;
+use heapless::mpmc::MpMcQueue;
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct UserTrapRecord {
-    pub cause: usize,
-    pub message: usize,
+#[repr(transparent)]
+pub struct Queue(MpMcQueue<CoroutineId, 128>);
+
+
+impl Queue {
+    pub const EMPTY: Self = Self(MpMcQueue::new());
+    ///
+    #[allow(unused)]
+    pub const fn new() -> Self {
+        Self(MpMcQueue::new())
+    }
+
+    ///
+    #[inline(always)]
+    pub fn dequeue(&self) -> Option<CoroutineId> {
+        self.0.dequeue()
+    }
+
+    ///
+    #[inline(always)]
+    pub fn enqueue(&self, cid: CoroutineId) {
+        while self.0.enqueue(cid).is_err() {}
+    }
 }
-const MAX_USER_TRAP_NUM: usize = 128;
-pub type UserTrapQueue = Queue<UserTrapRecord, MAX_USER_TRAP_NUM>;
+
 
 
 pub struct ExMutex {
@@ -57,7 +73,7 @@ pub struct Executor {
     /// 协程 map
     pub tasks: BTreeMap<CoroutineId, Arc<Coroutine>>,
     /// 就绪协程队列
-    pub ready_queue: Vec<VecDeque<CoroutineId>>,
+    pub ready_queue: [Queue; PRIO_NUM],
     /// 阻塞协程集合
     pub pending_set: BTreeSet<usize>,
     /// 协程优先级位图
@@ -76,7 +92,7 @@ impl Executor {
         Self {
             currents: [None; MAX_THREAD_NUM],
             tasks: BTreeMap::new(),
-            ready_queue: Vec::new(),
+            ready_queue: [Queue::EMPTY; PRIO_NUM],
             pending_set: BTreeSet::new(),
             bitmap: BitMap(0),
             priority: PRIO_NUM,
@@ -88,40 +104,12 @@ impl Executor {
 
 impl Executor {
 
-    pub fn get_msg(&mut self) -> Option<usize> {
-        let trap_queue = unsafe { &mut *(USER_TRAP_BUFFER as *mut UserTrapQueue) };
-        if let Some(trap_record) = trap_queue.dequeue() {
-            let msg = trap_record.message;
-            Some(msg)
-        } else {
-            None
-        }
-    }
-
-    /// 更新协程优先级
-    pub fn reprio(&mut self, cid: CoroutineId, prio: usize) {
-        let _lock: spin::MutexGuard<'_, ()> = self.wr_lock.lock();
-        let task = self.tasks.get(&cid).unwrap();
-        // task.inner.lock().prio = prio;
-        let p = task.inner.lock().prio;
-        // 先从队列中出来
-        if let Ok(idx) = self.ready_queue[p].binary_search(&cid){
-            self.ready_queue[p].remove(idx);
-            if self.ready_queue[p].is_empty() {
-                self.bitmap.update(p, false);
-            }
-        }
-        task.inner.lock().prio = prio;
-        self.ready_queue[prio].push_back(cid);
-        self.bitmap.update(prio, true);
-        self.priority = self.bitmap.get_priority();
-    }
     /// 添加协程
     pub fn spawn(&mut self, future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, kind: CoroutineKind) -> usize {
         let task = Coroutine::new(future, prio, kind);
         let cid = task.cid;
         let lock = self.wr_lock.lock();
-        self.ready_queue[prio].push_back(cid);
+        self.ready_queue[prio].enqueue(cid);
         self.tasks.insert(cid, task);
         self.bitmap.update(prio, true);
         if prio < self.priority {
@@ -144,47 +132,20 @@ impl Executor {
             self.currents[tid] = None;
             None
         } else {
-            let cid = self.ready_queue[prio].pop_front().unwrap();
-            let task = (*self.tasks.get(&cid).unwrap()).clone();
-            if self.ready_queue[prio].is_empty() {
+            if let Some(cid) = self.ready_queue[prio].dequeue() {
+                let task = (*self.tasks.get(&cid).unwrap()).clone();
+                drop(_lock);
+                self.currents[tid] = Some(cid);
+                Some(task)
+            } else {
                 self.bitmap.update(prio, false);
                 self.priority = self.bitmap.get_priority();
+                None
             }
-            drop(_lock);
-            self.currents[tid] = Some(cid);
-            Some(task)
+            
         }
     }
 
-    // /// 取出优先级最高的协程 id，并且更新位图
-    // pub fn fetch_user(&mut self, tid: usize) -> Option<Arc<Coroutine>> {
-    //     assert!(tid < MAX_THREAD_NUM);
-    //     let mut op_lock;
-    //     let mut _lock;
-    //     while true {
-    //         op_lock = self.wr_lock.try_lock();
-    //         if op_lock.is_some() {
-    //             _lock = op_lock.unwrap();
-    //             break;
-    //         }
-    //         yield_();
-    //     }
-        
-    //     let prio = self.priority;
-    //     if prio == PRIO_NUM {
-    //         self.currents[tid] = None;
-    //         None
-    //     } else {
-    //         let cid = self.ready_queue[prio].pop_front().unwrap();
-    //         let task = (*self.tasks.get(&cid).unwrap()).clone();
-    //         if self.ready_queue[prio].is_empty() {
-    //             self.bitmap.update(prio, false);
-    //             self.priority = self.bitmap.get_priority();
-    //         }
-    //         self.currents[tid] = Some(cid);
-    //         Some(task)
-    //     }
-    // }
 
     // 加入阻塞集合
     pub fn pending(&mut self, cid: usize) {
@@ -192,20 +153,6 @@ impl Executor {
         self.pending_set.insert(cid);
     }
 
-    // // 加入阻塞集合
-    // pub fn pending_for_user(&mut self, cid: usize) {
-    //     let mut op_lock;
-    //     let mut _lock;
-    //     while true {
-    //         op_lock = self.wr_lock.try_lock();
-    //         if op_lock.is_some() {
-    //             _lock = op_lock.unwrap();
-    //             break;
-    //         }
-    //         yield_();
-    //     }
-    //     self.pending_set.insert(cid);
-    // }
 
     // 判断是否在阻塞集合中
     pub fn is_pending(&mut self, cid: usize) -> bool {
@@ -213,20 +160,6 @@ impl Executor {
         self.pending_set.contains(&cid)
     }
 
-    // // 判断是否在阻塞集合中
-    // pub fn is_pending_for_user(&mut self, cid: usize) -> bool {
-    //     let mut op_lock;
-    //     let mut _lock;
-    //     while true {
-    //         op_lock = self.wr_lock.try_lock();
-    //         if op_lock.is_some() {
-    //             _lock = op_lock.unwrap();
-    //             break;
-    //         }
-    //         yield_();
-    //     }
-    //     self.pending_set.contains(&cid)
-    // }
 
     /// 增加执行器线程
     pub fn add_wait_tid(&mut self, tid: usize) {
@@ -238,7 +171,7 @@ impl Executor {
     pub fn re_back(&mut self, cid: CoroutineId) -> usize {
         let lock = self.wr_lock.lock();
         let prio = self.tasks.get(&cid).unwrap().inner.lock().prio;
-        self.ready_queue[prio].push_back(cid);
+        self.ready_queue[prio].enqueue(cid);
         self.bitmap.update(prio, true);
         if prio < self.priority {
             self.priority = prio;

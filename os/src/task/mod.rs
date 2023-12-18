@@ -99,16 +99,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
                 initproc_inner.children.push(child.clone());
             }
         }
-
-        if process_inner.user_trap_handler_task != None {
-            let task = process_inner.user_trap_handler_task.clone().unwrap();
-            let mut inner = task.acquire_inner_lock();
-            info!(
-                "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}, interrupt time: {}, user_cycle: {} us",
-                1, 1, 2, inner.time_intr_count, inner.total_cpu_cycle_count, inner.interrupt_time, inner.user_time_us
-            );
-        }
-
         let mut recycle_res = Vec::<TaskUserRes>::new();
         for task in process_inner.tasks.iter().filter(|t| t.is_some()) {
             let task = task.as_ref().unwrap();
@@ -120,7 +110,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         process_inner.children.clear();
         process_inner.memory_set.recycle_data_pages();
         process_inner.fd_table.clear();
-        process_inner.user_trap_handler_task = None;
         drop(process_inner);
         recycle_res.clear();
 

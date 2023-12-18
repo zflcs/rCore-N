@@ -30,9 +30,7 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     exit(-1);
 }
 
-use core::{
-    alloc::{GlobalAlloc, Layout},
-};
+use core::alloc::{GlobalAlloc, Layout};
 use crate::config::HEAP_BUFFER;
 use buddy_system_allocator::Heap;
 type LockedHeap = Mutex<Heap>;

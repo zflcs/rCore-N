@@ -14,6 +14,6 @@ mod executor;
 
 // extern crate alloc;
 
-pub use executor::Executor;
+pub use executor::{Executor, Queue};
 pub use coroutine::{CoroutineId, Coroutine, CoroutineKind};
 use bitmap::BitMap;
