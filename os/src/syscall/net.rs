@@ -1,4 +1,4 @@
-use crate::{task::{current_process, current_task, current_trap_cx, block_current_and_run_next, suspend_current_and_run_next}, net::iface_poll};
+use crate::{task::{current_process, current_task, current_trap_cx, block_current_and_run_next, suspend_current_and_run_next}, net::*};
 use alloc::sync::Arc;
 use smoltcp::time::Duration;
 

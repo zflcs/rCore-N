@@ -135,8 +135,6 @@ async fn send_rsp_async(client_fd: usize) {
 pub fn main() -> i32 {
 
     println!("This is a very simple http server");
-    let init_res = init_user_trap();
-    println!("Enabled user interrupts, trap_info_base {:#x}", init_res);
     for _ in 0..MAX_POLL_THREADS {
         add_virtual_core();
     }

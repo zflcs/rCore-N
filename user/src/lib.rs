@@ -9,9 +9,6 @@ pub mod console;
 #[macro_use]
 extern crate syscall;
 mod lang_items;
-pub mod trace;
-pub mod trap;
-pub mod user_uart;
 pub mod matrix;
 
 extern crate alloc;
@@ -21,12 +18,7 @@ use core::task::{Context, Poll};
 
 pub use syscall::*;
 mod heap;
-use riscv::register::mtvec::TrapMode;
-use riscv::register::{uie, utvec, ustatus};
 
-
-
-pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
@@ -37,12 +29,6 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() {
 // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
-    extern "C" {
-        fn __alltraps_u();
-    }
-    unsafe {
-        utvec::write(__alltraps_u as usize, TrapMode::Direct);
-    }
     heap::init();
     // let _ = init_msg_buf();
     lib_so::spawn(move || async{ main(); }, lib_so::PRIO_NUM - 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
@@ -121,7 +107,6 @@ impl Future for TimerHelper {
             set_timer!(((self.time + self.interval) * 1000) as isize, current_cid());
             return Poll::Pending;
         }
-        
         return Poll::Ready(());
     }
 }
@@ -131,34 +116,4 @@ impl Future for TimerHelper {
 #[no_mangle]
 fn main() -> i32 {
     panic!("Cannot find main!");
-}
-
-pub fn init_msg_buf() -> isize {
-    let ans = sys_init_user_trap(0);
-    ans
-}
-
-pub fn init_user_trap() -> isize {
-    let tid = thread_create(user_interrupt_handler as usize, 0);
-    let ans = sys_init_user_trap(tid as usize);
-    ans
-}
-
-fn user_interrupt_handler() {
-    extern "C" {
-        fn __alltraps_u();
-    }
-    unsafe {
-        utvec::write(__alltraps_u as usize, TrapMode::Direct);
-        ustatus::set_uie();
-        uie::set_usoft();
-        uie::set_utimer();
-    }
-
-    loop {
-        hang();
-        // println!("user_interrupt_handler thread is run");
-
-    }
-
 }

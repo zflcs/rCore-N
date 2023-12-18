@@ -46,6 +46,8 @@ fn main() -> usize{
 #[no_mangle]
 #[inline(never)]
 fn user_entry() {
+    println!("into here");
+
     unsafe {
         let secondary_init: fn(usize) = core::mem::transmute(ENTRY);
         // main_addr 表示用户进程 main 函数的地址

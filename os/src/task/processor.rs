@@ -77,9 +77,6 @@ impl Processor {
         // acquire
         let process = task.process.upgrade().unwrap();
         let process_inner = process.acquire_inner_lock();
-        if process_inner.is_user_trap_enabled() {
-            process_inner.user_trap_info.as_ref().unwrap().enable_user_ext_int();
-        }
 
         drop(process_inner);
         drop(process);
@@ -110,9 +107,6 @@ impl Processor {
             // push_trace(SUSPEND_CURRENT + task.getpid());
             let process = task.process.upgrade().unwrap();
             let process_inner = process.acquire_inner_lock();
-            if process_inner.is_user_trap_enabled() {
-                process_inner.user_trap_info.as_ref().unwrap().disable_user_ext_int();
-            }
             drop(process_inner);
             drop(process);
             // Change status to Ready

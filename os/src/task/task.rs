@@ -3,7 +3,7 @@ use super::{pid_alloc, KernelStack, PidHandle};
 use crate::fs::{File, MailBox, Serial, Socket, Stdin, Stdout};
 use crate::mm::{translate_writable_va, MemorySet, PhysAddr, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::task::pid::{kstack_alloc, RecycleAllocator, TaskUserRes};
-use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
+use crate::trap::{trap_handler, TrapContext};
 use crate::{
     config::{PAGE_SIZE, TRAP_CONTEXT, USER_TRAP_BUFFER},
     loader::get_app_data_by_name,

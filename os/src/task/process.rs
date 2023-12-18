@@ -14,7 +14,7 @@ use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};
 use crate::syscall::sys_gettid;
 use crate::task::pool::insert_into_pid2process;
-use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue, UserTrapRecord, UserTrapError};
+use crate::trap::{trap_handler, TrapContext};
 use crate::sync::{SimpleMutex, Condvar};
 
 pub struct ProcessControlBlock {
@@ -42,7 +42,6 @@ pub struct ProcessControlBlockInner {
     pub is_zombie: bool,
     pub is_sstatus_uie: bool,
     pub memory_set: MemorySet,
-    pub user_trap_info: Option<UserTrapInfo>,
     pub parent: Option<Weak<ProcessControlBlock>>,
     pub children: Vec<Arc<ProcessControlBlock>>,
     pub exit_code: i32,
@@ -51,7 +50,6 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
     pub user_trap_handler_tid: usize,
     pub user_trap_handler_task: Option<Arc<TaskControlBlock>>,
-    pub user_trap_info_cache: Vec<UserTrapRecord>,
     pub mutex_list: Vec<Option<Arc<dyn SimpleMutex>>>,
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
     pub has_poll_thread: bool,
@@ -105,72 +103,7 @@ impl ProcessControlBlockInner {
         self.is_sstatus_uie
     }
 
-    pub fn init_user_trap(&mut self) -> Result<isize, isize> {
-        use riscv::register::sstatus;
-        if self.user_trap_info.is_none() {
-            // R | W
-            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
-                let phys_addr =
-                    translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
-                self.user_trap_info = Some(UserTrapInfo {
-                    user_trap_buffer_ppn: PhysPageNum::from(PhysAddr::from(phys_addr)),
-                    devices: Vec::new(),
-                });
-                let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
-                *trap_queue = UserTrapQueue::new();
-                unsafe {
-                    sstatus::set_uie();
-                }
-                self.is_sstatus_uie = true;
-                return Ok(USER_TRAP_BUFFER as isize);
-            } else {
-                warn!("[init user trap] mmap failed!");
-            }
-        } else {
-            warn!("[init user trap] self user trap info is not None!");
-        }
-        Err(-1)
-    }
-
-    pub fn restore_user_trap_info(&mut self) {
-        use riscv::register::{uip, uscratch};
-        if self.is_user_trap_enabled() && sys_gettid() as usize == self.user_trap_handler_tid {
-            if let Some(trap_info) = &mut self.user_trap_info {
-                if !trap_info.get_trap_queue().is_empty() {
-                    trace!("restore {} user trap", trap_info.user_trap_record_num());
-                    uscratch::write(trap_info.user_trap_record_num());
-                    unsafe {
-                        sip::set_usoft();
-                        uip::set_usoft();
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn push_user_trap_record(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
-        let mut res = Err(UserTrapError::TaskNotFound);
-        if let Some(trap_info) = &mut self.user_trap_info {
-            if let Some(task) = self.user_trap_handler_task.take() {
-                res = trap_info.push_trap_record(trap_record);
-                trace!("add wake thread");
-                add_task(task);
-            } else {
-                self.user_trap_info_cache.push(trap_record);
-                res = Err(UserTrapError::TrapThreadBusy);
-            }
-        }
-        res
-    }
-
-    pub fn push_message(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
-        let mut res = Err(UserTrapError::TaskNotFound);
-        if let Some(trap_info) = &mut self.user_trap_info {
-            res = trap_info.push_trap_record(trap_record);
-        }
-        res
-    }
-
+    
     pub fn get_socket2ktaskinfo(&self) -> Arc<Socket2ktaskinfo> {
         self.socket2ktaskinfo.clone()
     }
@@ -203,7 +136,6 @@ impl ProcessControlBlock {
                     is_zombie: false,
                     is_sstatus_uie: false,
                     memory_set,
-                    user_trap_info: None,
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
@@ -219,7 +151,6 @@ impl ProcessControlBlock {
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
                     user_trap_handler_task: None,
-                    user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
                     has_poll_thread: false,
@@ -267,7 +198,6 @@ impl ProcessControlBlock {
         // substitute memory_set
         let mut process_inner = self.acquire_inner_lock();
         process_inner.memory_set = memory_set;
-        process_inner.user_trap_info = None;
         drop(process_inner);
         // then we alloc user resource for main thread again
         // since memory_set has been changed
@@ -309,14 +239,6 @@ impl ProcessControlBlock {
             }
         }
 
-        let mut user_trap_info: Option<UserTrapInfo> = None;
-        if let Some(mut trap_info) = parent.user_trap_info.clone() {
-            trap_info.user_trap_buffer_ppn = memory_set
-                .translate(VirtAddr::from(USER_TRAP_BUFFER).into())
-                .unwrap()
-                .ppn();
-            user_trap_info = Some(trap_info);
-        }
 
         // create child process pcb
         let child = Arc::new(Self {
@@ -326,7 +248,6 @@ impl ProcessControlBlock {
                     is_zombie: false,
                     is_sstatus_uie: false,
                     memory_set,
-                    user_trap_info: None,
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
@@ -335,7 +256,6 @@ impl ProcessControlBlock {
                     task_res_allocator: RecycleAllocator::new(),
                     user_trap_handler_tid: 0,
                     user_trap_handler_task: None,
-                    user_trap_info_cache: Vec::new(),
                     mutex_list: Vec::new(),
                     condvar_list: Vec::new(),
                     has_poll_thread: false,

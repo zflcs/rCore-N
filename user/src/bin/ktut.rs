@@ -259,15 +259,9 @@ pub fn main() -> i32 {
     println!("This is a very simple http server");
     let pid = getpid();
     if MODEL_TYPE == ModelType::Coroutine {
-        let init_res = init_user_trap();
         for _ in 0..MAX_POLL_THREADS {
             add_virtual_core();
         }
-        println!(
-            "[hello tcp test] trap init result: {:#x}, pid: {}",
-            init_res, pid
-        );
-
     }
     
     // let tcp_fd = listen(80);

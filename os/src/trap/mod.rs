@@ -1,5 +1,4 @@
 mod context;
-mod usertrap;
 
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::{plic, println};
@@ -122,24 +121,8 @@ pub fn trap_handler() -> ! {
                                 sip::set_utimer();
                             }
                         } else {
-                            // debug!("SupervisorTimer 3");
-                            let _ = push_trap_record(
-                                task_id.pid,
-                                UserTrapRecord {
-                                    cause: 4,
-                                    message: get_time_us(),
-                                },
-                            );
                         }
                     } else {
-                        // debug!("SupervisorTimer 4");
-                        let _ = push_trap_record(
-                            task_id.pid, 
-                            UserTrapRecord {
-                                cause: 1,
-                                message: task_id.coroutine_id.unwrap(),
-                            }
-                        );
                     }
                 } 
 
@@ -180,10 +163,6 @@ pub fn trap_return() -> ! {
     unsafe {
         sstatus::clear_sie();
     }
-    current_process()
-        .unwrap()
-        .acquire_inner_lock()
-        .restore_user_trap_info();
     // current_process().unwrap().ucsr_restore();
     let mut trap_cx = current_trap_cx();
     // if trap_cx.x[17] == 1203 {
@@ -235,6 +214,4 @@ pub extern "C" fn trap_from_kernel(cx: &mut TrapContext) {
 }
 
 pub use context::TrapContext;
-pub use usertrap::{
-    push_trap_record, UserTrapError, UserTrapInfo, UserTrapQueue, UserTrapRecord, USER_EXT_INT_MAP
-};
+

@@ -90,15 +90,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         remove_from_pid2process(pid);
         debug!("test2");
         let mut process_inner = process.acquire_inner_lock();
-        if let Some(trap_info) = &process_inner.user_trap_info {
-            trap_info.remove_user_ext_int_map();
-            use riscv::register::sie;
-            unsafe {
-                sie::clear_uext();
-                sie::clear_usoft();
-                sie::clear_utimer();
-            }
-        }
         process_inner.is_zombie = true;
         process_inner.exit_code = exit_code;
         {

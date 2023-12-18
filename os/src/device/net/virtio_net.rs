@@ -16,7 +16,7 @@ pub static mut NET_DEVICE_ADDR: usize = 0x10008000;
 const NET_QUEUE_SIZE: usize = 128;
 const NET_BUFFER_LEN: usize = 2048;
 
-static mut NET_DEVICE: usize = 0;
+pub static mut NET_DEVICE: usize = 0;
 
 pub struct NetDevice;
 

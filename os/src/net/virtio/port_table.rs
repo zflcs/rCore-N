@@ -151,11 +151,11 @@ impl File for PortFd {
         Ok(0)
     }
 
-    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> Result<usize, isize> {
         todo!()
     }
 
-    fn aread(&self, buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn aread(&self, buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> Result<usize, isize> {
         todo!()
     }
 }

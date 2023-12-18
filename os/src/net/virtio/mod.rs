@@ -7,11 +7,14 @@ use alloc::{sync::Arc, vec, collections::BTreeMap};
 use lose_net_stack::{results::Packet, LoseStack, MacAddress, TcpFlags, IPv4};
 use socket::{get_socket, push_data, get_s_a_by_index};
 use port_table::check_accept;
-use crate::device::NetDevice;
+use crate::device::net::NetDevice;
 
 pub use port_table::{accept, listen, port_acceptable, PortFd};
 pub struct NetStack(Mutex<LoseStack>);
 
+pub fn init() {
+
+}
 
 #[cfg(feature = "board_qemu")]
 impl NetStack {

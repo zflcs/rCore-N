@@ -13,9 +13,7 @@ use crate::net::ASYNC_RDMP;
 use crate::task::block_current_and_run_next;
 use crate::task::current_task;
 use crate::task::suspend_current_and_run_next;
-use crate::trap::UserTrapRecord;
-use crate::trap::push_trap_record;
-use crate::{device::NetDevice, fs::File};
+use crate::{device::net::NetDevice, fs::File};
 
 pub struct TCP {
     pub target: IPv4,
@@ -123,13 +121,14 @@ impl File for TCP {
         Ok(len)
     }
 
-    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> Result<usize, isize> {
         todo!()
     }
 
-    fn aread(&self, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
-        Box::pin(async_read(self.socket_index, buf, cid, pid))
-
+    fn aread(&self, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> Result<usize, isize> {
+        let work = Box::pin(async_read(self.socket_index, buf, cid, pid));
+        lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
+        Ok(0)
     }
 }
 
@@ -173,8 +172,4 @@ async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: us
     }
     // info!("wake: {}", cid);
     
-    let _ = push_trap_record(pid, UserTrapRecord {
-        cause: 1,
-        message: cid,
-    });
 }

@@ -284,14 +284,10 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
     // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程
     debug!("read pid is {}", pid);
     debug!("key is {}", key);
-    let _ = push_trap_record(pid, UserTrapRecord {
-        cause: 1,
-        message: cid,
-    });
+
     debug!("push trap record done");
 }
 
 use core::task::{Context, Poll};
-use crate::trap::{push_trap_record, UserTrapRecord};
 
 

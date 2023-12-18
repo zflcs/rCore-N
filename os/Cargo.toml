@@ -54,7 +54,9 @@ kcut = []                   # kernel-coroutine & user thread
 ktuc = []                   # kernel-thread & user coroutine
 kcuc = []                   # kernel-coroutine & user coroutine
 
-default = ["board_axu15eg", "kcut", "ktuc"]
+# default = ["board_axu15eg", "kcut", "ktuc"]
+default = ["board_qemu"]
+
 
 [build-dependencies]
 serde_derive = "1.0"
