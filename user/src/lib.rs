@@ -8,10 +8,10 @@ pub mod console;
 #[macro_use]
 extern crate syscall;
 mod lang_items;
+pub mod matrix;
 pub mod trace;
 pub mod trap;
 pub mod user_uart;
-pub mod matrix;
 
 extern crate alloc;
 use core::future::Future;
@@ -23,7 +23,6 @@ mod heap;
 use riscv::register::mtvec::TrapMode;
 use riscv::register::{uie, utvec};
 
-
 pub use trap::{UserTrapContext, UserTrapQueue, UserTrapRecord};
 
 #[alloc_error_handler]
@@ -34,7 +33,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() {
-// pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
+    // pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     extern "C" {
         fn __alltraps_u();
     }
@@ -42,9 +41,15 @@ pub extern "C" fn _start() {
         utvec::write(__alltraps_u as usize, TrapMode::Direct);
     }
     heap::init();
-    lib_so::spawn(move || async{ main(); }, lib_so::PRIO_NUM - 1, getpid() as usize + 1, lib_so::CoroutineKind::UserNorm);
+    lib_so::spawn(
+        move || async {
+            main();
+        },
+        lib_so::PRIO_NUM - 1,
+        getpid() as usize + 1,
+        lib_so::CoroutineKind::UserNorm,
+    );
 }
-
 
 // 当前正在运行的协程，只能在协程内部使用，即在 async 块内使用
 pub fn current_cid() -> usize {
@@ -60,10 +65,17 @@ pub fn add_virtual_core() {
     lib_so::add_virtual_core();
 }
 
-pub fn spawn<F, T>(f: F, prio: usize) -> usize 
-    where F: FnOnce() -> T,
-    T: Future<Output = ()> + 'static + Send + Sync {
-    lib_so::spawn(f, prio, sys_get_pid() as usize + 1, lib_so::CoroutineKind::UserNorm)
+pub fn spawn<F, T>(f: F, prio: usize) -> usize
+where
+    F: FnOnce() -> T,
+    T: Future<Output = ()> + 'static + Send + Sync,
+{
+    lib_so::spawn(
+        f,
+        prio,
+        sys_get_pid() as usize + 1,
+        lib_so::CoroutineKind::UserNorm,
+    )
 }
 
 pub fn get_pending_status(cid: usize) -> bool {
@@ -76,9 +88,7 @@ pub struct AwaitHelper {
 
 impl AwaitHelper {
     pub fn new() -> Self {
-        AwaitHelper {
-            flag: false,
-        }
+        AwaitHelper { flag: false }
     }
 }
 
@@ -118,11 +128,10 @@ impl Future for TimerHelper {
             set_timer!(((self.time + self.interval) * 1000) as isize, current_cid());
             return Poll::Pending;
         }
-        
+
         return Poll::Ready(());
     }
 }
-
 
 #[linkage = "weak"]
 #[no_mangle]

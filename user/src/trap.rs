@@ -140,8 +140,5 @@ pub fn timer_intr_handler(time_us: usize) {
 #[linkage = "weak"]
 #[no_mangle]
 pub fn wake_handler(tid: usize) {
-    println!(
-        "[user trap default] need to handle wake event: {}",
-        tid
-    );
+    println!("[user trap default] need to handle wake event: {}", tid);
 }

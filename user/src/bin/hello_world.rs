@@ -6,8 +6,8 @@ extern crate user_lib;
 extern crate alloc;
 
 use core::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use user_lib::{get_time, getpid, init_user_trap, sleep};
 use syscall::set_timer;
+use user_lib::{get_time, getpid, init_user_trap, sleep};
 static IS_TIMEOUT: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]

@@ -6,7 +6,6 @@ extern crate alloc;
 extern crate user_lib;
 use user_lib::*;
 
-
 #[no_mangle]
 pub fn main() -> i32 {
     let init_res = init_user_trap();

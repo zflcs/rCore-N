@@ -4,11 +4,11 @@
 #[macro_use]
 extern crate user_lib;
 extern crate alloc;
-use core::ops::Add;
-use core::sync::atomic::Ordering;
-use core::sync::atomic::AtomicUsize;
-use spin::Mutex;
 use alloc::vec;
+use core::ops::Add;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering;
+use spin::Mutex;
 use user_lib::{exit, thread_create, waittid};
 use user_lib::{mutex_blocking_create, mutex_lock, mutex_unlock};
 
@@ -16,7 +16,6 @@ const TOTOL_COUNT: usize = 40000;
 const THREAD_NUM: usize = 8;
 const ADD_COUNT: usize = TOTOL_COUNT / THREAD_NUM;
 static mut COUNT: usize = 0;
-
 
 pub fn thread_b() -> ! {
     for _ in 0..ADD_COUNT {
@@ -29,8 +28,6 @@ pub fn thread_b() -> ! {
     }
     exit(2)
 }
-
-
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -51,7 +48,7 @@ pub fn main() -> i32 {
     unsafe {
         println!("main thread exited.: {}", COUNT);
     }
-    
+
     println!("==========================v size: {:?}", v);
     0
 }
