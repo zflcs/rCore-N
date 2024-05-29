@@ -8,25 +8,24 @@
 extern crate lib_so;
 extern crate alloc;
 
-use lib_so::config::{ENTRY, MAX_THREAD_NUM, MAX_PROC_NUM, HEAP_BUFFER};
-use spin::Mutex;
-use core::sync::atomic::Ordering;
-use core::sync::atomic::AtomicUsize;
-use lib_so::{Executor, CoroutineId, CoroutineKind};
 use alloc::boxed::Box;
-use core::pin::Pin;
-use core::future::Future;
-use syscall::*;
-use core::task::Poll;
 use buddy_system_allocator::Heap;
+use core::future::Future;
+use core::pin::Pin;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering;
+use core::task::Poll;
+use lib_so::config::{ENTRY, HEAP_BUFFER, MAX_PROC_NUM, MAX_THREAD_NUM};
+use lib_so::{CoroutineId, CoroutineKind, Executor};
+use spin::Mutex;
+use syscall::*;
 type LockedHeap = Mutex<Heap>;
-
 
 // 自定义的模块接口，模块添加进地址空间之后，需要执行 _start() 函数填充这个接口表
 static mut INTERFACE: [usize; 10] = [0; 10];
 
 #[no_mangle]
-fn main() -> usize{
+fn main() -> usize {
     unsafe {
         INTERFACE[0] = user_entry as usize;
         INTERFACE[1] = max_prio_pid as usize;
@@ -58,13 +57,13 @@ fn user_entry() {
 
     let end = get_time();
     println!("total time: {} ms", end - start);
-    
+
     exit(0);
 }
 
-
 /// 各个进程的最高优先级协程，通过共享内存的形式进行通信
-pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM + 1] = [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM + 1];
+pub static mut PRIO_ARRAY: [AtomicUsize; MAX_PROC_NUM + 1] =
+    [const { AtomicUsize::new(usize::MAX) }; MAX_PROC_NUM + 1];
 
 /// 进程的 Executor 调用这个函数，通过原子操作更新自己的最高优先级
 #[no_mangle]
@@ -97,11 +96,15 @@ pub fn max_prio_pid() -> usize {
     pid
 }
 
-
 /// 添加协程，内核和用户态都可以调用
 #[no_mangle]
 #[inline(never)]
-pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {
+pub fn spawn(
+    future: Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>,
+    prio: usize,
+    pid: usize,
+    kind: CoroutineKind,
+) -> usize {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
@@ -117,7 +120,6 @@ pub fn spawn(future: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, pr
         return cid;
     }
 }
-
 
 /// 用户程序执行协程
 #[no_mangle]
@@ -208,8 +210,7 @@ pub fn poll_kernel_future() {
                         }
                     };
                 }
-                _ => {
-                }
+                _ => {}
             }
         }
     }
@@ -218,7 +219,9 @@ pub fn poll_kernel_future() {
 #[no_mangle]
 #[inline(never)]
 pub fn current_cid(is_kernel: bool) -> usize {
-    let tid = if is_kernel { hart_id() } else {
+    let tid = if is_kernel {
+        hart_id()
+    } else {
         gettid() as usize
     };
     assert!(tid < MAX_THREAD_NUM);
@@ -235,7 +238,7 @@ pub fn current_cid(is_kernel: bool) -> usize {
 pub fn re_back(cid: usize, pid: usize) {
     // println!("[Exec]re back func enter");
     let mut start = 0;
-    
+
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
@@ -254,7 +257,7 @@ pub fn get_pending_status(cid: usize) -> bool {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        return (*exe).is_pending(cid)
+        return (*exe).is_pending(cid);
     }
 }
 
@@ -280,7 +283,6 @@ pub fn add_virtual_core() {
         (*exe).add_wait_tid(tid);
     }
 }
-
 
 pub fn wait_other_cores() {
     unsafe {

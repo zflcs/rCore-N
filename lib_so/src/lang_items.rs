@@ -1,6 +1,6 @@
-use syscall::exit;
-use spin::Mutex;
 use core::ptr::NonNull;
+use spin::Mutex;
+use syscall::exit;
 /// _start() 函数，返回接口表的地址
 #[no_mangle]
 #[link_section = ".text.entry"]
@@ -30,11 +30,9 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     exit(-1);
 }
 
-use core::{
-    alloc::{GlobalAlloc, Layout},
-};
 use crate::config::HEAP_BUFFER;
 use buddy_system_allocator::Heap;
+use core::alloc::{GlobalAlloc, Layout};
 type LockedHeap = Mutex<Heap>;
 
 /// 共享代码中默认的分配器，使用的是内核和用户程序各自的堆
@@ -52,8 +50,11 @@ unsafe impl GlobalAlloc for Global {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let heap = heapptr as *mut usize as *mut LockedHeap;
-        (*heap).lock().alloc(layout).ok()
-        .map_or(0 as *mut u8, |allocation| allocation.as_ptr())
+        (*heap)
+            .lock()
+            .alloc(layout)
+            .ok()
+            .map_or(0 as *mut u8, |allocation| allocation.as_ptr())
     }
 
     #[inline]

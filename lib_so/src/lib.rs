@@ -7,7 +7,6 @@
 #![feature(alloc_error_handler)]
 // #![deny(warnings, missing_docs)]
 
-
 #[macro_use]
 pub mod console;
 #[macro_use]
@@ -36,7 +35,6 @@ pub use symbol::*;
 
 use vdso_macro::get_libfn;
 
-
 // get_libfn!(
 //     pub fn spawn(f: Pin<Box<dyn Future<Output=()> + 'static + Send + Sync>>, prio: usize, pid: usize, kind: CoroutineKind) -> usize {}
 // );
@@ -45,21 +43,26 @@ use vdso_macro::get_libfn;
 #[link_section = ".vdso.spawn"]
 pub static mut VDSO_SPAWN: usize = 0;
 #[cfg(feature = "kernel")]
-pub fn init_spawn(ptr:usize){
-  unsafe {
-    VDSO_SPAWN = ptr;
-  }
+pub fn init_spawn(ptr: usize) {
+    unsafe {
+        VDSO_SPAWN = ptr;
+    }
 }
 #[inline(never)]
-pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) -> usize 
-where 
+pub fn spawn<F, T>(f: F, prio: usize, pid: usize, kind: CoroutineKind) -> usize
+where
     F: FnOnce() -> T,
-    T: Future<Output = ()> + 'static + Send + Sync
+    T: Future<Output = ()> + 'static + Send + Sync,
 {
-  unsafe {
-    let func:fn(f:Pin<Box<dyn Future<Output = ()> +'static+Send+Sync> > ,prio:usize,pid:usize,kind:CoroutineKind) -> usize = core::mem::transmute(VDSO_SPAWN);
-    func(Box::pin(f()),prio,pid,kind)
-  }
+    unsafe {
+        let func: fn(
+            f: Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>,
+            prio: usize,
+            pid: usize,
+            kind: CoroutineKind,
+        ) -> usize = core::mem::transmute(VDSO_SPAWN);
+        func(Box::pin(f()), prio, pid, kind)
+    }
 }
 
 get_libfn!(
@@ -91,7 +94,5 @@ get_libfn!(
 );
 
 get_libfn!(
-  pub fn get_pending_status(cid: usize) -> bool {}
+    pub fn get_pending_status(cid: usize) -> bool {}
 );
-
-
