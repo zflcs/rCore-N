@@ -1,15 +1,17 @@
-use spin::Mutex;
-use lazy_static::*;
-use crate::mm::{FrameTracker, frame_alloc_more, frame_dealloc, PhysAddr, PhysPageNum, PageTable, kernel_token, VirtAddr, StepByOne};
+use crate::mm::{
+    frame_alloc_more, frame_dealloc, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum,
+    StepByOne, VirtAddr,
+};
 use alloc::vec::Vec;
-use virtio_drivers::{Hal, BufferDirection};
 use core::{
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use lazy_static::*;
+use spin::Mutex;
+use virtio_drivers::{BufferDirection, Hal};
 lazy_static! {
-    static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> =
-        unsafe { Mutex::new(Vec::new()) };
+    static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = unsafe { Mutex::new(Vec::new()) };
 }
 
 pub struct VirtioHal;
@@ -18,9 +20,7 @@ unsafe impl Hal for VirtioHal {
     fn dma_alloc(pages: usize, _direction: BufferDirection) -> (usize, NonNull<u8>) {
         let trakcers = frame_alloc_more(pages);
         let ppn_base = trakcers.as_ref().unwrap().last().unwrap().ppn;
-        QUEUE_FRAMES
-            .lock()
-            .append(&mut trakcers.unwrap());
+        QUEUE_FRAMES.lock().append(&mut trakcers.unwrap());
         let pa: PhysAddr = ppn_base.into();
         let paddr = pa.0;
         let vaddr = NonNull::new(paddr as _).unwrap();
@@ -56,8 +56,6 @@ unsafe impl Hal for VirtioHal {
         // Nothing to do, as the host already has access to all memory and we didn't copy the buffer
         // anywhere else.
     }
-
-    
 }
 
 fn virt_to_phys(vaddr: usize) -> usize {

@@ -13,9 +13,9 @@ use core::arch::asm;
 use core::cell::RefCell;
 use riscv::register::cycle;
 
-use lazy_static::*;
 use crate::task::process::ProcessControlBlock;
 use crate::task::suspend_current_and_run_next;
+use lazy_static::*;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
 }
@@ -78,7 +78,11 @@ impl Processor {
         let process = task.process.upgrade().unwrap();
         let process_inner = process.acquire_inner_lock();
         if process_inner.is_user_trap_enabled() {
-            process_inner.user_trap_info.as_ref().unwrap().enable_user_ext_int();
+            process_inner
+                .user_trap_info
+                .as_ref()
+                .unwrap()
+                .enable_user_ext_int();
         }
 
         drop(process_inner);
@@ -111,7 +115,11 @@ impl Processor {
             let process = task.process.upgrade().unwrap();
             let process_inner = process.acquire_inner_lock();
             if process_inner.is_user_trap_enabled() {
-                process_inner.user_trap_info.as_ref().unwrap().disable_user_ext_int();
+                process_inner
+                    .user_trap_info
+                    .as_ref()
+                    .unwrap()
+                    .disable_user_ext_int();
             }
             drop(process_inner);
             drop(process);
@@ -167,6 +175,7 @@ pub fn hart_id() -> usize {
 //     PROCESSORS[hart_id()].run();
 // }
 pub async fn run_tasks() {
+    debug!("run_tasks");
     let mut helper = Box::new(ReadHelper::new());
     loop {
         if let Some(task) = fetch_task() {
@@ -175,10 +184,13 @@ pub async fn run_tasks() {
         }
         helper.as_mut().await;
     }
-
 }
-use core::{task::{Context, Poll}, future::Future, pin::Pin};
 use alloc::boxed::Box;
+use core::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 pub struct ReadHelper(usize);
 
 impl ReadHelper {

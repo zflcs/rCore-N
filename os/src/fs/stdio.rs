@@ -2,8 +2,8 @@ use super::File;
 use crate::mm::UserBuffer;
 use crate::print;
 use crate::uart::{serial_getchar, serial_putchar};
-use core::fmt::{self, Write};
 use alloc::boxed::Box;
+use core::fmt::{self, Write};
 use core::{future::Future, pin::Pin};
 
 pub struct Stdin;
@@ -26,10 +26,21 @@ impl File for Stdin {
     fn write(&self, _user_buf: UserBuffer) -> Result<usize, isize> {
         panic!("Cannot write to stdin!");
     }
-    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(
+        &self,
+        buf: UserBuffer,
+        pid: usize,
+        key: usize,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
-    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+    fn aread(
+        &self,
+        buf: UserBuffer,
+        cid: usize,
+        pid: usize,
+        key: usize,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
 
@@ -52,10 +63,21 @@ impl File for Stdout {
         }
         Ok(user_buf.len())
     }
-    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(
+        &self,
+        buf: UserBuffer,
+        pid: usize,
+        key: usize,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
-    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+    fn aread(
+        &self,
+        buf: UserBuffer,
+        cid: usize,
+        pid: usize,
+        key: usize,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
 

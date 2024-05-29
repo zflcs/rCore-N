@@ -2,12 +2,15 @@ mod context;
 mod usertrap;
 
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
-use crate::{plic, println};
 use crate::sbi::set_timer;
 use crate::syscall::{sys_gettid, syscall};
-use crate::task::{current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token, exit_current_and_run_next, hart_id, suspend_current_and_run_next};
+use crate::task::{
+    current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    exit_current_and_run_next, hart_id, suspend_current_and_run_next,
+};
 use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
 use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
+use crate::{plic, println};
 use core::arch::{asm, global_asm};
 use riscv::register::scounteren;
 use riscv::register::{
@@ -68,7 +71,10 @@ pub fn trap_handler() -> ! {
             let id = cx.x[17];
             // get system call return value
             let mut result = 0isize;
-            result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]]);
+            result = syscall(
+                cx.x[17],
+                [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]],
+            );
             if id != 221 || result != 0 {
                 cx.x[10] = result as usize;
             }
@@ -113,8 +119,10 @@ pub fn trap_handler() -> ! {
                     suspend_current_and_run_next();
                 } else {
                     if task_id.coroutine_id.is_none() {
-                        if task_id.pid == current_task().unwrap().getpid() &&
-                        sys_gettid() as usize == current_process().unwrap().get_user_trap_handler_tid() {
+                        if task_id.pid == current_task().unwrap().getpid()
+                            && sys_gettid() as usize
+                                == current_process().unwrap().get_user_trap_handler_tid()
+                        {
                             debug!("set UTIP for pid {}", task_id.pid);
                             unsafe {
                                 sip::set_utimer();
@@ -130,14 +138,14 @@ pub fn trap_handler() -> ! {
                         }
                     } else {
                         let _ = push_trap_record(
-                            task_id.pid, 
+                            task_id.pid,
                             UserTrapRecord {
                                 cause: 1,
                                 message: task_id.coroutine_id.unwrap(),
-                            }
+                            },
                         );
                     }
-                } 
+                }
 
                 break;
             }

@@ -81,7 +81,7 @@ pub fn set_virtual_timer(mut time: usize, pid: usize, cid: usize) {
 
     let task_id = TaskID {
         pid: pid,
-        coroutine_id
+        coroutine_id,
     };
 
     let mut timer_map = TIMER_MAP[hart_id()].lock();

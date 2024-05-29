@@ -1,7 +1,7 @@
+use crate::net::net_interrupt_handler;
 use crate::trace::{push_trace, S_EXT_INTR_ENTER, S_EXT_INTR_EXIT};
 use crate::trap::{push_trap_record, UserTrapRecord, USER_EXT_INT_MAP};
 use crate::uart;
-use crate::net::net_interrupt_handler;
 use rv_plic::{Priority, PLIC};
 
 #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]

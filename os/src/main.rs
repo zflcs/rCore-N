@@ -7,7 +7,6 @@
 #![allow(unused)]
 #![feature(new_uninit)]
 
-
 extern crate alloc;
 extern crate rv_plic;
 
@@ -29,15 +28,15 @@ mod loader;
 mod logger;
 mod mm;
 mod sbi;
+mod sync;
 mod syscall;
 mod task;
-mod sync;
 mod timer;
 mod trap;
 #[macro_use]
 mod trace;
-mod lkm;
 mod device;
+mod lkm;
 mod net;
 
 use alloc::vec;
@@ -58,7 +57,6 @@ fn clear_bss() {
 #[no_mangle]
 pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
-        
         clear_bss();
         logger::init();
         mm::init();
@@ -125,7 +123,12 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
         loader::list_apps();
     }
-    lib_so::spawn(move || task::run_tasks(), 7, 0, lib_so::CoroutineKind::KernSche);
+    lib_so::spawn(
+        move || task::run_tasks(),
+        7,
+        0,
+        lib_so::CoroutineKind::KernSche,
+    );
     lib_so::poll_kernel_future();
     panic!("Unreachable in rust_main!");
 }

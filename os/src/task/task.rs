@@ -3,6 +3,7 @@ use super::{pid_alloc, KernelStack, PidHandle};
 use crate::fs::{File, MailBox, Serial, Socket, Stdin, Stdout};
 use crate::mm::{translate_writable_va, MemorySet, PhysAddr, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::task::pid::{kstack_alloc, RecycleAllocator, TaskUserRes};
+use crate::task::process::ProcessControlBlock;
 use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue};
 use crate::{
     config::{PAGE_SIZE, TRAP_CONTEXT, USER_TRAP_BUFFER},
@@ -14,8 +15,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use spin::{Mutex, MutexGuard};
-use crate::task::process::ProcessControlBlock;
-
 
 pub struct TaskControlBlock {
     // immutable
@@ -39,7 +38,7 @@ pub struct TaskControlBlockInner {
     pub last_cpu_cycle: usize,
     pub interrupt_time: usize,
     pub user_time_us: usize,
-    pub last_user_time_us: usize
+    pub last_user_time_us: usize,
 }
 
 impl TaskControlBlockInner {
@@ -110,26 +109,23 @@ impl TaskControlBlock {
         Self {
             process: Arc::downgrade(&process),
             kstack,
-            inner: Mutex::new(
-                TaskControlBlockInner {
-                    res: Some(res),
-                    trap_cx_ppn,
-                    task_cx: TaskContext::goto_trap_return(kstack_top, tid),
-                    task_cx_ptr: 0,
-                    task_status: TaskStatus::Ready,
-                    priority: 0,
-                    exit_code: None,
-                    mail_box: Arc::new(MailBox::new()),
-                    time_intr_count: 0,
-                    total_cpu_cycle_count: 0,
-                    last_cpu_cycle: 0,
-                    interrupt_time: 0,
-                    user_time_us: 0,
-                    last_user_time_us: 0,
-                }
-            )
+            inner: Mutex::new(TaskControlBlockInner {
+                res: Some(res),
+                trap_cx_ppn,
+                task_cx: TaskContext::goto_trap_return(kstack_top, tid),
+                task_cx_ptr: 0,
+                task_status: TaskStatus::Ready,
+                priority: 0,
+                exit_code: None,
+                mail_box: Arc::new(MailBox::new()),
+                time_intr_count: 0,
+                total_cpu_cycle_count: 0,
+                last_cpu_cycle: 0,
+                interrupt_time: 0,
+                user_time_us: 0,
+                last_user_time_us: 0,
+            }),
         }
-
     }
 
     #[allow(unused)]

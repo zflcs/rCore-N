@@ -1,8 +1,11 @@
-use spin::Mutex;
 use super::SimpleMutex;
 use alloc::{collections::VecDeque, sync::Arc};
+use spin::Mutex;
 
-use crate::task::{TaskControlBlock, add_task, TaskContext, current_task, block_current_task, block_current_and_run_next};
+use crate::task::{
+    add_task, block_current_and_run_next, block_current_task, current_task, TaskContext,
+    TaskControlBlock,
+};
 
 pub struct Condvar {
     pub inner: Mutex<CondvarInner>,

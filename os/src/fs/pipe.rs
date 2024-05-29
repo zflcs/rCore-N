@@ -2,10 +2,10 @@ use super::File;
 use crate::fs::ReadHelper;
 use crate::mm::UserBuffer;
 use crate::task::suspend_current_and_run_next;
-use alloc::sync::{Arc, Weak};
-use spin::Mutex;
 use alloc::boxed::Box;
+use alloc::sync::{Arc, Weak};
 use core::{future::Future, pin::Pin};
+use spin::Mutex;
 
 #[derive(Clone)]
 pub struct Pipe {
@@ -159,7 +159,6 @@ impl File for Pipe {
         let mut buf_iter = buf.into_iter();
         let mut write_size = 0usize;
         loop {
-
             let mut ring_buffer = self.buffer.lock();
             let loop_write = ring_buffer.available_write();
             if loop_write == 0 {
@@ -184,10 +183,21 @@ impl File for Pipe {
         }
         debug!("pipe write end");
     }
-    fn awrite(&self, buf: UserBuffer, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(
+        &self,
+        buf: UserBuffer,
+        pid: usize,
+        key: usize,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         Box::pin(awrite_work(self.clone(), buf, pid, key))
     }
-    fn aread(&self, buf: UserBuffer, cid: usize, pid: usize, key: usize) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>{
+    fn aread(
+        &self,
+        buf: UserBuffer,
+        cid: usize,
+        pid: usize,
+        key: usize,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         // debug!("UserBuffer len: {}", buf.len());
 
         // log::warn!("pipe aread");
@@ -209,7 +219,6 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
     let mut write_size = 0usize;
     let mut helper = Box::new(ReadHelper::new());
     loop {
-
         let mut ring_buffer = s.buffer.lock();
         let loop_write = ring_buffer.available_write();
         if loop_write == 0 {
@@ -239,7 +248,7 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
             break;
         }
     }
-    let async_key = crate::syscall::AsyncKey { pid, key};
+    let async_key = crate::syscall::AsyncKey { pid, key };
     // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
     if let Some(kernel_cid) = crate::syscall::WRMAP.lock().remove(&async_key) {
         // info!("kernel_cid {}", kernel_cid);
@@ -258,11 +267,14 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
         if loop_read == 0 {
             debug!("read_size is 0");
             if ring_buffer.all_write_ends_closed() {
-                break ;
+                break;
                 //return read_size;
             }
             drop(ring_buffer);
-            crate::syscall::WRMAP.lock().insert(crate::syscall::AsyncKey{pid, key}, lib_so::current_cid(true));
+            crate::syscall::WRMAP.lock().insert(
+                crate::syscall::AsyncKey { pid, key },
+                lib_so::current_cid(true),
+            );
             helper.as_mut().await;
             continue;
         }
@@ -270,7 +282,9 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
         // read at most loop_read bytes
         for _ in 0..loop_read {
             if let Some(byte_ref) = buf_iter.next() {
-                unsafe { *byte_ref = ring_buffer.read_byte(); }
+                unsafe {
+                    *byte_ref = ring_buffer.read_byte();
+                }
             } else {
                 break;
             }
@@ -283,13 +297,14 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
     // 将读协程加入到回调队列中，使得用户态的协程执行器能够唤醒读协程
     debug!("read pid is {}", pid);
     debug!("key is {}", key);
-    let _ = push_trap_record(pid, UserTrapRecord {
-        cause: 1,
-        message: cid,
-    });
+    let _ = push_trap_record(
+        pid,
+        UserTrapRecord {
+            cause: 1,
+            message: cid,
+        },
+    );
 }
 
-use core::task::{Context, Poll};
 use crate::trap::{push_trap_record, UserTrapRecord};
-
-
+use core::task::{Context, Poll};

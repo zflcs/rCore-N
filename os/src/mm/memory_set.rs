@@ -2,17 +2,17 @@ use super::{frame_alloc, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
-use crate::config::{MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE, HEAP_BUFFER};
+use crate::config::{HEAP_BUFFER, MEMORY_END, PAGE_SIZE, TRACE_SIZE, TRAMPOLINE};
+use crate::mm::translate_writable_va;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use lib_so::{vdso_table, get_symbol_addr};
 use core::arch::asm;
 use lazy_static::*;
+use lib_so::{get_symbol_addr, vdso_table};
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 use spin::Mutex;
-use crate::mm::translate_writable_va;
 
 extern "C" {
     fn stext();
@@ -106,10 +106,7 @@ impl MemorySet {
             ".bss [{:#x}, {:#x})",
             sbss_with_stack as usize, ebss as usize
         );
-        debug!(
-            ".vdso [{:#x}, {:#x})",
-            svdso as usize, evdso as usize
-        );
+        debug!(".vdso [{:#x}, {:#x})", svdso as usize, evdso as usize);
         debug!("mapping .text section");
         memory_set.push(
             MapArea::new(
@@ -275,9 +272,12 @@ impl MemorySet {
         debug!("map sharedscheduler buffer: {:#x}", HEAP_BUFFER);
         let data_section_vir_addr = elf.find_section_by_name(".data").unwrap().address() as usize;
         for vdso_item in vdso_table(&elf) {
-            let vdso_item_paddr = translate_writable_va(memory_set.token(), vdso_item.1).unwrap() as *mut usize;
+            let vdso_item_paddr =
+                translate_writable_va(memory_set.token(), vdso_item.1).unwrap() as *mut usize;
             let ptr = get_symbol_addr(&crate::lkm::SHARED_ELF, vdso_item.0.to_lowercase().as_str());
-            unsafe { *vdso_item_paddr = ptr; }
+            unsafe {
+                *vdso_item_paddr = ptr;
+            }
             debug!("get func {} ptr {:#x}", vdso_item.0.to_lowercase(), ptr);
         }
         // 另外分配一个物理页，只存放 heap 的虚拟地址
@@ -288,10 +288,13 @@ impl MemorySet {
                 MapType::Framed,
                 MapPermission::R | MapPermission::W | MapPermission::U,
             ),
-        None);
-        let sharedsche_paddr = translate_writable_va(memory_set.token(), HEAP_BUFFER)
-            .unwrap() as *mut usize;
-        unsafe { *sharedsche_paddr = data_section_vir_addr; }
+            None,
+        );
+        let sharedsche_paddr =
+            translate_writable_va(memory_set.token(), HEAP_BUFFER).unwrap() as *mut usize;
+        unsafe {
+            *sharedsche_paddr = data_section_vir_addr;
+        }
         debug!("map heap buffer done");
         unsafe { asm!("fence.i") }
         (
@@ -520,7 +523,7 @@ impl MemorySet {
         }
         // (
         memory_set
-            // elf.header.pt2.entry_point() as usize,
+        // elf.header.pt2.entry_point() as usize,
         // )
     }
     pub fn add_kernel_module(&mut self, module_space: &MemorySet) {
@@ -544,7 +547,9 @@ impl MemorySet {
             ),
             None,
         );
-        unsafe{ *(HEAP_BUFFER as *mut usize) = sdata as usize; }
+        unsafe {
+            *(HEAP_BUFFER as *mut usize) = sdata as usize;
+        }
     }
 
     pub fn add_user_module(&mut self, module_space: &MemorySet) {

@@ -1,15 +1,19 @@
-use alloc::sync::Arc;
-use lib_so::update_prio;
 use crate::config::{CPU_NUM, MEMORY_END};
 use crate::loader::get_app_data_by_name;
-use crate::{mm, println};
 use crate::plic::{get_context, Plic};
-use crate::task::{add_task, current_task, current_process, current_user_token, exit_current_and_run_next, hart_id, mmap, munmap, set_current_priority, suspend_current_and_run_next, WAIT_LOCK, current_trap_cx};
+use crate::task::{
+    add_task, current_process, current_task, current_trap_cx, current_user_token,
+    exit_current_and_run_next, hart_id, mmap, munmap, set_current_priority,
+    suspend_current_and_run_next, WAIT_LOCK,
+};
 use crate::timer::get_time;
 use crate::trap::{push_trap_record, UserTrapRecord};
+use crate::{mm, println};
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem::size_of;
 use core::ptr::null;
+use lib_so::update_prio;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -158,7 +162,9 @@ pub fn sys_flush_trace() -> isize {
 pub fn sys_init_user_trap(user_trap_handler_tid: usize) -> isize {
     trace!("init user trap!");
     debug!("set handler {}", user_trap_handler_tid);
-    current_process().unwrap().set_user_trap_handler_tid(user_trap_handler_tid);
+    current_process()
+        .unwrap()
+        .set_user_trap_handler_tid(user_trap_handler_tid);
     debug!("set handler end");
     match current_process()
         .unwrap()

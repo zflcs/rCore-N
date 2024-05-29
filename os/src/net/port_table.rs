@@ -1,10 +1,10 @@
-use crate::{fs::File, task::add_task};
+use super::tcp::TCP;
 use crate::task::TaskControlBlock;
+use crate::{fs::File, task::add_task};
 use alloc::{sync::Arc, vec::Vec};
-use spin::Mutex;
 use lazy_static::lazy_static;
 use lose_net_stack::packets::tcp::TCPPacket;
-use super::tcp::TCP;
+use spin::Mutex;
 pub struct Port {
     pub port: u16,
     pub receivable: bool,
@@ -12,8 +12,7 @@ pub struct Port {
 }
 
 lazy_static! {
-    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> =
-        unsafe { Mutex::new(Vec::new()) };
+    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> = unsafe { Mutex::new(Vec::new()) };
 }
 
 pub fn listen(port: u16) -> Option<usize> {
@@ -64,19 +63,19 @@ pub fn port_acceptable(listen_index: usize) -> bool {
 pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
     let mut listen_table = LISTEN_TABLE.lock();
     let mut listen_ports: Vec<&mut Option<Port>> = listen_table
-            .iter_mut()
-            .filter(|x| match x {
-                Some(t) => t.port == port && t.receivable == true,
-                None => false,
-            })
-            .collect();
+        .iter_mut()
+        .filter(|x| match x {
+            Some(t) => t.port == port && t.receivable == true,
+            None => false,
+        })
+        .collect();
     if listen_ports.len() == 0 {
         debug!("no listen");
         None
     } else {
         let listen_port = listen_ports[0].as_mut().unwrap();
         let task = listen_port.schedule.clone().unwrap();
-        
+
         if accept_connection(port, tcp_packet, task) {
             listen_port.receivable = false;
             add_task(listen_port.schedule.take().unwrap());
@@ -84,8 +83,6 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
         } else {
             None
         }
-        
-        
     }
 }
 
@@ -93,7 +90,10 @@ pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<TaskContr
     let process = task.process.upgrade().unwrap();
     let mut inner = process.acquire_inner_lock();
     let fd = inner.alloc_fd();
-    debug!("[accept_connection]: local fd: {}, sport: {}, dport: {}", fd, tcp_packet.dest_port, tcp_packet.source_port);
+    debug!(
+        "[accept_connection]: local fd: {}, sport: {}, dport: {}",
+        fd, tcp_packet.dest_port, tcp_packet.source_port
+    );
     match TCP::new(
         tcp_packet.source_ip,
         tcp_packet.dest_port,
@@ -112,12 +112,7 @@ pub fn accept_connection(_port: u16, tcp_packet: &TCPPacket, task: Arc<TaskContr
             false
         }
     }
-
-    
-
-   
 }
-
 
 // store in the fd_table, delete the listen table when close the application.
 pub struct PortFd(usize);
@@ -151,11 +146,26 @@ impl File for PortFd {
         Ok(0)
     }
 
-    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(
+        &self,
+        buf: crate::mm::UserBuffer,
+        pid: usize,
+        key: usize,
+    ) -> core::pin::Pin<
+        alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
+    > {
         todo!()
     }
 
-    fn aread(&self, buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn aread(
+        &self,
+        buf: crate::mm::UserBuffer,
+        cid: usize,
+        pid: usize,
+        key: usize,
+    ) -> core::pin::Pin<
+        alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
+    > {
         todo!()
     }
 }

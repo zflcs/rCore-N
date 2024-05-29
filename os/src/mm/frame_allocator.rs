@@ -117,7 +117,10 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 }
 
 pub fn frame_alloc_more(num: usize) -> Option<Vec<FrameTracker>> {
-    FRAME_ALLOCATOR.lock().alloc_more(num).map(|x| x.iter().map(|&t| FrameTracker::new(t)).collect())
+    FRAME_ALLOCATOR
+        .lock()
+        .alloc_more(num)
+        .map(|x| x.iter().map(|&t| FrameTracker::new(t)).collect())
 }
 
 pub fn frame_dealloc(ppn: PhysPageNum) {

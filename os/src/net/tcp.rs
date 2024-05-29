@@ -1,10 +1,3 @@
-
-use alloc::boxed::Box;
-use alloc::vec;
-use lose_net_stack::packets::tcp::TCPPacket;
-use lose_net_stack::IPv4;
-use lose_net_stack::MacAddress;
-use lose_net_stack::TcpFlags;
 use super::socket::get_mutex_socket;
 use super::socket::{add_socket, get_s_a_by_index, remove_socket};
 use super::LOSE_NET_STACK;
@@ -13,9 +6,15 @@ use crate::net::ASYNC_RDMP;
 use crate::task::block_current_and_run_next;
 use crate::task::current_task;
 use crate::task::suspend_current_and_run_next;
-use crate::trap::UserTrapRecord;
 use crate::trap::push_trap_record;
+use crate::trap::UserTrapRecord;
 use crate::{device::NetDevice, fs::File};
+use alloc::boxed::Box;
+use alloc::vec;
+use lose_net_stack::packets::tcp::TCPPacket;
+use lose_net_stack::IPv4;
+use lose_net_stack::MacAddress;
+use lose_net_stack::TcpFlags;
 
 pub struct TCP {
     pub target: IPv4,
@@ -29,25 +28,18 @@ pub struct TCP {
 impl TCP {
     pub fn new(target: IPv4, sport: u16, dport: u16, seq: u32, ack: u32) -> Option<Self> {
         match add_socket(target, sport, dport, seq, ack) {
-            Some(index) => {
-                Some(
-                    Self {
-                        target,
-                        sport,
-                        dport,
-                        seq,
-                        ack,
-                        socket_index: index,
-                    }
-                )
-            }
-            _ => {
-                None
-            }
+            Some(index) => Some(Self {
+                target,
+                sport,
+                dport,
+                seq,
+                ack,
+                socket_index: index,
+            }),
+            _ => None,
         }
     }
 }
-
 
 impl File for TCP {
     fn readable(&self) -> bool {
@@ -123,13 +115,27 @@ impl File for TCP {
         Ok(len)
     }
 
-    fn awrite(&self, buf: crate::mm::UserBuffer, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn awrite(
+        &self,
+        buf: crate::mm::UserBuffer,
+        pid: usize,
+        key: usize,
+    ) -> core::pin::Pin<
+        alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
+    > {
         todo!()
     }
 
-    fn aread(&self, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize, key: usize) -> core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>> {
+    fn aread(
+        &self,
+        mut buf: crate::mm::UserBuffer,
+        cid: usize,
+        pid: usize,
+        key: usize,
+    ) -> core::pin::Pin<
+        alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
+    > {
         Box::pin(async_read(self.socket_index, buf, cid, pid))
-
     }
 }
 
@@ -138,7 +144,6 @@ impl Drop for TCP {
         remove_socket(self.socket_index)
     }
 }
-
 
 async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: usize, pid: usize) {
     let mut helper = Box::new(ReadHelper::new());
@@ -154,8 +159,7 @@ async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: us
             for i in 0..buf.buffers.len() {
                 let buffer_i_len = buf.buffers[i].len().min(data_len - left);
 
-                buf.buffers[i][..buffer_i_len]
-                    .copy_from_slice(&data[left..(left + buffer_i_len)]);
+                buf.buffers[i][..buffer_i_len].copy_from_slice(&data[left..(left + buffer_i_len)]);
 
                 left += buffer_i_len;
                 if left == data_len {
@@ -165,16 +169,21 @@ async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: us
             break;
         } else {
             // info!("suspend current coroutine!: {}", socket_index);
-            ASYNC_RDMP.lock().insert(socket_index, lib_so::current_cid(true));
+            ASYNC_RDMP
+                .lock()
+                .insert(socket_index, lib_so::current_cid(true));
             drop(mutex_socket);
             // suspend_current_and_run_next();
             helper.as_mut().await;
         }
     }
     // info!("wake: {}", cid);
-    
-    let _ = push_trap_record(pid, UserTrapRecord {
-        cause: 1,
-        message: cid,
-    });
+
+    let _ = push_trap_record(
+        pid,
+        UserTrapRecord {
+            cause: 1,
+            message: cid,
+        },
+    );
 }

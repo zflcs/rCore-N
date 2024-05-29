@@ -40,18 +40,18 @@ const SYSCALL_LISTEN: usize = 1200;
 const SYSCALL_ACCEPT: usize = 1201;
 
 mod fs;
-mod process;
-mod thread;
-mod sync;
 mod net;
+mod process;
+mod sync;
+mod thread;
 
+pub use crate::syscall::thread::{sys_gettid, sys_hang, sys_thread_create, sys_waittid};
 use crate::trace::{push_trace, TRACE_SYSCALL_ENTER, TRACE_SYSCALL_EXIT};
 use fs::*;
+pub use fs::{AsyncKey, WRMAP};
+use net::{sys_accept, sys_listen};
 use process::*;
 use sync::*;
-pub use crate::syscall::thread::{sys_gettid, sys_thread_create, sys_waittid, sys_hang};
-pub use fs::{WRMAP, AsyncKey};
-use net::{sys_accept, sys_listen};
 
 pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     trace!("syscall {}, args {:x?}", syscall_id, args);
@@ -97,5 +97,3 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     push_trace(TRACE_SYSCALL_EXIT + syscall_id);
     ret
 }
-
-

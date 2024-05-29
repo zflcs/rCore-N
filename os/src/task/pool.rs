@@ -1,8 +1,11 @@
-use alloc::{collections::{BTreeSet, BTreeMap}, sync::Arc};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 use lazy_static::*;
 use spin::Mutex;
 
-use super::{manager::TaskManager, task::TaskControlBlock, process::ProcessControlBlock};
+use super::{manager::TaskManager, process::ProcessControlBlock, task::TaskControlBlock};
 
 pub struct TaskPool {
     pub scheduler: TaskManager,
@@ -11,7 +14,8 @@ pub struct TaskPool {
 
 lazy_static! {
     pub static ref TASK_POOL: Mutex<TaskPool> = Mutex::new(TaskPool::new());
-    pub static ref PID2PCB: Mutex<BTreeMap<usize, Arc<ProcessControlBlock>>> = Mutex::new(BTreeMap::new());
+    pub static ref PID2PCB: Mutex<BTreeMap<usize, Arc<ProcessControlBlock>>> =
+        Mutex::new(BTreeMap::new());
 }
 
 impl TaskPool {

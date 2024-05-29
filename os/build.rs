@@ -1,7 +1,7 @@
-use std::fs::{File, read_to_string};
-use std::io::{Result, Write};
 use serde_derive::Deserialize;
 use std::collections::HashMap;
+use std::fs::{read_to_string, File};
+use std::io::{Result, Write};
 
 fn main() {
     println!("cargo:rerun-if-changed=../user/src/");
@@ -26,7 +26,7 @@ fn insert_app_data() -> Result<()> {
         .unwrap_or_default();
     println!("{:?}", cases);
     let apps: Vec<_> = cases.cases.unwrap();
-    
+
     writeln!(
         f,
         r#"

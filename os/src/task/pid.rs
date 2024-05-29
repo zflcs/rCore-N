@@ -6,8 +6,8 @@ use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
-use spin::Mutex;
 use lazy_static::*;
+use spin::Mutex;
 
 pub struct RecycleAllocator {
     current: usize,
@@ -92,8 +92,8 @@ impl Drop for KernelStack {
 impl KernelStack {
     #[allow(unused)]
     pub fn push_on_top<T>(&self, value: T) -> *mut T
-        where
-            T: Sized,
+    where
+        T: Sized,
     {
         let kernel_stack_top = self.get_top();
         let ptr_mut = (kernel_stack_top - core::mem::size_of::<T>()) as *mut T;

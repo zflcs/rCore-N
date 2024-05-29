@@ -2,10 +2,13 @@ use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
-use lose_net_stack::{IPv4, packets::tcp::TCPPacket};
+use lose_net_stack::{packets::tcp::TCPPacket, IPv4};
 use spin::Mutex;
 
-use crate::{task::{TaskControlBlock, add_task}, net::ASYNC_RDMP};
+use crate::{
+    net::ASYNC_RDMP,
+    task::{add_task, TaskControlBlock},
+};
 
 // TODO: specify the protocol, TCP or UDP
 pub struct Socket {
@@ -40,10 +43,9 @@ pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
             let socket = x.lock();
             return Some((socket.seq, socket.ack));
         }
-        None => None
+        None => None,
     })
 }
-
 
 pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
     let socket_table = SOCKET_TABLE.lock();
@@ -60,7 +62,6 @@ pub fn get_socket(raddr: IPv4, lport: u16, rport: u16) -> Option<usize> {
     }
     None
 }
-
 
 pub fn add_socket(raddr: IPv4, lport: u16, rport: u16, seq: u32, ack: u32) -> Option<usize> {
     if get_socket(raddr, lport, rport).is_some() {
@@ -113,22 +114,22 @@ pub fn push_data(index: usize, packet: &TCPPacket) {
     socket.buffers.push_back(packet.data.to_vec());
     socket.ack = packet.seq + packet.data_len as u32;
     socket.seq = packet.ack;
-    debug!("[push_data] index: {}, socket.ack:{}, socket.seq:{}", index, socket.ack, socket.seq);
+    debug!(
+        "[push_data] index: {}, socket.ack:{}, socket.seq:{}",
+        index, socket.ack, socket.seq
+    );
     match socket.block_task.take() {
         Some(task) => {
             debug!("wake read task");
             add_task(task);
         }
-        _ => {
-
-        }
+        _ => {}
     }
 
     if let Some(cid) = ASYNC_RDMP.lock().remove(&index) {
         // debug!("wake read coroutine task");
         lib_so::re_back(cid, 0);
     }
-
 }
 
 // pub fn pop_data(index: usize) -> Option<Vec<u8>> {

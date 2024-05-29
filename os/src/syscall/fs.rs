@@ -1,16 +1,10 @@
 use core::cmp::min;
 
 use crate::fs::{make_pipe, File};
+use crate::mm::{translated_byte_buffer, translated_refmut, UserBuffer};
 use crate::task::{current_process, current_task, current_user_token};
-use crate::{
-    mm::{translated_byte_buffer, translated_refmut, UserBuffer},
-    // task::find_task,
-};
+use alloc::{collections::BTreeMap, sync::Arc};
 use lazy_static::*;
-use alloc::{
-    collections::BTreeMap,
-    sync::Arc
-};
 use spin::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Ord, Eq)]
@@ -19,11 +13,11 @@ pub struct AsyncKey {
     pub key: usize,
 }
 
-// key -> r_id, write coroutine can use WRMAP to find the corresponding read coroutine id 
+// key -> r_id, write coroutine can use WRMAP to find the corresponding read coroutine id
 lazy_static! {
-    pub static ref WRMAP: Arc<Mutex<BTreeMap<AsyncKey, usize>>> = Arc::new(Mutex::new(BTreeMap::new()));
+    pub static ref WRMAP: Arc<Mutex<BTreeMap<AsyncKey, usize>>> =
+        Arc::new(Mutex::new(BTreeMap::new()));
 }
-
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) -> isize {
     if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
@@ -50,8 +44,11 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) 
                 -3
             }
         } else {
-            
-            let work = file.awrite(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), pid, key);
+            let work = file.awrite(
+                UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()),
+                pid,
+                key,
+            );
             lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
             0
         }
@@ -87,7 +84,12 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -
             }
         } else {
             // info!("test2: {}", fd);
-            let work = file.aread(UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()), cid, pid, key);
+            let work = file.aread(
+                UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()),
+                cid,
+                pid,
+                key,
+            );
             lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
             // info!("test3: {}", fd);
             0

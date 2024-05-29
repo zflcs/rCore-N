@@ -2,10 +2,10 @@ mod context;
 mod manager;
 mod pid;
 mod pool;
+mod process;
 mod processor;
 mod switch;
 mod task;
-mod process;
 
 use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
@@ -15,17 +15,19 @@ use lazy_static::*;
 use spin::Mutex;
 use switch::__switch2;
 
+use crate::task::pid::TaskUserRes;
+use crate::task::pool::remove_from_pid2process;
 pub use context::TaskContext;
 pub use pid::{pid_alloc, KernelStack, PidHandle};
-pub use pool::{add_task, fetch_task, prioritize_task, pid2process, add_user_intr_task, remove_uintr_task};
+pub use pool::{
+    add_task, add_user_intr_task, fetch_task, pid2process, prioritize_task, remove_uintr_task,
+};
+pub use process::ProcessControlBlock;
 pub use processor::{
-    current_task, current_process, current_trap_cx, current_user_token, hart_id, mmap, munmap, run_tasks, schedule,
-    set_current_priority, take_current_task, current_trap_cx_user_va
+    current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    hart_id, mmap, munmap, run_tasks, schedule, set_current_priority, take_current_task,
 };
 pub use task::{TaskControlBlock, TaskStatus};
-use crate::task::pool::{remove_from_pid2process};
-pub use process::ProcessControlBlock;
-use crate::task::pid::TaskUserRes;
 
 lazy_static! {
     pub static ref WAIT_LOCK: Mutex<()> = Mutex::new(());
@@ -132,7 +134,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         process_inner.user_trap_handler_task = None;
         drop(process_inner);
         recycle_res.clear();
-
     }
 
     // **** release current PCB lock

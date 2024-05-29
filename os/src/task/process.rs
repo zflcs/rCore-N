@@ -1,18 +1,20 @@
-use lib_so::get_symbol_addr;
-use spin::{Mutex, MutexGuard};
-use crate::mm::{KERNEL_SPACE, MemorySet, PhysAddr, PhysPageNum, translate_writable_va, VirtAddr};
-use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
 use super::add_user_intr_task;
 use super::pid::RecycleAllocator;
+use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
+use crate::fs::{File, Stdin, Stdout};
+use crate::mm::{translate_writable_va, MemorySet, PhysAddr, PhysPageNum, VirtAddr, KERNEL_SPACE};
+use crate::sync::{Condvar, SimpleMutex};
+use crate::syscall::sys_gettid;
+use crate::task::pool::insert_into_pid2process;
+use crate::task::{add_task, pid_alloc, PidHandle, TaskControlBlock};
+use crate::trap::{
+    trap_handler, TrapContext, UserTrapError, UserTrapInfo, UserTrapQueue, UserTrapRecord,
+};
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
-use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
-use crate::fs::{File, Stdin, Stdout};
-use crate::syscall::sys_gettid;
-use crate::task::pool::insert_into_pid2process;
-use crate::trap::{trap_handler, TrapContext, UserTrapInfo, UserTrapQueue, UserTrapRecord, UserTrapError};
-use crate::sync::{SimpleMutex, Condvar};
+use lib_so::get_symbol_addr;
+use spin::{Mutex, MutexGuard};
 
 pub struct ProcessControlBlock {
     // immutable
@@ -128,7 +130,10 @@ impl ProcessControlBlockInner {
         }
     }
 
-    pub fn push_user_trap_record(&mut self, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
+    pub fn push_user_trap_record(
+        &mut self,
+        trap_record: UserTrapRecord,
+    ) -> Result<(), UserTrapError> {
         let mut res = Err(UserTrapError::TaskNotFound);
         if let Some(trap_info) = &mut self.user_trap_info {
             if let Some(task) = self.user_trap_handler_task.take() {
@@ -163,32 +168,30 @@ impl ProcessControlBlock {
         let pid_handle = pid_alloc();
         let process = Arc::new(Self {
             pid: pid_handle,
-            inner: Mutex::new(
-                ProcessControlBlockInner {
-                    is_zombie: false,
-                    is_sstatus_uie: false,
-                    memory_set,
-                    user_trap_info: None,
-                    parent: None,
-                    children: Vec::new(),
-                    exit_code: 0,
-                    fd_table: vec![
-                        // 0 -> stdin
-                        Some(Arc::new(Stdin)),
-                        // 1 -> stdout
-                        Some(Arc::new(Stdout)),
-                        // 2 -> stderr
-                        Some(Arc::new(Stdout)),
-                    ],
-                    tasks: Vec::new(),
-                    task_res_allocator: RecycleAllocator::new(),
-                    user_trap_handler_tid: 0,
-                    user_trap_handler_task: None,
-                    user_trap_info_cache: Vec::new(),
-                    mutex_list: Vec::new(),
-                    condvar_list: Vec::new(),
-                }
-            )
+            inner: Mutex::new(ProcessControlBlockInner {
+                is_zombie: false,
+                is_sstatus_uie: false,
+                memory_set,
+                user_trap_info: None,
+                parent: None,
+                children: Vec::new(),
+                exit_code: 0,
+                fd_table: vec![
+                    // 0 -> stdin
+                    Some(Arc::new(Stdin)),
+                    // 1 -> stdout
+                    Some(Arc::new(Stdout)),
+                    // 2 -> stderr
+                    Some(Arc::new(Stdout)),
+                ],
+                tasks: Vec::new(),
+                task_res_allocator: RecycleAllocator::new(),
+                user_trap_handler_tid: 0,
+                user_trap_handler_task: None,
+                user_trap_info_cache: Vec::new(),
+                mutex_list: Vec::new(),
+                condvar_list: Vec::new(),
+            }),
         });
         // create a main thread, we should allocate ustack and trap_cx here
         let task = Arc::new(TaskControlBlock::new(
@@ -284,25 +287,23 @@ impl ProcessControlBlock {
         // create child process pcb
         let child = Arc::new(Self {
             pid,
-            inner: Mutex::new(
-                ProcessControlBlockInner {
-                    is_zombie: false,
-                    is_sstatus_uie: false,
-                    memory_set,
-                    user_trap_info: None,
-                    parent: Some(Arc::downgrade(self)),
-                    children: Vec::new(),
-                    exit_code: 0,
-                    fd_table: new_fd_table,
-                    tasks: Vec::new(),
-                    task_res_allocator: RecycleAllocator::new(),
-                    user_trap_handler_tid: 0,
-                    user_trap_handler_task: None,
-                    user_trap_info_cache: Vec::new(),
-                    mutex_list: Vec::new(),
-                    condvar_list: Vec::new(),
-                }
-            )
+            inner: Mutex::new(ProcessControlBlockInner {
+                is_zombie: false,
+                is_sstatus_uie: false,
+                memory_set,
+                user_trap_info: None,
+                parent: Some(Arc::downgrade(self)),
+                children: Vec::new(),
+                exit_code: 0,
+                fd_table: new_fd_table,
+                tasks: Vec::new(),
+                task_res_allocator: RecycleAllocator::new(),
+                user_trap_handler_tid: 0,
+                user_trap_handler_task: None,
+                user_trap_info_cache: Vec::new(),
+                mutex_list: Vec::new(),
+                condvar_list: Vec::new(),
+            }),
         });
         // add child
         parent.children.push(Arc::clone(&child));
