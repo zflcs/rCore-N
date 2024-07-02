@@ -96,8 +96,8 @@ impl Coroutine {
     /// 执行
     pub fn execute(self: Arc<Self>) -> Poll<()> {
         let mut inner = self.inner.lock();
-        let waker = inner.waker.clone();
-        let mut context = Context::from_waker(&*waker);
+        let inner = &mut *inner;
+        let mut context = Context::from_waker(&inner.waker);
         inner.future.as_mut().poll(&mut context)
     }
 }
