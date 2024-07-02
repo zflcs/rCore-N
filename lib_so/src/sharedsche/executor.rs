@@ -30,9 +30,8 @@ impl ExMutex {
             self.mutex.lock()
         } else {
             loop {
-                let mut op_lock = self.mutex.try_lock();
-                if op_lock.is_some() {
-                    return op_lock.unwrap();
+                if let Some(op_lock) = self.mutex.try_lock() {
+                    return op_lock;
                 }
                 yield_();
             }
@@ -112,7 +111,7 @@ impl Executor {
             self.priority = prio;
         }
         drop(lock);
-        return cid.0;
+        cid.0
     }
 
     /// 判断是否还有协程

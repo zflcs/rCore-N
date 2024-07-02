@@ -192,25 +192,22 @@ pub fn poll_kernel_future() {
             let prio = (*exe).priority;
             update_prio(0, prio);
             // println_hart!("executor prio {}", hart_id(), prio);
-            match task {
-                Some(task) => {
-                    let cid = task.cid;
-                    let kind = task.kind;
-                    let _prio = task.inner.lock().prio;
-                    match task.execute() {
-                        Poll::Pending => {
-                            (*exe).pending(cid.0);
-                            if kind == CoroutineKind::KernSche {
-                                // println_hart!("pending reback sche task{:?} kind {:?}", hart_id(), cid, kind);
-                                re_back(cid.0, 0);
-                            }
+            if let Some(task) = task {
+                let cid = task.cid;
+                let kind = task.kind;
+                let _prio = task.inner.lock().prio;
+                match task.execute() {
+                    Poll::Pending => {
+                        (*exe).pending(cid.0);
+                        if kind == CoroutineKind::KernSche {
+                            // println_hart!("pending reback sche task{:?} kind {:?}", hart_id(), cid, kind);
+                            re_back(cid.0, 0);
                         }
-                        Poll::Ready(()) => {
-                            (*exe).del_coroutine(cid);
-                        }
-                    };
-                }
-                _ => {}
+                    }
+                    Poll::Ready(()) => {
+                        (*exe).del_coroutine(cid);
+                    }
+                };
             }
         }
     }
@@ -237,7 +234,6 @@ pub fn current_cid(is_kernel: bool) -> usize {
 #[inline(never)]
 pub fn re_back(cid: usize, pid: usize) {
     // println!("[Exec]re back func enter");
-    let mut start = 0;
 
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
@@ -257,7 +253,7 @@ pub fn get_pending_status(cid: usize) -> bool {
     unsafe {
         let heapptr = *(HEAP_BUFFER as *const usize);
         let exe = (heapptr + core::mem::size_of::<LockedHeap>()) as *mut usize as *mut Executor;
-        return (*exe).is_pending(cid);
+        (*exe).is_pending(cid)
     }
 }
 

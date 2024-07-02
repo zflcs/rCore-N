@@ -73,16 +73,9 @@ pub fn set_virtual_timer(mut time: usize, pid: usize, cid: usize) {
         // return;
     }
 
-    let coroutine_id = if cid == usize::MAX {
-        None
-    } else {
-        Some(cid as usize)
-    };
+    let coroutine_id = if cid == usize::MAX { None } else { Some(cid) };
 
-    let task_id = TaskID {
-        pid: pid,
-        coroutine_id,
-    };
+    let task_id = TaskID { pid, coroutine_id };
 
     let mut timer_map = TIMER_MAP[hart_id()].lock();
     while timer_map.contains_key(&time) {
