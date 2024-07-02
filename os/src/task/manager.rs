@@ -40,7 +40,7 @@ impl TaskManager {
 
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         // // May need to concern affinity
-        // debug!("tasks total: {}", self.ready_queue.len());
+        debug!("tasks total: {}", self.ready_queue.len());
         // // error!("max prio pid is {}", crate::lkm::max_prio_pid());
         if !self.user_intr_process_set.is_empty() {
             for pid in self.user_intr_process_set.iter() {

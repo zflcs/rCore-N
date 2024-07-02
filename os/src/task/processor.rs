@@ -176,11 +176,23 @@ pub fn hart_id() -> usize {
 // }
 pub async fn run_tasks() {
     debug!("run_tasks");
+    // let mut failed = 0usize;
     let mut helper = Box::new(ReadHelper::new());
     loop {
+        // debug!("fetch_task...");
         if let Some(task) = fetch_task() {
-            PROCESSORS[hart_id()].run_next(task);
-            PROCESSORS[hart_id()].suspend_current();
+            let pid = task.process.upgrade().unwrap().pid.0;
+            let hartid = hart_id();
+            // info!("[hart {}] fetch a task pid={}...", hartid, pid);
+            PROCESSORS[hartid].run_next(task);
+            PROCESSORS[hartid].suspend_current();
+        } else {
+            //     failed += 1;
+            //     debug!("fetch_task failed {failed}...");
+            //     if failed > 6 {
+            //         return;
+            //     }
+            unsafe { asm!("wfi") };
         }
         helper.as_mut().await;
     }
@@ -202,10 +214,10 @@ impl Future for ReadHelper {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.0 += 1;
-        if (self.0 & 1) == 1 {
-            return Poll::Pending;
+        if self.0 % 100 == 0 {
+            Poll::Ready(())
         } else {
-            return Poll::Ready(());
+            Poll::Pending
         }
     }
 }

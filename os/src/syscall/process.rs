@@ -80,13 +80,13 @@ pub fn sys_fork() -> isize {
 pub fn sys_exec(path: *const u8) -> isize {
     let token = current_user_token();
     let path = mm::translated_str(token, path);
-    debug!("EXEC {}", &path);
-    if let Some(data) = get_app_data_by_name(path.as_str()) {
+    debug!("EXEC {}", path);
+    if let Some(data) = get_app_data_by_name(&path) {
         let task = current_process().unwrap();
         task.exec(data);
         0
     } else {
-        warn!("exec failed!");
+        warn!("exec {} failed!", path);
         -1
     }
 }
