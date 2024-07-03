@@ -82,8 +82,8 @@ pub fn add_socket(raddr: IPv4, lport: u16, rport: u16, seq: u32, ack: u32) -> Op
         lport,
         rport,
         buffers: VecDeque::new(),
-        seq: seq,
-        ack: ack,
+        seq,
+        ack,
         block_task: None,
     };
 

@@ -1,3 +1,5 @@
+#![allow(clippy::unusual_byte_groupings)]
+
 use alloc::collections::VecDeque;
 use core::convert::Infallible;
 use embedded_hal::serial::{Read, Write};

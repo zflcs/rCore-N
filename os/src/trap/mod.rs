@@ -117,34 +117,32 @@ pub fn trap_handler() -> ! {
                 if task_id.pid == 0 {
                     set_next_trigger();
                     suspend_current_and_run_next();
-                } else {
-                    if task_id.coroutine_id.is_none() {
-                        if task_id.pid == current_task().unwrap().getpid()
-                            && sys_gettid() as usize
-                                == current_process().unwrap().get_user_trap_handler_tid()
-                        {
-                            debug!("set UTIP for pid {}", task_id.pid);
-                            unsafe {
-                                sip::set_utimer();
-                            }
-                        } else {
-                            let _ = push_trap_record(
-                                task_id.pid,
-                                UserTrapRecord {
-                                    cause: 4,
-                                    message: get_time_us(),
-                                },
-                            );
+                } else if task_id.coroutine_id.is_none() {
+                    if task_id.pid == current_task().unwrap().getpid()
+                        && sys_gettid() as usize
+                            == current_process().unwrap().get_user_trap_handler_tid()
+                    {
+                        debug!("set UTIP for pid {}", task_id.pid);
+                        unsafe {
+                            sip::set_utimer();
                         }
                     } else {
                         let _ = push_trap_record(
                             task_id.pid,
                             UserTrapRecord {
-                                cause: 1,
-                                message: task_id.coroutine_id.unwrap(),
+                                cause: 4,
+                                message: get_time_us(),
                             },
                         );
                     }
+                } else {
+                    let _ = push_trap_record(
+                        task_id.pid,
+                        UserTrapRecord {
+                            cause: 1,
+                            message: task_id.coroutine_id.unwrap(),
+                        },
+                    );
                 }
 
                 break;
