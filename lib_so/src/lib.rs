@@ -1,11 +1,6 @@
 #![no_std]
-#![feature(naked_functions)]
-#![feature(panic_info_message)]
-#![feature(allocator_api)]
-#![feature(atomic_from_mut, inline_const)]
 #![feature(linkage)]
-#![feature(alloc_error_handler)]
-// #![deny(warnings, missing_docs)]
+#![feature(panic_info_message)]
 
 #[macro_use]
 pub mod console;
