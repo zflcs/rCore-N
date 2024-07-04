@@ -4,8 +4,8 @@
 #![feature(alloc_error_handler)]
 #![feature(map_try_insert)]
 #![feature(vec_into_raw_parts)]
-#![allow(unused)]
 #![feature(new_uninit)]
+#![allow(unused, clippy::upper_case_acronyms)]
 
 extern crate alloc;
 extern crate rv_plic;
@@ -123,12 +123,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
         loader::list_apps();
     }
-    lib_so::spawn(
-        move || task::run_tasks(),
-        7,
-        0,
-        lib_so::CoroutineKind::KernSche,
-    );
+    lib_so::spawn(task::run_tasks, 7, 0, lib_so::CoroutineKind::KernSche);
     lib_so::poll_kernel_future();
     panic!("Unreachable in rust_main!");
 }

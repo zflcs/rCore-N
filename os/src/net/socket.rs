@@ -118,12 +118,10 @@ pub fn push_data(index: usize, packet: &TCPPacket) {
         "[push_data] index: {}, socket.ack:{}, socket.seq:{}",
         index, socket.ack, socket.seq
     );
-    match socket.block_task.take() {
-        Some(task) => {
-            debug!("wake read task");
-            add_task(task);
-        }
-        _ => {}
+
+    if let Some(task) = socket.block_task.take() {
+        debug!("wake read task");
+        add_task(task);
     }
 
     if let Some(cid) = ASYNC_RDMP.lock().remove(&index) {

@@ -170,8 +170,8 @@ impl MemorySet {
         debug!("mapping plic");
         memory_set.push(
             MapArea::new(
-                (0xc00_0000 as usize).into(),
-                (0x1000_0000 as usize).into(),
+                0xc00_0000_usize.into(),
+                0x1000_0000_usize.into(),
                 MapType::Mmio,
                 MapPermission::R | MapPermission::W,
             ),
@@ -181,8 +181,8 @@ impl MemorySet {
         debug!("mapping virt device");
         memory_set.push(
             MapArea::new(
-                (0x1000_6000 as usize).into(),
-                (0x1000_9000 as usize).into(),
+                0x1000_6000_usize.into(),
+                0x1000_9000_usize.into(),
                 MapType::Mmio,
                 MapPermission::R | MapPermission::W,
             ),
@@ -679,29 +679,20 @@ pub fn remap_test() {
     let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
     let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
     let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
-    assert_eq!(
-        kernel_space
-            .page_table
-            .translate(mid_text.floor())
-            .unwrap()
-            .writable(),
-        false
-    );
-    assert_eq!(
-        kernel_space
-            .page_table
-            .translate(mid_rodata.floor())
-            .unwrap()
-            .writable(),
-        false,
-    );
-    assert_eq!(
-        kernel_space
-            .page_table
-            .translate(mid_data.floor())
-            .unwrap()
-            .executable(),
-        false,
-    );
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_text.floor())
+        .unwrap()
+        .writable());
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_rodata.floor())
+        .unwrap()
+        .writable());
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_data.floor())
+        .unwrap()
+        .executable());
     debug!("remap_test passed!");
 }

@@ -100,11 +100,10 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let _ = WAIT_LOCK.lock();
     // ---- hold current PCB lock
     let mut inner = process.acquire_inner_lock();
-    if inner
+    if !inner
         .children
         .iter()
-        .find(|p| pid == -1 || pid as usize == p.getpid())
-        .is_none()
+        .any(|p| pid == -1 || pid as usize == p.getpid())
     {
         return -1;
         // ---- release current PCB lock

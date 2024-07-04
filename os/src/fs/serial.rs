@@ -9,8 +9,7 @@ pub struct Serial<const N: usize>;
 impl<const N: usize> File for Serial<N> {
     fn read(&self, user_buf: UserBuffer) -> Result<usize, isize> {
         let mut read_cnt = 0;
-        let mut buf_iter = user_buf.into_iter();
-        while let Some(ptr) = buf_iter.next() {
+        for ptr in user_buf {
             if let Ok(ch) = serial_getchar(N) {
                 // debug!("Serial {} read: {}", N, ch);
                 unsafe {
