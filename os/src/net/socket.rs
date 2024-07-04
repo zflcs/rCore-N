@@ -30,7 +30,7 @@ lazy_static! {
 
 pub fn get_mutex_socket(index: usize) -> Option<Arc<Mutex<Socket>>> {
     let socket_table = SOCKET_TABLE.lock();
-    socket_table.get(index).map_or(None, |x| (*x).clone())
+    socket_table.get(index).and_then(|x| x.clone())
 }
 
 pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
@@ -38,10 +38,10 @@ pub fn get_s_a_by_index(index: usize) -> Option<(u32, u32)> {
 
     assert!(index < socket_table.len());
 
-    socket_table.get(index).map_or(None, |x| match x {
+    socket_table.get(index).and_then(|x| match x {
         Some(x) => {
             let socket = x.lock();
-            return Some((socket.seq, socket.ack));
+            Some((socket.seq, socket.ack))
         }
         None => None,
     })

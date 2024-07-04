@@ -27,17 +27,14 @@ pub struct TCP {
 
 impl TCP {
     pub fn new(target: IPv4, sport: u16, dport: u16, seq: u32, ack: u32) -> Option<Self> {
-        match add_socket(target, sport, dport, seq, ack) {
-            Some(index) => Some(Self {
-                target,
-                sport,
-                dport,
-                seq,
-                ack,
-                socket_index: index,
-            }),
-            _ => None,
-        }
+        add_socket(target, sport, dport, seq, ack).map(|socket_index| Self {
+            target,
+            sport,
+            dport,
+            seq,
+            ack,
+            socket_index,
+        })
     }
 }
 

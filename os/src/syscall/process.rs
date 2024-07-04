@@ -9,6 +9,7 @@ use crate::task::{
 use crate::timer::get_time;
 use crate::trap::{push_trap_record, UserTrapRecord};
 use crate::{mm, println};
+use alloc::collections::btree_map::Entry::Vacant;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem::size_of;
@@ -220,13 +221,13 @@ pub fn sys_claim_ext_int(device_id: usize) -> isize {
     match user_trap_info {
         Some(info) => {
             let mut map = USER_EXT_INT_MAP.lock();
-            if !map.contains_key(&device_id) {
+            if let Vacant(e) = map.entry(device_id) {
                 let pid = current_process.getpid();
                 debug!(
                     "[syscall claim] mapping device {} to pid {}",
                     device_id, pid
                 );
-                map.insert(device_id, pid);
+                e.insert(pid);
                 info.devices.push((device_id, false));
                 for hart_id in 0..CPU_NUM {
                     let claim_addr = Plic::context_address(plic::get_context(hart_id, 'U'));
@@ -303,18 +304,18 @@ pub fn sys_set_ext_int_enable(device_id: usize, enable: usize) -> isize {
                         }
                     }
 
-                    return 0;
+                    0
                 } else {
                     warn!(
                         "[sys set ext] device {} not held by pid {}!",
                         device_id,
                         current_process.getpid()
                     );
-                    return -1;
+                    -1
                 }
             } else {
                 warn!("[sys set ext] device not claimed!");
-                return -2;
+                -2
             }
         }
         None => {

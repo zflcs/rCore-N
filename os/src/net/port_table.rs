@@ -65,11 +65,11 @@ pub fn check_accept(port: u16, tcp_packet: &TCPPacket) -> Option<()> {
     let mut listen_ports: Vec<&mut Option<Port>> = listen_table
         .iter_mut()
         .filter(|x| match x {
-            Some(t) => t.port == port && t.receivable == true,
+            Some(t) => t.port == port && t.receivable,
             None => false,
         })
         .collect();
-    if listen_ports.len() == 0 {
+    if listen_ports.is_empty() {
         debug!("no listen");
         None
     } else {

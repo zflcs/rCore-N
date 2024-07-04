@@ -149,11 +149,7 @@ impl Processor {
         self.inner.borrow_mut().current.take()
     }
     pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
-        self.inner
-            .borrow()
-            .current
-            .as_ref()
-            .map(|task| Arc::clone(task))
+        self.inner.borrow().current.as_ref().map(Arc::clone)
     }
 }
 

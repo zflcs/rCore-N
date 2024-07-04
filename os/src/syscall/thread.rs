@@ -38,7 +38,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
         new_task.kstack.get_top(),
         trap_handler as usize,
     );
-    (*new_task_trap_cx).x[10] = arg;
+    new_task_trap_cx.x[10] = arg;
     // add new task to scheduler
     add_task(Arc::clone(&new_task));
     debug!("thread create start end");

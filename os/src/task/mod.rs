@@ -111,7 +111,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
             }
         }
 
-        if process_inner.user_trap_handler_task != None {
+        if process_inner.user_trap_handler_task.is_some() {
             let task = process_inner.user_trap_handler_task.clone().unwrap();
             let mut inner = task.acquire_inner_lock();
             info!(
