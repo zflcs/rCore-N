@@ -71,6 +71,7 @@ pub fn trap_handler() -> ! {
             let id = cx.x[17];
             // get system call return value
             let mut result = 0isize;
+            // x10-x17 都是函数参数寄存器（x10-x11 还可以作为函数返回值寄存器）
             result = syscall(
                 cx.x[17],
                 [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]],

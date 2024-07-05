@@ -36,8 +36,11 @@ pub struct TaskControlBlockInner {
     pub time_intr_count: usize,
     pub total_cpu_cycle_count: usize,
     pub last_cpu_cycle: usize,
+    /// 外部中断的陷入次数
     pub interrupt_time: usize,
+    /// 用户态程序执行时间（毫秒）
     pub user_time_us: usize,
+    /// 上一次进入用户态程序的时间
     pub last_user_time_us: usize,
 }
 
