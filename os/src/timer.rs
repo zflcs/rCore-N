@@ -22,14 +22,12 @@ pub struct TimeVal {
     pub usec: usize,
 }
 
-#[allow(dead_code)]
 impl TimeVal {
     pub fn new() -> Self {
         TimeVal { sec: 0, usec: 0 }
     }
 }
 
-#[allow(unused_variables)]
 pub fn get_time(mut ts: Vec<*mut usize>, tz: usize) -> isize {
     let t = time::read();
     unsafe {
@@ -48,12 +46,10 @@ pub fn sleep_for_kernel(time_ms: usize) {
     }
 }
 
-#[allow(dead_code)]
 pub fn get_time_ms() -> usize {
     time::read() / (CLOCK_FREQ / MSEC_PER_SEC)
 }
 
-#[allow(dead_code)]
 pub fn get_time_us() -> usize {
     time::read() * USEC_PER_SEC / CLOCK_FREQ
 }
