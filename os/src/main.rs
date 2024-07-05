@@ -21,23 +21,21 @@ use core::arch::{asm, global_asm};
 #[macro_use]
 mod console;
 mod config;
-#[macro_use]
+mod device;
 mod fs;
 mod lang_items;
+mod lkm;
 mod loader;
 mod logger;
 mod mm;
+mod net;
 mod sbi;
 mod sync;
 mod syscall;
 mod task;
 mod timer;
-mod trap;
-#[macro_use]
 mod trace;
-mod device;
-mod lkm;
-mod net;
+mod trap;
 
 use alloc::vec;
 

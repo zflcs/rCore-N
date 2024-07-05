@@ -2,7 +2,6 @@ use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAdd
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-use bitflags::*;
 
 bitflags! {
     pub struct PTEFlags: u8 {
