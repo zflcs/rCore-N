@@ -3,7 +3,7 @@ mod usertrap;
 
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::sbi::set_timer;
-use crate::syscall::{sys_gettid, syscall};
+use crate::syscall::{sys_gettid, syscall, SYSCALL_EXEC};
 use crate::task::{
     current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
     exit_current_and_run_next, hart_id, suspend_current_and_run_next,
@@ -76,7 +76,7 @@ pub fn trap_handler() -> ! {
                 cx.x[17],
                 [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]],
             );
-            if id != 221 || result != 0 {
+            if id != SYSCALL_EXEC || result != 0 {
                 cx.x[10] = result as usize;
             }
         }
