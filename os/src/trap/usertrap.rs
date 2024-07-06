@@ -130,7 +130,7 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
     if let Some(pcb) = pid2process(pid) {
         let mut pcb_inner = pcb.acquire_inner_lock();
         if !pcb_inner.is_user_trap_enabled() {
-            // warn!("[push trap record] User trap disabled!");
+            warn!("[push trap record] User trap disabled!");
             // return Err(UserTrapError::TrapDisabled);
         }
         // if let Some(trap_info) = &mut pcb_inner.user_trap_info {
