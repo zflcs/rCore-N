@@ -69,6 +69,7 @@ pub fn set_virtual_timer(mut time: usize, pid: usize, cid: usize) {
         // return;
     }
 
+    /// coroutine_id 在系统调用 set_timer 时，为 Some；在 set_next_trigger 中为 None
     let coroutine_id = if cid == usize::MAX { None } else { Some(cid) };
 
     let task_id = TaskID { pid, coroutine_id };
