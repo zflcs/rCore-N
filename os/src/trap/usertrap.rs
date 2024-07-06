@@ -26,7 +26,24 @@ pub struct UserTrapInfo {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct UserTrapRecord {
+    /// cause number 见 trace/analyze-trace.py
+    ///
+    /// cause_intr = {
+    ///     0: "usi",
+    ///     1: "ssi",
+    ///     2: "hsi",
+    ///     3: "msi",
+    ///     4: "uti",
+    ///     5: "sti",
+    ///     6: "hti",
+    ///     7: "mti",
+    ///     8: "uei",
+    ///     9: "sei",
+    ///     10: "hei",
+    ///     11: "mei",
+    /// }
     pub cause: usize,
+    /// cid / irq / get_time_us
     pub message: usize,
 }
 
