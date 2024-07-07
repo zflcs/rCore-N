@@ -54,7 +54,7 @@ unsafe impl GlobalAlloc for Global {
             .lock()
             .alloc(layout)
             .ok()
-            .map_or(0 as *mut u8, |allocation| allocation.as_ptr())
+            .map_or(core::ptr::null_mut::<u8>(), |allocation| allocation.as_ptr())
     }
 
     #[inline]

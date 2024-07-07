@@ -50,6 +50,7 @@ where
     T: Future<Output = ()> + 'static + Send + Sync,
 {
     unsafe {
+        #[allow(clippy::type_complexity)]
         let func: fn(
             f: Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>>,
             prio: usize,

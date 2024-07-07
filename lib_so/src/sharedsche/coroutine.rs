@@ -37,6 +37,7 @@ struct CoroutineWaker(CoroutineId);
 
 impl CoroutineWaker {
     /// 新建协程 waker
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(cid: CoroutineId) -> Waker {
         Waker::from(Arc::new(Self(cid)))
     }

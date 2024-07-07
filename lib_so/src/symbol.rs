@@ -8,7 +8,7 @@ fn symbol_table<'a>(elf: &ElfFile<'a>) -> &'a [Entry64] {
     match elf
         .find_section_by_name(".symtab")
         .unwrap()
-        .get_data(&elf)
+        .get_data(elf)
         .unwrap()
     {
         SymbolTable64(dsym) => dsym,
@@ -22,7 +22,7 @@ pub fn vdso_table<'a>(elf: &ElfFile<'a>) -> Vec<(&'a str, usize)> {
         let name = sym.get_name(elf);
         if name.unwrap().contains("VDSO") {
             res_vec.push((
-                sym.get_name(&elf).unwrap().trim_start_matches("VDSO_"),
+                sym.get_name(elf).unwrap().trim_start_matches("VDSO_"),
                 sym.value() as usize,
             ));
         }
@@ -30,8 +30,8 @@ pub fn vdso_table<'a>(elf: &ElfFile<'a>) -> Vec<(&'a str, usize)> {
     res_vec
 }
 
-pub fn get_symbol_addr<'a>(elf: &ElfFile<'a>, symbol_name: &str) -> usize {
-    let mut entry = 0 as usize;
+pub fn get_symbol_addr(elf: &ElfFile, symbol_name: &str) -> usize {
+    let mut entry = 0_usize;
     for sym in symbol_table(elf) {
         let name = sym.get_name(elf);
         // log::debug!("{:?}", name);

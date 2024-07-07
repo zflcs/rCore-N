@@ -78,6 +78,7 @@ pub fn update_prio(idx: usize, prio: usize) {
 /// 所有进程的优先级相同时，则内核会优先执行协程，这里用 0 来表示内核的优先级
 #[no_mangle]
 #[inline(never)]
+#[allow(clippy::needless_range_loop)]
 pub fn max_prio_pid() -> usize {
     let mut ret;
     let mut pid = 1;
@@ -117,7 +118,7 @@ pub fn spawn(
         // } else {
         //     println!("executor prio {}", prio);
         // }
-        return cid;
+        cid
     }
 }
 

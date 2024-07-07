@@ -6,6 +6,7 @@ use bit_field::BitField;
 pub struct BitMap(pub usize);
 
 impl BitMap {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self(0)
     }
