@@ -153,10 +153,10 @@ async fn async_read(socket_index: usize, mut buf: crate::mm::UserBuffer, cid: us
             drop(mutex_socket);
             let data_len = data.len();
             let mut left = 0;
-            for i in 0..buf.buffers.len() {
-                let buffer_i_len = buf.buffers[i].len().min(data_len - left);
+            for buffer in &mut buf.buffers {
+                let buffer_i_len = buffer.len().min(data_len - left);
 
-                buf.buffers[i][..buffer_i_len].copy_from_slice(&data[left..(left + buffer_i_len)]);
+                buffer[..buffer_i_len].copy_from_slice(&data[left..(left + buffer_i_len)]);
 
                 left += buffer_i_len;
                 if left == data_len {
