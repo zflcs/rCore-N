@@ -10,5 +10,7 @@ log = "0.4.17"
 spin = "0.9.4"
 bitflags = "1.2.1"
 
-
 syscall_macro = {path = "./syscall_macro"}
+
+[workspace]
+members = ["syscall_macro"]
