@@ -124,7 +124,7 @@ pub fn trap_handler() -> ! {
                     let _ = push_trap_record(
                         task_id.pid,
                         UserTrapRecord {
-                            cause: 1, // user software Interrupt
+                            cause: 1, // supervisor software Interrupt
                             message: cid,
                         },
                     );
@@ -135,7 +135,7 @@ pub fn trap_handler() -> ! {
                     {
                         debug!("set UTIP for pid {}", task_id.pid);
                         unsafe {
-                            sip::set_utimer();
+                            sip::set_utimer(); // 设置用户定时器的 pending 状态
                         }
                     } else {
                         let _ = push_trap_record(
