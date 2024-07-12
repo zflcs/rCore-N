@@ -5,7 +5,7 @@
 #![feature(map_try_insert)]
 #![feature(vec_into_raw_parts)]
 #![feature(new_uninit)]
-#![allow(unused, clippy::upper_case_acronyms)]
+#![allow(clippy::upper_case_acronyms)]
 
 extern crate alloc;
 extern crate rv_plic;
