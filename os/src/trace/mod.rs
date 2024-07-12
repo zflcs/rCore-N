@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::config::MEMORY_END;
 // S trap
 pub const S_TRAP_VEC_ENTER: usize = 0x57ab_0000;
