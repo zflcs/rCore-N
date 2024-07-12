@@ -2,9 +2,7 @@ const MAX_USER_TRAP_NUM: usize = 128;
 
 use crate::config::CPU_NUM;
 use crate::plic::Plic;
-use crate::sbi::send_ipi;
-use crate::task::TaskStatus::Running;
-use crate::task::{add_task, add_user_intr_task, hart_id, pid2process};
+use crate::task::{add_user_intr_task, hart_id, pid2process};
 use crate::trace::{
     push_trace, DISABLE_USER_EXT_INT_ENTER, DISABLE_USER_EXT_INT_EXIT, ENABLE_USER_EXT_INT_ENTER,
     ENABLE_USER_EXT_INT_EXIT, PUSH_TRAP_RECORD_ENTER, PUSH_TRAP_RECORD_EXIT,

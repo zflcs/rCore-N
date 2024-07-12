@@ -1,7 +1,8 @@
 mod context;
 mod usertrap;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
+use crate::config::TRAMPOLINE;
+use crate::plic;
 use crate::sbi::set_timer;
 use crate::syscall::{sys_gettid, syscall, SYSCALL_EXEC};
 use crate::task::{
@@ -10,7 +11,6 @@ use crate::task::{
 };
 use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
 use crate::trace::{push_trace, S_TRAP_HANDLER, S_TRAP_RETURN};
-use crate::{plic, println};
 use core::arch::{asm, global_asm};
 use riscv::register::scounteren;
 use riscv::register::{
@@ -18,8 +18,6 @@ use riscv::register::{
     scause::{self, Exception, Interrupt, Trap},
     sepc, sideleg, sie, sip, sstatus, stval, stvec,
 };
-
-use riscv::register::cycle;
 
 global_asm!(include_str!("trap.asm"));
 

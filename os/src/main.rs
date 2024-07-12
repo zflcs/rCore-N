@@ -37,8 +37,6 @@ mod timer;
 mod trace;
 mod trap;
 
-use alloc::vec;
-
 use device::{plic, uart};
 
 global_asm!(include_str!("entry.asm"));

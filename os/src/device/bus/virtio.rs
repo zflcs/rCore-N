@@ -1,17 +1,11 @@
-use crate::mm::{
-    frame_alloc_more, frame_dealloc, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum,
-    StepByOne, VirtAddr,
-};
+use crate::mm::{frame_alloc_more, FrameTracker, PhysAddr};
 use alloc::vec::Vec;
-use core::{
-    ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use core::ptr::NonNull;
 use lazy_static::*;
 use spin::Mutex;
 use virtio_drivers::{BufferDirection, Hal};
 lazy_static! {
-    static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = unsafe { Mutex::new(Vec::new()) };
+    static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = Mutex::new(Vec::new());
 }
 
 pub struct VirtioHal;
