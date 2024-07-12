@@ -111,8 +111,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
             }
         }
 
-        if process_inner.user_trap_handler_task.is_some() {
-            let task = process_inner.user_trap_handler_task.clone().unwrap();
+        if let Some(task) = process_inner.user_trap_handler_task.take() {
             let mut inner = task.acquire_inner_lock();
             info!(
                 "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}, interrupt time: {}, user_cycle: {} us",
@@ -130,7 +129,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         process_inner.children.clear();
         process_inner.memory_set.recycle_data_pages();
         process_inner.fd_table.clear();
-        process_inner.user_trap_handler_task = None;
+        // process_inner.user_trap_handler_task = None;
         drop(process_inner);
         recycle_res.clear();
     }
