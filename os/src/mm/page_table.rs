@@ -224,11 +224,7 @@ impl UserBuffer {
         Self { buffers }
     }
     pub fn len(&self) -> usize {
-        let mut total: usize = 0;
-        for b in self.buffers.iter() {
-            total += b.len();
-        }
-        total
+        self.buffers.iter().map(|b| b.len()).sum()
     }
 }
 
