@@ -1,19 +1,17 @@
-use crate::config::{CPU_NUM, MEMORY_END};
-use crate::loader::get_app_data_by_name;
-use crate::plic::{get_context, Plic};
-use crate::task::{
-    add_task, current_process, current_task, current_trap_cx, current_user_token,
-    exit_current_and_run_next, hart_id, mmap, munmap, set_current_priority,
-    suspend_current_and_run_next, WAIT_LOCK,
+use crate::{
+    config::CPU_NUM,
+    loader::get_app_data_by_name,
+    mm,
+    plic::{get_context, Plic},
+    task::{
+        add_task, current_process, current_task, current_user_token, exit_current_and_run_next,
+        hart_id, mmap, munmap, set_current_priority, suspend_current_and_run_next, WAIT_LOCK,
+    },
+    timer::get_time,
+    trap::{push_trap_record, UserTrapRecord},
 };
-use crate::timer::get_time;
-use crate::trap::{push_trap_record, UserTrapRecord};
-use crate::{mm, println};
-use alloc::collections::btree_map::Entry::Vacant;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{collections::btree_map::Entry::Vacant, sync::Arc, vec::Vec};
 use core::mem::size_of;
-use core::ptr::null;
 use lib_so::update_prio;
 
 pub fn sys_exit(exit_code: i32) -> ! {

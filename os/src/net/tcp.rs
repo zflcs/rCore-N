@@ -1,20 +1,16 @@
-use super::socket::get_mutex_socket;
-use super::socket::{add_socket, get_s_a_by_index, remove_socket};
-use super::LOSE_NET_STACK;
-use crate::fs::ReadHelper;
-use crate::net::ASYNC_RDMP;
-use crate::task::block_current_and_run_next;
-use crate::task::current_task;
-use crate::task::suspend_current_and_run_next;
-use crate::trap::push_trap_record;
-use crate::trap::UserTrapRecord;
-use crate::{device::NetDevice, fs::File};
-use alloc::boxed::Box;
-use alloc::vec;
-use lose_net_stack::packets::tcp::TCPPacket;
-use lose_net_stack::IPv4;
-use lose_net_stack::MacAddress;
-use lose_net_stack::TcpFlags;
+use super::{
+    socket::{add_socket, get_mutex_socket, get_s_a_by_index, remove_socket},
+    LOSE_NET_STACK,
+};
+use crate::{
+    device::NetDevice,
+    fs::{File, ReadHelper},
+    net::ASYNC_RDMP,
+    task::{block_current_and_run_next, current_task},
+    trap::{push_trap_record, UserTrapRecord},
+};
+use alloc::{boxed::Box, vec};
+use lose_net_stack::{packets::tcp::TCPPacket, IPv4, MacAddress, TcpFlags};
 
 pub struct TCP {
     pub target: IPv4,

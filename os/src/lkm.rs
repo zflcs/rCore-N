@@ -1,11 +1,9 @@
 use crate::loader::get_app_data_by_name;
 use crate::mm::{MemorySet, KERNEL_SPACE};
-use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::mem::transmute;
 use lazy_static::*;
-use lib_so::{get_symbol_addr, VDSO_SPAWN};
+use lib_so::get_symbol_addr;
 use xmas_elf::ElfFile;
 
 lazy_static! {

@@ -1,7 +1,8 @@
 use super::TaskControlBlock;
-use alloc::collections::{BTreeSet, VecDeque};
-use alloc::sync::Arc;
-use lib_so::max_prio_pid;
+use alloc::{
+    collections::{BTreeSet, VecDeque},
+    sync::Arc,
+};
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,

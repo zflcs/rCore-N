@@ -1,8 +1,5 @@
 use crate::net::{accept, listen, port_acceptable, PortFd};
-use crate::task::{
-    block_current_and_run_next, current_process, current_task, current_trap_cx,
-    suspend_current_and_run_next,
-};
+use crate::task::{block_current_and_run_next, current_process, current_task, current_trap_cx};
 use alloc::sync::Arc;
 
 // listen a port

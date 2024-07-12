@@ -1,7 +1,4 @@
-use crate::task::{
-    block_current_and_run_next, current_process, suspend_current_and_run_next, take_current_task,
-    WAITTID_LOCK, WAIT_LOCK,
-};
+use crate::task::{block_current_and_run_next, suspend_current_and_run_next, WAITTID_LOCK};
 use crate::{
     mm::kernel_token,
     task::{add_task, current_task, remove_uintr_task, TaskControlBlock},

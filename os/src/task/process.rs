@@ -1,4 +1,3 @@
-use super::add_user_intr_task;
 use super::pid::RecycleAllocator;
 use crate::config::{PAGE_SIZE, USER_TRAP_BUFFER};
 use crate::fs::{File, Stdin, Stdout};

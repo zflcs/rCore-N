@@ -3,7 +3,7 @@ mod socket;
 mod tcp;
 
 use crate::device::NetDevice;
-use alloc::{collections::BTreeMap, sync::Arc, vec};
+use alloc::{collections::BTreeMap, sync::Arc};
 use lose_net_stack::{results::Packet, IPv4, LoseStack, MacAddress, TcpFlags};
 use port_table::check_accept;
 use socket::{get_s_a_by_index, get_socket, push_data};

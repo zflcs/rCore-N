@@ -1,8 +1,6 @@
-use core::cmp::min;
-
-use crate::fs::{make_pipe, File};
+use crate::fs::make_pipe;
 use crate::mm::{translated_byte_buffer, translated_refmut, UserBuffer};
-use crate::task::{current_process, current_task, current_user_token};
+use crate::task::{current_process, current_user_token};
 use alloc::{collections::BTreeMap, sync::Arc};
 use lazy_static::*;
 use spin::Mutex;

@@ -112,7 +112,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         }
 
         if let Some(task) = process_inner.user_trap_handler_task.take() {
-            let mut inner = task.acquire_inner_lock();
+            let inner = task.acquire_inner_lock();
             info!(
                 "pid: {} tid: {} exited with code {}, time intr: {}, cycle count: {}, interrupt time: {}, user_cycle: {} us",
                 1, 1, 2, inner.time_intr_count, inner.total_cpu_cycle_count, inner.interrupt_time, inner.user_time_us

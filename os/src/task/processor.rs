@@ -1,21 +1,15 @@
-use super::TaskContext;
-use super::TaskControlBlock;
-use super::__switch2;
-use super::add_task;
-use super::{fetch_task, TaskStatus};
-use crate::config::CPU_NUM;
-use crate::trace::SCHEDULE;
-use crate::trace::{push_trace, RUN_NEXT, SUSPEND_CURRENT};
-use crate::trap::TrapContext;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
-use core::arch::asm;
-use core::cell::RefCell;
+use super::{TaskContext, TaskControlBlock, __switch2, add_task, fetch_task, TaskStatus};
+use crate::{
+    config::CPU_NUM,
+    task::process::ProcessControlBlock,
+    trace::{push_trace, RUN_NEXT, SCHEDULE, SUSPEND_CURRENT},
+    trap::TrapContext,
+};
+use alloc::{sync::Arc, vec::Vec};
+use core::{arch::asm, cell::RefCell};
+use lazy_static::lazy_static;
 use riscv::register::cycle;
 
-use crate::task::process::ProcessControlBlock;
-use crate::task::suspend_current_and_run_next;
-use lazy_static::*;
 lazy_static! {
     pub static ref PROCESSORS: [Processor; CPU_NUM] = Default::default();
 }

@@ -307,4 +307,3 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
 }
 
 use crate::trap::{push_trap_record, UserTrapRecord};
-use core::task::{Context, Poll};

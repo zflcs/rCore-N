@@ -1,21 +1,14 @@
 use alloc::sync::Arc;
-use core::{any::Any, ptr::NonNull};
+use core::ptr::NonNull;
 // const VIRTIO8: usize = 0x10008000;
 use crate::device::bus::virtio::VirtioHal;
-use lazy_static::*;
 use spin::Mutex;
 use virtio_drivers::{
     device::{
         self,
-        blk::VirtIOBlk,
-        gpu::VirtIOGpu,
-        input::VirtIOInput,
         net::{RxBuffer, VirtIONet},
     },
-    transport::{
-        mmio::{MmioTransport, VirtIOHeader},
-        DeviceType, Transport,
-    },
+    transport::mmio::{MmioTransport, VirtIOHeader},
 };
 
 pub static mut NET_DEVICE_ADDR: usize = 0x10008000;
