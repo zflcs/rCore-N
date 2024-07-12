@@ -87,7 +87,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     drop(wtl);
     // do not move to its parent but under initproc
     if tid == 0 {
-        let wl = WAIT_LOCK.lock();
+        let _wl = WAIT_LOCK.lock(); // TODO: 需要确认这个锁的目的
         let pid = process.getpid();
         remove_from_pid2process(pid);
         debug!("test2");

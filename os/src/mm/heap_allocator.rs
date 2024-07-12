@@ -5,7 +5,7 @@ use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::NonNull,
 };
-use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
+// use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 use lib_so::Executor;
 use spin::Mutex;
 
@@ -14,7 +14,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 
-pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
+// pub type MutAllocator<const N: usize> = BuddyAllocator<N, UsizeBuddy, LinkedListBuddy>;
 #[no_mangle]
 #[link_section = ".data.heap"]
 pub static mut HEAP: Mutex<Heap> = Mutex::new(Heap::empty());

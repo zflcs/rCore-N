@@ -128,7 +128,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     // ---- release current PCB lock automatically
 }
 
-pub fn sys_spawn(file: *const u8) -> isize {
+pub fn sys_spawn(_file: *const u8) -> isize {
     // trace!("SPAWN start");
     // let current_task = current_task().unwrap();
     // match current_task.spawn(file) {
@@ -172,13 +172,10 @@ pub fn sys_init_user_trap(user_trap_handler_tid: usize) -> isize {
         Ok(addr) => {
             debug!("init trap end");
             trace!("init ok, addr: {:#x}", addr);
-            return addr;
+            addr
         }
-        Err(errno) => {
-            return errno;
-        }
+        Err(errno) => errno,
     }
-    -1
 }
 
 pub fn sys_send_msg(pid: usize, msg: usize) -> isize {

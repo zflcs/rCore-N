@@ -158,6 +158,7 @@ impl File for Pipe {
         assert!(self.writable);
         let mut buf_iter = buf.into_iter();
         let mut write_size = 0usize;
+        // FIXME: 这段代码需要整理一下
         loop {
             let mut ring_buffer = self.buffer.lock();
             let loop_write = ring_buffer.available_write();
@@ -226,7 +227,6 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
             if ring_buffer.all_read_ends_closed() {
                 debug!("pipe readFD closed");
                 break;
-                // return Ok(write_size);
             }
             drop(ring_buffer);
             // suspend_current_and_run_next();
@@ -240,7 +240,6 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
                 write_size += 1;
             } else {
                 break;
-                // return Ok(write_size);
             }
         }
         if buf_iter.is_full() {
@@ -254,7 +253,7 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
         // info!("kernel_cid {}", kernel_cid);
         lib_so::re_back(kernel_cid, 0);
     }
-    debug!("pipe write end");
+    debug!("pipe write end write_size={write_size}");
 }
 
 async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize) {

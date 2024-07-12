@@ -16,7 +16,7 @@ pub struct MutexSpin {
 impl MutexSpin {
     pub fn new() -> Self {
         Self {
-            locked: unsafe { Mutex::new(false) },
+            locked: Mutex::new(false),
         }
     }
 }
@@ -54,12 +54,10 @@ pub struct MutexBlockingInner {
 impl MutexBlocking {
     pub fn new() -> Self {
         Self {
-            inner: unsafe {
-                Mutex::new(MutexBlockingInner {
-                    locked: false,
-                    wait_queue: VecDeque::new(),
-                })
-            },
+            inner: Mutex::new(MutexBlockingInner {
+                locked: false,
+                wait_queue: VecDeque::new(),
+            }),
         }
     }
 }

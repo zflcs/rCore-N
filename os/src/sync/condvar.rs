@@ -1,11 +1,7 @@
 use super::SimpleMutex;
+use crate::task::{add_task, block_current_and_run_next, current_task, TaskControlBlock};
 use alloc::{collections::VecDeque, sync::Arc};
 use spin::Mutex;
-
-use crate::task::{
-    add_task, block_current_and_run_next, block_current_task, current_task, TaskContext,
-    TaskControlBlock,
-};
 
 pub struct Condvar {
     pub inner: Mutex<CondvarInner>,
@@ -18,11 +14,9 @@ pub struct CondvarInner {
 impl Condvar {
     pub fn new() -> Self {
         Self {
-            inner: unsafe {
-                Mutex::new(CondvarInner {
-                    wait_queue: VecDeque::new(),
-                })
-            },
+            inner: Mutex::new(CondvarInner {
+                wait_queue: VecDeque::new(),
+            }),
         }
     }
 
@@ -42,12 +36,12 @@ impl Condvar {
     }
     */
 
-    pub fn wait_no_sched(&self) -> *mut TaskContext {
-        let mut inner = self.inner.lock();
-        inner.wait_queue.push_back(current_task().unwrap());
-        drop(inner);
-        block_current_task()
-    }
+    // pub fn wait_no_sched(&self) -> *mut TaskContext {
+    //     let mut inner = self.inner.lock();
+    //     inner.wait_queue.push_back(current_task().unwrap());
+    //     drop(inner);
+    //     block_current_task()
+    // }
 
     pub fn wait_with_mutex(&self, mutex: Arc<dyn SimpleMutex>) {
         mutex.unlock();

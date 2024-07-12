@@ -7,7 +7,7 @@ mod page_table;
 pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 pub use address::{StepByOne, VPNRange};
 pub use frame_allocator::{frame_alloc, frame_alloc_more, frame_dealloc, FrameTracker};
-pub use heap_allocator::MutAllocator;
+// pub use heap_allocator::MutAllocator;
 pub use memory_set::remap_test;
 pub use memory_set::{kernel_token, MapPermission, MemorySet, KERNEL_SPACE};
 use page_table::PTEFlags;

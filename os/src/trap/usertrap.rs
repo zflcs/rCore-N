@@ -45,6 +45,7 @@ pub struct UserTrapRecord {
     pub message: usize,
 }
 
+#[allow(dead_code)]
 pub enum UserTrapError {
     TaskNotFound,
     TrapUninitialized,

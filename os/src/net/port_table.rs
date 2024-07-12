@@ -12,7 +12,7 @@ pub struct Port {
 }
 
 lazy_static! {
-    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> = unsafe { Mutex::new(Vec::new()) };
+    static ref LISTEN_TABLE: Mutex<Vec<Option<Port>>> = Mutex::new(Vec::new());
 }
 
 pub fn listen(port: u16) -> Option<usize> {
@@ -148,9 +148,9 @@ impl File for PortFd {
 
     fn awrite(
         &self,
-        buf: crate::mm::UserBuffer,
-        pid: usize,
-        key: usize,
+        _buf: crate::mm::UserBuffer,
+        _pid: usize,
+        _key: usize,
     ) -> core::pin::Pin<
         alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
     > {
@@ -159,10 +159,10 @@ impl File for PortFd {
 
     fn aread(
         &self,
-        buf: crate::mm::UserBuffer,
-        cid: usize,
-        pid: usize,
-        key: usize,
+        _buf: crate::mm::UserBuffer,
+        _cid: usize,
+        _pid: usize,
+        _key: usize,
     ) -> core::pin::Pin<
         alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
     > {

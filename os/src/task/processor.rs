@@ -171,7 +171,7 @@ pub async fn run_tasks() {
     loop {
         // debug!("fetch_task...");
         if let Some(task) = fetch_task() {
-            let pid = task.process.upgrade().unwrap().pid.0;
+            // let pid = task.process.upgrade().unwrap().pid.0;
             let hartid = hart_id();
             // info!("[hart {}] fetch a task pid={}...", hartid, pid);
             PROCESSORS[hartid].run_next(task);

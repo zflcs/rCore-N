@@ -25,7 +25,7 @@ const MAX_SOCKETS_NUM: usize = 512;
 
 lazy_static! {
     static ref SOCKET_TABLE: Mutex<Vec<Option<Arc<Mutex<Socket>>>>> =
-        unsafe { Mutex::new(Vec::with_capacity(MAX_SOCKETS_NUM)) };
+        Mutex::new(Vec::with_capacity(MAX_SOCKETS_NUM));
 }
 
 pub fn get_mutex_socket(index: usize) -> Option<Arc<Mutex<Socket>>> {

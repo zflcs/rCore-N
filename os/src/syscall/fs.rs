@@ -124,7 +124,7 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     0
 }
 
-pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
+pub fn sys_mailwrite(_pid: usize, _buf: *mut u8, _len: usize) -> isize {
     // let token = current_user_token();
     // if let Some(receive_task) = find_task(pid) {
     //     debug!("find task");
@@ -150,7 +150,7 @@ pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
     -1
 }
 
-pub fn sys_mailread(buf: *mut u8, len: usize) -> isize {
+pub fn sys_mailread(_buf: *mut u8, _len: usize) -> isize {
     // let token = current_user_token();
     // let task = current_task().unwrap();
     // debug!(

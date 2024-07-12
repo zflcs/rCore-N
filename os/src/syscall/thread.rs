@@ -64,7 +64,7 @@ pub fn sys_hang() -> isize {
     } else if !process_inner.user_trap_info_cache.is_empty() {
         while !process_inner.user_trap_info_cache.is_empty() {
             let record = process_inner.user_trap_info_cache.pop().unwrap();
-            process_inner
+            _ = process_inner
                 .user_trap_info
                 .as_mut()
                 .unwrap()

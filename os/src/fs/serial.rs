@@ -52,18 +52,18 @@ impl<const N: usize> File for Serial<N> {
     }
     fn awrite(
         &self,
-        buf: UserBuffer,
-        pid: usize,
-        key: usize,
+        _buf: UserBuffer,
+        _pid: usize,
+        _key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
     fn aread(
         &self,
-        buf: UserBuffer,
-        cid: usize,
-        pid: usize,
-        key: usize,
+        _buf: UserBuffer,
+        _cid: usize,
+        _pid: usize,
+        _key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }

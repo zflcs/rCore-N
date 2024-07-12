@@ -43,7 +43,7 @@ impl NetDevice {
 
     pub fn recycle_rx_buffer(&self, buf: RxBuffer) {
         let net = get_net_device();
-        net.lock().recycle_rx_buffer(buf);
+        _ = net.lock().recycle_rx_buffer(buf);
     }
 }
 

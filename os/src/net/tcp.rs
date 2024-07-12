@@ -110,9 +110,9 @@ impl File for TCP {
 
     fn awrite(
         &self,
-        buf: crate::mm::UserBuffer,
-        pid: usize,
-        key: usize,
+        _buf: crate::mm::UserBuffer,
+        _pid: usize,
+        _key: usize,
     ) -> core::pin::Pin<
         alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
     > {
@@ -121,10 +121,10 @@ impl File for TCP {
 
     fn aread(
         &self,
-        mut buf: crate::mm::UserBuffer,
+        buf: crate::mm::UserBuffer,
         cid: usize,
         pid: usize,
-        key: usize,
+        _key: usize,
     ) -> core::pin::Pin<
         alloc::boxed::Box<dyn core::future::Future<Output = ()> + 'static + Send + Sync>,
     > {

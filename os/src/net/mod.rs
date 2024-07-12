@@ -14,12 +14,10 @@ pub struct NetStack(Mutex<LoseStack>);
 
 impl NetStack {
     pub fn new() -> Self {
-        unsafe {
-            NetStack(Mutex::new(LoseStack::new(
-                IPv4::new(10, 0, 2, 15),
-                MacAddress::new([0x52, 0x54, 0x00, 0x12, 0x34, 0x56]),
-            )))
-        }
+        NetStack(Mutex::new(LoseStack::new(
+            IPv4::new(10, 0, 2, 15),
+            MacAddress::new([0x52, 0x54, 0x00, 0x12, 0x34, 0x56]),
+        )))
     }
 }
 
@@ -83,7 +81,7 @@ pub fn net_interrupt_handler() {
 
                     if let Some(socket_index) = get_socket(target, lport, rport) {
                         let packet_seq = tcp_packet.seq;
-                        if let Some((seq, ack)) = get_s_a_by_index(socket_index) {
+                        if let Some((_seq, ack)) = get_s_a_by_index(socket_index) {
                             debug!("packet_seq: {}, ack: {}", packet_seq, ack);
                             if ack == packet_seq && tcp_packet.data_len > 0 {
                                 debug!("push data: {}, {}", socket_index, tcp_packet.data_len);

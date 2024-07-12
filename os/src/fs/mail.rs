@@ -10,7 +10,7 @@ use crate::task::suspend_current_and_run_next;
 use super::File;
 
 const MAIL_BUFFER_SIZE: usize = 256;
-const MAILBOX_SIZE: usize = 16;
+// const MAILBOX_SIZE: usize = 16;
 use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 
@@ -40,13 +40,13 @@ impl MailBox {
         write_end
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.inner.lock().mails.is_empty()
-    }
-
-    pub fn is_full(&self) -> bool {
-        self.inner.lock().mails.len() >= MAILBOX_SIZE
-    }
+    // pub fn is_empty(&self) -> bool {
+    //     self.inner.lock().mails.is_empty()
+    // }
+    //
+    // pub fn is_full(&self) -> bool {
+    //     self.inner.lock().mails.len() >= MAILBOX_SIZE
+    // }
 }
 
 impl File for MailBox {
@@ -98,18 +98,18 @@ impl File for MailBox {
     }
     fn awrite(
         &self,
-        buf: UserBuffer,
-        pid: usize,
-        key: usize,
+        _buf: UserBuffer,
+        _pid: usize,
+        _key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
     fn aread(
         &self,
-        buf: UserBuffer,
-        cid: usize,
-        pid: usize,
-        key: usize,
+        _buf: UserBuffer,
+        _cid: usize,
+        _pid: usize,
+        _key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
@@ -171,18 +171,18 @@ impl File for Socket {
     }
     fn awrite(
         &self,
-        buf: UserBuffer,
-        pid: usize,
-        key: usize,
+        _buf: UserBuffer,
+        _pid: usize,
+        _key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }
     fn aread(
         &self,
-        buf: UserBuffer,
-        tid: usize,
-        pid: usize,
-        key: usize,
+        _buf: UserBuffer,
+        _tid: usize,
+        _pid: usize,
+        _key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
         unimplemented!();
     }

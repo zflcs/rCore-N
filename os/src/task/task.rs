@@ -53,12 +53,12 @@ impl TaskControlBlockInner {
         self.trap_cx_ppn.get_mut()
     }
 
-    fn get_status(&self) -> TaskStatus {
-        self.task_status
-    }
-    pub fn is_zombie(&self) -> bool {
-        self.get_status() == TaskStatus::Zombie
-    }
+    // fn get_status(&self) -> TaskStatus {
+    //     self.task_status
+    // }
+    // pub fn is_zombie(&self) -> bool {
+    //     self.get_status() == TaskStatus::Zombie
+    // }
 
     pub fn set_priority(&mut self, priority: isize) -> Result<isize, isize> {
         if priority < 2 {
@@ -68,13 +68,13 @@ impl TaskControlBlockInner {
         Ok(priority)
     }
 
-    pub fn is_mailbox_full(&self) -> bool {
-        self.mail_box.is_full()
-    }
-
-    pub fn is_mailbox_empty(&self) -> bool {
-        self.mail_box.is_empty()
-    }
+    // pub fn is_mailbox_full(&self) -> bool {
+    //     self.mail_box.is_full()
+    // }
+    //
+    // pub fn is_mailbox_empty(&self) -> bool {
+    //     self.mail_box.is_empty()
+    // }
 }
 
 impl TaskControlBlock {
@@ -82,14 +82,14 @@ impl TaskControlBlock {
         self.inner.lock()
     }
 
-    pub fn try_acquire_inner_lock(&self) -> Option<MutexGuard<TaskControlBlockInner>> {
-        self.inner.try_lock()
-    }
-    pub fn get_user_token(&self) -> usize {
-        let process = self.process.upgrade().unwrap();
-        let inner = process.acquire_inner_lock();
-        inner.memory_set.token()
-    }
+    // pub fn try_acquire_inner_lock(&self) -> Option<MutexGuard<TaskControlBlockInner>> {
+    //     self.inner.try_lock()
+    // }
+    // pub fn get_user_token(&self) -> usize {
+    //     let process = self.process.upgrade().unwrap();
+    //     let inner = process.acquire_inner_lock();
+    //     inner.memory_set.token()
+    // }
 
     pub fn getpid(&self) -> usize {
         self.process.upgrade().unwrap().getpid()
