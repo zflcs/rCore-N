@@ -11,6 +11,7 @@ pub struct Stdin;
 pub struct Stdout;
 
 impl File for Stdin {
+    /// 在用户态的封装为 getchar（读取一个字符），所以 UserBuffer 的长度只支持 1
     fn read(&self, mut user_buf: UserBuffer) -> Result<usize, isize> {
         assert_eq!(user_buf.len(), 1);
         // busy loop
