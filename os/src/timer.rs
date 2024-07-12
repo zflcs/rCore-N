@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::config::{CLOCK_FREQ, CPU_NUM};
 use crate::sbi::set_timer;
 use crate::task::hart_id;
