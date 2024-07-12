@@ -105,9 +105,9 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         process_inner.exit_code = exit_code;
         {
             let mut initproc_inner = INITPROC.acquire_inner_lock();
-            for child in process_inner.children.iter() {
+            for child in process_inner.children.iter().cloned() {
                 child.acquire_inner_lock().parent = Some(Arc::downgrade(&INITPROC));
-                initproc_inner.children.push(child.clone());
+                initproc_inner.children.push(child);
             }
         }
 
@@ -121,8 +121,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         }
 
         let mut recycle_res = Vec::<TaskUserRes>::new();
-        for task in process_inner.tasks.iter().filter(|t| t.is_some()) {
-            let task = task.as_ref().unwrap();
+        for task in process_inner.tasks.iter().filter_map(|t| t.as_ref()) {
             let mut task_inner = task.acquire_inner_lock();
             if let Some(res) = task_inner.res.take() {
                 recycle_res.push(res);
