@@ -29,7 +29,6 @@ virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "a3
 device_tree = { git = "https://github.com/rcore-os/device_tree-rs", rev = "2fa8411" }
 lose-net-stack = { git = "https://github.com/yfblock/lose-net-stack", rev = "db42380" }
 nb = "1.0.0"
-array-init = "2.0.0"
 heapless = "0.7.5"
 lib_so = { path = "../lib_so", features = ["kernel"] }
 

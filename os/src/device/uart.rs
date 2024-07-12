@@ -206,11 +206,7 @@ impl Drop for BufferedSerial {
 #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
 lazy_static! {
     pub static ref BUFFERED_SERIAL: [Mutex<BufferedSerial>; SERIAL_NUM] =
-        // FIXME:
-        // * 这个函数可直接替换成 core::array::from_fn，由于这是唯一使用 array_init 的地方，
-        //   这意味着可以删除这个依赖
-        // * （待调查）发现初始化中关于 drop glue 的有趣修复：https://github.com/Manishearth/array-init/pull/14
-        array_init::array_init(|i| Mutex::new(BufferedSerial::new(
+        core::array::from_fn(|i| Mutex::new(BufferedSerial::new(
             SERIAL_BASE_ADDRESS + i * SERIAL_ADDRESS_STRIDE,
         )));
 }
