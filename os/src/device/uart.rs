@@ -157,18 +157,18 @@ impl Write<u8> for BufferedSerial {
 
     #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
     fn try_write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
-        let serial = &mut self.hardware;
         if self.tx_buffer.len() < DEFAULT_TX_BUFFER_SIZE {
             self.tx_buffer.push_back(word);
             if !self.tx_intr_enabled {
-                serial.enable_transmitter_holding_register_empty_interrupt();
+                self.hardware
+                    .enable_transmitter_holding_register_empty_interrupt();
                 self.tx_intr_enabled = true;
             }
+            Ok(())
         } else {
             // warn!("Serial tx buffer overflow!");
-            return Err(nb::Error::WouldBlock);
+            Err(nb::Error::WouldBlock)
         }
-        Ok(())
     }
 
     fn try_flush(&mut self) -> nb::Result<(), Self::Error> {
@@ -183,9 +183,8 @@ impl Read<u8> for BufferedSerial {
         if let Some(ch) = self.rx_buffer.pop_front() {
             Ok(ch)
         } else {
-            let serial = &mut self.hardware;
             if !self.rx_intr_enabled {
-                serial.enable_received_data_available_interrupt();
+                self.hardware.enable_received_data_available_interrupt();
                 self.rx_intr_enabled = true;
             }
             Err(nb::Error::WouldBlock)
