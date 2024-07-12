@@ -243,9 +243,9 @@ impl ProcessControlBlock {
         task_inner.res.as_mut().unwrap().ustack_base = ustack_base;
         task_inner.res.as_mut().unwrap().alloc_user_res();
         task_inner.trap_cx_ppn = task_inner.res.as_mut().unwrap().trap_cx_ppn();
-        let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
+        let user_sp = task_inner.res.as_mut().unwrap().ustack_top();
         // initialize trap_cx
-        let mut trap_cx = TrapContext::app_init_context(
+        let trap_cx = TrapContext::app_init_context(
             // lib_so::user_entry(),
             get_symbol_addr(&crate::lkm::SHARED_ELF, "user_entry"),
             user_sp,

@@ -68,9 +68,8 @@ pub fn trap_handler() -> ! {
             cx.sepc += 4;
             let id = cx.x[17];
             // get system call return value
-            let mut result = 0isize;
             // x10-x17 都是函数参数寄存器（x10-x11 还可以作为函数返回值寄存器）
-            result = syscall(
+            let result = syscall(
                 cx.x[17],
                 [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]],
             );
@@ -184,7 +183,7 @@ pub fn trap_return() -> ! {
         .unwrap()
         .acquire_inner_lock()
         .restore_user_trap_info();
-    let mut trap_cx = current_trap_cx();
+    // let trap_cx = current_trap_cx();
     set_user_trap_entry();
     let trap_cx_ptr = current_trap_cx_user_va();
     let user_satp = current_user_token();
