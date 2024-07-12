@@ -11,8 +11,18 @@ pub const PLIC_PRIORITY_BIT: usize = 3;
 
 pub type Plic = PLIC<{ PLIC_BASE }, { PLIC_PRIORITY_BIT }>;
 
+/// 每个 hart 的每个模式作为一个 PLIC context：
+/// * hart0 + M mode => 0
+/// * hart0 + S mode => 1
+/// * hart0 + U mode => 2
+/// * hart1 + M mode => 3
+/// * hart1 + S mode => 4
+/// * hart1 + U mode => 5
+/// ...
 pub fn get_context(hart_id: usize, mode: char) -> usize {
     const MODE_PER_HART: usize = 3;
+    // 建议：mode 用 enum 而不是字符来表达
+    // enum Mode { M=0, S=1, U=2 }
     hart_id * MODE_PER_HART
         + match mode {
             'M' => 0,
@@ -72,10 +82,12 @@ pub fn init_hart(hart_id: usize) {
 
 pub fn handle_external_interrupt(hart_id: usize) {
     let context = get_context(hart_id, 'S');
+    // 从 PLIC 认领一个中断请求
     while let Some(irq) = Plic::claim(context) {
         push_trace(S_EXT_INTR_ENTER + irq as usize);
         let mut can_user_handle = false;
         let uei_map = USER_EXT_INT_MAP.lock();
+        // 从用户态外部中断中找到这个中断请求由哪个进程处理
         if let Some(pid) = uei_map.get(&irq).cloned() {
             trace!("[PLIC] irq {:?} mapped to pid {:?}", irq, pid);
             drop(uei_map); // avoid deadlock with sys_set_ext_int_enable

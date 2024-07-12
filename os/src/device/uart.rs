@@ -17,6 +17,11 @@ mod serial_config {
     pub const SERIAL_NUM: usize = 4;
     pub const SERIAL_BASE_ADDRESS: usize = 0x1000_2000;
     pub const SERIAL_ADDRESS_STRIDE: usize = 0x1000;
+    /// 对应于 justfile 中传递给 qemu 的 SERIAL_FLAGS???
+    ///
+    /// irq 为中断源（发出的中断请求），具体为
+    /// * 12 | 13 | 14 都是 pts???
+    /// * 15 是 tcp???
     pub fn irq_to_serial_id(irq: u16) -> usize {
         match irq {
             12 => 0,
