@@ -276,6 +276,7 @@ impl ProcessControlBlock {
             }
         }
 
+        // FIXME: user_trap_info 未使用，它是否应该放到 child process pcb 中？
         let mut user_trap_info: Option<UserTrapInfo> = None;
         if let Some(mut trap_info) = parent.user_trap_info.clone() {
             trap_info.user_trap_buffer_ppn = memory_set
