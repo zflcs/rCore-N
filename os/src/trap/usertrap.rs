@@ -138,6 +138,7 @@ lazy_static! {
     pub static ref USER_EXT_INT_MAP: Mutex<BTreeMap<u16, usize>> = Mutex::new(BTreeMap::new());
 }
 
+/// 将中断信息添加到任务调度程序和进程控制块
 pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), UserTrapError> {
     push_trace(PUSH_TRAP_RECORD_ENTER + pid);
     debug!(
@@ -170,8 +171,8 @@ pub fn push_trap_record(pid: usize, trap_record: UserTrapRecord) -> Result<(), U
         //     push_trace(PUSH_TRAP_RECORD_EXIT);
         //     Err(UserTrapError::TrapUninitialized)
         // }
-        add_user_intr_task(pid);
-        pcb_inner.push_user_trap_record(trap_record)
+        add_user_intr_task(pid); // 向任务池的调度程序添加这个进程的用户态中断
+        pcb_inner.push_user_trap_record(trap_record) // 向进程控制块添加中断信息
     } else {
         warn!("[push trap record] Task Not Found!");
         push_trace(PUSH_TRAP_RECORD_EXIT);

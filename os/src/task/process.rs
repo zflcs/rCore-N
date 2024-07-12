@@ -130,6 +130,7 @@ impl ProcessControlBlockInner {
         }
     }
 
+    /// 把用户态中断的信息添加到任务内，并把任务添加到任务池去执行
     pub fn push_user_trap_record(
         &mut self,
         trap_record: UserTrapRecord,
