@@ -15,6 +15,7 @@ pub struct Pipe {
 }
 
 impl Pipe {
+    /// 只读管道
     pub fn read_end_with_buffer(buffer: Arc<Mutex<PipeRingBuffer>>) -> Self {
         Self {
             readable: true,
@@ -22,6 +23,8 @@ impl Pipe {
             buffer,
         }
     }
+
+    /// 只写管道
     pub fn write_end_with_buffer(buffer: Arc<Mutex<PipeRingBuffer>>) -> Self {
         Self {
             readable: false,
@@ -40,6 +43,7 @@ enum RingBufferStatus {
     NORMAL,
 }
 
+/// 可读/可写的环形缓冲区（每次只允许读写一个字节）
 pub struct PipeRingBuffer {
     arr: [u8; RING_BUFFER_SIZE],
     head: usize,
@@ -50,6 +54,7 @@ pub struct PipeRingBuffer {
 }
 
 impl PipeRingBuffer {
+    /// 已初始化的空缓冲区；无读写端
     pub fn new() -> Self {
         Self {
             arr: [0; RING_BUFFER_SIZE],
@@ -60,14 +65,18 @@ impl PipeRingBuffer {
             read_end: None,
         }
     }
+
+    /// 放置写端
     pub fn set_write_end(&mut self, write_end: &Arc<Pipe>) {
         self.write_end = Some(Arc::downgrade(write_end));
     }
 
+    /// 放置读端
     pub fn set_read_end(&mut self, read_end: &Arc<Pipe>) {
         self.read_end = Some(Arc::downgrade(read_end))
     }
 
+    /// 写入一个字节
     pub fn write_byte(&mut self, byte: u8) {
         self.status = RingBufferStatus::NORMAL;
         self.arr[self.tail] = byte;
@@ -76,6 +85,8 @@ impl PipeRingBuffer {
             self.status = RingBufferStatus::FULL;
         }
     }
+
+    /// 读取一个字节
     pub fn read_byte(&mut self) -> u8 {
         self.status = RingBufferStatus::NORMAL;
         let c = self.arr[self.head];
@@ -85,6 +96,8 @@ impl PipeRingBuffer {
         }
         c
     }
+
+    /// 可读字节容量
     pub fn available_read(&self) -> usize {
         if self.status == RingBufferStatus::EMPTY {
             0
@@ -94,6 +107,8 @@ impl PipeRingBuffer {
             self.tail + RING_BUFFER_SIZE - self.head
         }
     }
+
+    /// 可写字节容量
     pub fn available_write(&self) -> usize {
         if self.status == RingBufferStatus::FULL {
             0
@@ -101,11 +116,16 @@ impl PipeRingBuffer {
             RING_BUFFER_SIZE - self.available_read()
         }
     }
+
+    /// 写端是否关闭
     pub fn all_write_ends_closed(&self) -> bool {
+        // 未放置写端则 panic
         self.write_end.as_ref().unwrap().upgrade().is_none()
     }
 
+    /// 读端是否关闭
     pub fn all_read_ends_closed(&self) -> bool {
+        // 未放置读端则 panic
         self.read_end.as_ref().unwrap().upgrade().is_none()
     }
 }

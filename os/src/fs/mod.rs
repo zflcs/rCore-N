@@ -50,6 +50,7 @@ impl Future for ReadHelper {
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.0 += 1;
         if (self.0 & 1) == 1 {
+            // 奇数次返回 Pending
             Poll::Pending
         } else {
             Poll::Ready(())
