@@ -44,11 +44,9 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) 
                 -3
             }
         } else {
-            let work = file.awrite(
-                UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()),
-                pid,
-                key,
-            );
+            // FIXME: 这里的错误处理和另一个分支不一致，地址转换错误应该同样返回 -3 吧？
+            let buf = UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap());
+            let work = file.awrite(buf, pid, key);
             lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
             0
         }
@@ -84,12 +82,9 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize, key: usize, cid: usize) -
             }
         } else {
             // info!("test2: {}", fd);
-            let work = file.aread(
-                UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap()),
-                cid,
-                pid,
-                key,
-            );
+            // FIXME: 这里的错误处理和另一个分支不一致，地址转换错误应该同样返回 -3 吧？
+            let buf = UserBuffer::new(translated_byte_buffer(token, buf, len).unwrap());
+            let work = file.aread(buf, cid, pid, key);
             lib_so::spawn(move || work, 0, 0, lib_so::CoroutineKind::KernSyscall);
             // info!("test3: {}", fd);
             0
