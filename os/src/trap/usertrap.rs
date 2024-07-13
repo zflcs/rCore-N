@@ -46,6 +46,7 @@ pub struct UserTrapRecord {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum UserTrapError {
     TaskNotFound,
     TrapUninitialized,
