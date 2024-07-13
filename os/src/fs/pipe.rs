@@ -1,9 +1,15 @@
 use super::File;
-use crate::fs::ReadHelper;
-use crate::mm::UserBuffer;
-use crate::task::suspend_current_and_run_next;
-use alloc::boxed::Box;
-use alloc::sync::{Arc, Weak};
+use crate::{
+    fs::ReadHelper,
+    mm::UserBuffer,
+    syscall::{AsyncKey, WRMAP},
+    task::suspend_current_and_run_next,
+    trap::{push_trap_record, UserTrapRecord},
+};
+use alloc::{
+    boxed::Box,
+    sync::{Arc, Weak},
+};
 use core::{future::Future, pin::Pin};
 use spin::Mutex;
 
@@ -178,7 +184,6 @@ impl File for Pipe {
         assert!(self.writable);
         let mut buf_iter = buf.into_iter();
         let mut write_size = 0usize;
-        // FIXME: 这段代码需要整理一下
         loop {
             let mut ring_buffer = self.buffer.lock();
             let loop_write = ring_buffer.available_write();
@@ -198,11 +203,11 @@ impl File for Pipe {
                     ring_buffer.write_byte(unsafe { *byte_ref });
                     write_size += 1;
                 } else {
+                    debug!("pipe write end");
                     return Ok(write_size);
                 }
             }
         }
-        debug!("pipe write end");
     }
     fn awrite(
         &self,
@@ -219,9 +224,6 @@ impl File for Pipe {
         pid: usize,
         key: usize,
     ) -> Pin<Box<dyn Future<Output = ()> + 'static + Send + Sync>> {
-        // debug!("UserBuffer len: {}", buf.len());
-
-        // log::warn!("pipe aread");
         Box::pin(aread_work(self.clone(), buf, cid, pid, key))
     }
 
@@ -267,9 +269,9 @@ async fn awrite_work(s: Pipe, buf: UserBuffer, pid: usize, key: usize) {
             break;
         }
     }
-    let async_key = crate::syscall::AsyncKey { pid, key };
+    let async_key = AsyncKey { pid, key };
     // 向文件中写完数据之后，需要唤醒内核当中的协程，将管道中的数据写到缓冲区中
-    if let Some(kernel_cid) = crate::syscall::WRMAP.lock().remove(&async_key) {
+    if let Some(kernel_cid) = WRMAP.lock().remove(&async_key) {
         // info!("kernel_cid {}", kernel_cid);
         lib_so::re_back(kernel_cid, 0);
     }
@@ -290,10 +292,9 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
                 //return read_size;
             }
             drop(ring_buffer);
-            crate::syscall::WRMAP.lock().insert(
-                crate::syscall::AsyncKey { pid, key },
-                lib_so::current_cid(true),
-            );
+            WRMAP
+                .lock()
+                .insert(AsyncKey { pid, key }, lib_so::current_cid(true));
             helper.as_mut().await;
             continue;
         }
@@ -323,5 +324,3 @@ async fn aread_work(s: Pipe, buf: UserBuffer, cid: usize, pid: usize, key: usize
     );
     debug!("read pid={pid} key={key} res={:?}", res);
 }
-
-use crate::trap::{push_trap_record, UserTrapRecord};

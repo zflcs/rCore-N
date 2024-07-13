@@ -1,6 +1,8 @@
-use crate::fs::make_pipe;
-use crate::mm::{translated_byte_buffer, translated_refmut, UserBuffer};
-use crate::task::{current_process, current_user_token};
+use crate::{
+    fs::make_pipe,
+    mm::{translated_byte_buffer, translated_refmut, UserBuffer},
+    task::{current_process, current_user_token},
+};
 use alloc::{collections::BTreeMap, sync::Arc};
 use lazy_static::*;
 use spin::Mutex;
@@ -18,9 +20,9 @@ lazy_static! {
 }
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize, key: usize, pid: usize) -> isize {
-    if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
-        // debug!("sys_write {} {}", fd, len);
-    }
+    // if fd == 3 || fd == 4 || fd == 0 || fd == 1 {
+    // debug!("sys_write {} {}", fd, len);
+    // }
     // debug!("buffer len: {}", len);
     let token = current_user_token();
     let process = current_process().unwrap();
